@@ -1,0 +1,6 @@
+# Cloudflare Pages 靜態資源的回應標頭（/api/* 由 Function 自行設定，不受此檔影響）
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
