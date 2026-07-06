@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="查詢 IP 位址與地理位置、User Agent、瀏覽器指紋 — IP address &amp; User Agent lookup.">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%90%3C/text%3E%3C/svg%3E">
+<title>IP · UA 查詢</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --bg:#ffffff; --fg:#111111; --muted:#7a7a7a; --sub:#a0a0a0;
+    --line:#e6e6e6; --line2:#111111; --card:#ffffff;
+    --accent:#111111; --accent-fg:#ffffff; --field:#fafafa;
+    color-scheme:light;
+  }
+  [data-theme="dark"]{
+    --bg:#0b0b0b; --fg:#f4f4f4; --muted:#8f8f8f; --sub:#6b6b6b;
+    --line:#262626; --line2:#f4f4f4; --card:#131313;
+    --accent:#f4f4f4; --accent-fg:#0b0b0b; --field:#181818;
+    color-scheme:dark;
+  }
+  html,body{background:var(--bg);color:var(--fg);}
+  body{
+    font-family:-apple-system,"Segoe UI","Microsoft JhengHei",system-ui,"PingFang TC",sans-serif;
+    line-height:1.55;-webkit-font-smoothing:antialiased;
+    padding:26px 16px 56px;transition:background .25s,color .25s;
+  }
+  .mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Courier New",monospace;}
+  .wrap{max-width:720px;margin:0 auto;}
+
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:10px;}
+  h1{font-size:20px;font-weight:700;letter-spacing:.03em;}
+  h1 .dot{color:var(--muted);font-weight:400;margin:0 4px;}
+  .ctrls{display:flex;gap:8px;flex:0 0 auto;}
+  .ctrl{
+    height:38px;min-width:38px;padding:0 13px;border:1px solid var(--line);background:var(--card);
+    color:var(--fg);border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;line-height:1;
+    font-family:inherit;transition:.15s;
+  }
+  .ctrl:hover{border-color:var(--line2);}
+  #themeToggle{width:38px;padding:0;font-size:15px;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:20px;}
+  .tab{
+    flex:1;padding:11px 0;border:1px solid var(--line2);background:var(--card);
+    color:var(--fg);font-size:14px;font-weight:600;cursor:pointer;border-radius:9px;
+    transition:.15s;font-family:inherit;
+  }
+  .tab.active{background:var(--accent);color:var(--accent-fg);}
+
+  .card{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:14px;background:var(--card);}
+  .card-title{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--muted);padding-bottom:9px;margin-bottom:5px;border-bottom:1px solid var(--line);
+  }
+  .row{display:flex;gap:14px;padding:7px 0;align-items:baseline;border-bottom:1px dashed var(--line);}
+  .row:last-child{border-bottom:0;}
+  .row.strong .v{font-weight:700;}
+  .k{flex:0 0 96px;color:var(--muted);font-size:13px;}
+  .v{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px;}
+  .v.sub{color:var(--sub);font-size:12px;}
+
+  .query{display:flex;gap:8px;margin-bottom:14px;}
+  .query.col{flex-direction:column;}
+  input[type=text],textarea{
+    flex:1;width:100%;border:1px solid var(--line);background:var(--field);color:var(--fg);
+    border-radius:8px;padding:11px 12px;font-size:14px;font-family:inherit;outline:none;transition:.15s;
+  }
+  textarea{resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;}
+  input[type=text]:focus,textarea:focus{border-color:var(--line2);}
+  button[type=submit]{
+    border:1px solid var(--line2);background:var(--accent);color:var(--accent-fg);
+    border-radius:8px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;
+  }
+  .query.col button[type=submit]{align-self:flex-start;}
+  .copy{
+    border:1px solid var(--line);background:transparent;color:var(--muted);
+    border-radius:6px;padding:3px 11px;font-size:11px;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .copy:hover{border-color:var(--line2);color:var(--fg);}
+  .osm{font-size:11px;font-weight:600;color:var(--muted);text-decoration:none;text-transform:none;letter-spacing:0;}
+  .osm:hover{color:var(--fg);text-decoration:underline;}
+
+  iframe#ip-map{width:100%;height:260px;border:1px solid var(--line);border-radius:8px;margin-top:4px;background:var(--field);}
+  .error{border:1px solid var(--line2);border-radius:8px;padding:11px 14px;margin-bottom:14px;font-size:13px;}
+  .parse-out{margin-top:6px;}
+  .hidden{display:none!important;}
+
+  /* ===== 側邊欄（☰ 固定在螢幕最左上角，捲動時也在；overlay 蓋在內容上，z-index 高於右下角廣告的 5） ===== */
+  #menuBtn{position:fixed;top:14px;left:14px;z-index:50;width:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;}
+  #menuBtn svg{display:block;}
+  /* 窄螢幕時內容貼近左緣，標題往右讓位給角落的 ☰（52px＝按鈕右緣再留 16px 呼吸空間），
+     且 ☰ 下移到與標題列（右側圓鈕）同一水平線；寬螢幕內容置中，維持釘在角落 */
+  @media(max-width:839.98px){ header{padding-left:52px;} #menuBtn{top:26px;} }
+  .sb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:60;}
+  .sb-overlay.show{opacity:1;visibility:visible;}
+  .sb{
+    position:fixed;top:0;left:0;bottom:0;width:264px;max-width:82vw;background:var(--card);
+    border-right:1px solid var(--line);z-index:61;transform:translateX(-103%);
+    transition:transform .22s ease;display:flex;flex-direction:column;
+  }
+  .sb.open{transform:none;box-shadow:0 0 42px rgba(0,0,0,.25);}
+  .sb-head{display:flex;align-items:center;justify-content:space-between;padding:13px 13px 11px 20px;font-size:15px;font-weight:700;border-bottom:1px solid var(--line);}
+  #sbClose{width:34px;height:34px;min-width:34px;padding:0;font-size:13px;border-radius:17px;}
+  .sb nav{padding:6px 10px 22px;overflow-y:auto;flex:1;}
+  .sb-sec{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:16px 10px 7px;}
+  .sb-link{display:block;padding:10px;border-radius:8px;color:var(--fg);text-decoration:none;font-size:14px;font-weight:600;transition:.15s;}
+  .sb-link:hover{background:var(--field);}
+  .sb-link.active{background:var(--accent);color:var(--accent-fg);}
+
+  footer{margin-top:28px;text-align:center;color:var(--sub);font-size:11px;line-height:1.8;}
+  footer a{color:var(--muted);}
+  @media(max-width:480px){.k{flex-basis:80px;}h1{font-size:17px;}body{padding:20px 13px 48px;}#menuBtn{top:20px;}}
+
+  /* ===== 廣告版位：貼上聯播網代碼前是空的，正式站不顯示任何東西 ===== */
+  .ad-slot{display:none;}
+  /* 寬螢幕右下角 300×250。1400px 斷點：廣告左緣 vw-316 與內容右緣 vw/2+360 至少留 24px，永不壓到內容 */
+  #ad-side{position:fixed;right:16px;bottom:16px;width:300px;height:250px;z-index:5;}
+  @media(min-width:1400px){#ad-side{display:block;}}
+  /* 窄螢幕改在頁尾前置中一小塊；與右下角互斥，同時間只出現一個 */
+  #ad-bottom{margin:0 auto;max-width:336px;text-align:center;}
+  #ad-bottom:not(:empty){margin-top:26px;}   /* 空版位不佔空間，貼了代碼才撐開 */
+  @media(max-width:1399.98px){#ad-bottom{display:block;}}
+  /* 只有本機測試（localhost）會畫出虛線預覽框 */
+  .ad-dev .ad-slot{outline:1px dashed var(--sub);outline-offset:-1px;position:relative;}
+  .ad-dev #ad-bottom{min-height:120px;margin-top:26px;}
+  .ad-dev .ad-slot::after{content:"廣告版位 " attr(data-size);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:11px;pointer-events:none;}
+</style>
+</head>
+<body>
+
+<!-- 側邊欄：最左上角 ☰ 開啟。「內容」區的新聞/文章是真正的頁面連結（伺服器輸出，SEO 友善）；
+     「工具」區的 IP/UA 是本頁分頁，走前端 showTab 切換（不重新載入）。之後加功能就在 nav 裡多加一個 .sb-link。
+     注意：站長專用的「文章管理 / 訪客紀錄」入口刻意不放在這裡 — 一般訪客的選單看不到，
+     由 initSidebar() 判斷這台裝置登入過後台（localStorage 有金鑰）才動態加上。 -->
+<button id="menuBtn" class="ctrl" aria-label="選單 / Menu" aria-expanded="false" aria-controls="sidebar">
+  <svg width="16" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M1 1h14M1 7h14M1 13h14"/></svg>
+</button>
+<div id="sbOverlay" class="sb-overlay"></div>
+<aside id="sidebar" class="sb" aria-hidden="true" inert>
+  <div class="sb-head">
+    <span data-i18n="sb.title">選單</span>
+    <button id="sbClose" class="ctrl" aria-label="關閉 / Close">✕</button>
+  </div>
+  <nav>
+    <div class="sb-sec" data-i18n="sb.content">內容</div>
+    <a class="sb-link" href="/news" data-i18n="sb.news">新聞</a>
+    <a class="sb-link" href="/articles" data-i18n="sb.posts">文章</a>
+    <div class="sb-sec" data-i18n="sb.tools">工具</div>
+    <a class="sb-link" href="/ip" data-nav="ip" data-i18n="tab.ip">IP 查詢</a>
+    <a class="sb-link" href="/ua" data-nav="ua" data-i18n="tab.ua">UA 查詢</a>
+  </nav>
+</aside>
+
+<div class="wrap">
+  <header>
+    <h1>IP<span class="dot">·</span>UA <span data-i18n="brand.suffix">查詢</span></h1>
+    <div class="ctrls">
+      <button id="langToggle" class="ctrl" title="Language / 語言">EN</button>
+      <button id="themeToggle" class="ctrl" title="Day / Night">☾</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-mode="ip" data-i18n="tab.ip">IP 查詢</button>
+    <button class="tab" data-mode="ua" data-i18n="tab.ua">UA 查詢</button>
+  </nav>
+
+  <!-- ================= IP 模式 ================= -->
+  <section id="ipPanel">
+    <form id="ip-form" class="query">
+      <input id="ip-input" type="text" autocomplete="off" spellcheck="false" data-i18n-ph="ip.ph">
+      <button type="submit" data-i18n="btn.query">查詢</button>
+    </form>
+
+    <div id="ip-error" class="error hidden"></div>
+
+    <div class="card">
+      <div class="card-title"><span data-i18n="ip.addr">IP 位址</span>
+        <button class="copy" data-copy="ip-ip" data-i18n="btn.copy">複製</button>
+      </div>
+      <div class="row"><span class="k">IPv4</span><span class="v mono" id="ip-v4">—</span></div>
+      <div class="row"><span class="k">IPv6</span><span class="v mono" id="ip-v6">—</span></div>
+      <div class="row"><span class="k" data-i18n="ip.result">查詢結果</span><span class="v mono" id="ip-ip">—</span></div>
+      <div class="row"><span class="k" data-i18n="ip.type">類型</span><span class="v" id="ip-type">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span data-i18n="ip.geo">地理位置</span></div>
+      <div class="row"><span class="k">ISP</span><span class="v" id="ip-isp">—</span></div>
+      <div class="row"><span class="k" data-i18n="ip.city">城市</span><span class="v" id="ip-city">—</span></div>
+      <div class="row"><span class="k" data-i18n="ip.region">地區</span><span class="v" id="ip-region">—</span></div>
+      <div class="row"><span class="k" data-i18n="ip.country">國家</span><span class="v" id="ip-country">—</span></div>
+      <div class="row"><span class="k" data-i18n="ip.tz">時區</span><span class="v" id="ip-tz">—</span></div>
+      <div class="row"><span class="k" data-i18n="ip.latlon">經緯度</span><span class="v mono" id="ip-latlon">—</span></div>
+    </div>
+
+    <div class="card hidden" id="ip-map-wrap">
+      <div class="card-title"><span data-i18n="ip.map">地圖</span>
+        <a id="ip-osm" class="osm" href="#" target="_blank" rel="noopener" data-i18n="ip.osm">在 OpenStreetMap 開啟 ↗</a>
+      </div>
+      <iframe id="ip-map" title="OpenStreetMap" loading="lazy" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </section>
+
+  <!-- ================= UA 模式 ================= -->
+  <section id="uaPanel" class="hidden">
+    <div class="card">
+      <div class="card-title"><span>User Agent</span>
+        <button class="copy" data-copy="ua-string" data-i18n="btn.copy">複製</button>
+      </div>
+      <div class="row"><span class="k" data-i18n="ua.client">客戶端取得</span><span class="v mono" id="ua-string">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.server">伺服端取得</span><span class="v mono" id="ua-server">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span data-i18n="sv.title">連線資訊（伺服端觀測）</span></div>
+      <div class="row"><span class="k" data-i18n="sv.http">HTTP 協定</span><span class="v mono" id="sv-http">—</span></div>
+      <div class="row"><span class="k" data-i18n="sv.tls">TLS 版本</span><span class="v mono" id="sv-tls">—</span></div>
+      <div class="row"><span class="k" data-i18n="sv.colo">CF 節點</span><span class="v mono" id="sv-colo">—</span></div>
+      <div class="row"><span class="k" data-i18n="sv.lang">語言標頭</span><span class="v mono" id="sv-lang">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span data-i18n="fp.title">瀏覽器指紋</span></div>
+      <div class="row"><span class="k">WebGL</span><span class="v mono" id="fp-webgl">—</span></div>
+      <div class="row"><span class="k">Canvas</span><span class="v mono" id="fp-canvas">—</span></div>
+      <div class="row"><span class="k">Fonts</span><span class="v mono" id="fp-fonts">—</span></div>
+      <div class="row"><span class="k"> </span><span class="v sub" id="fp-fonts-count"></span></div>
+      <div class="row"><span class="k">Audio</span><span class="v mono" id="fp-audio">—</span></div>
+      <div class="row strong"><span class="k" data-i18n="fp.combined">綜合指紋</span><span class="v mono" id="fp-combined">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span data-i18n="ua.browser">瀏覽器資訊</span></div>
+      <div class="row"><span class="k" data-i18n="ua.name">名稱</span><span class="v" id="ua-name">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.version">版本號</span><span class="v mono" id="ua-version">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.fullver">完整版本</span><span class="v mono" id="ua-fullver">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.engine">渲染引擎</span><span class="v" id="ua-engine">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.os">作業系統</span><span class="v" id="ua-os">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span data-i18n="ua.env">裝置與環境</span></div>
+      <div class="row"><span class="k" data-i18n="ua.platform">系統平台</span><span class="v" id="ua-platform">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.arch">CPU 架構</span><span class="v" id="ua-arch">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.screen">螢幕尺寸</span><span class="v mono" id="ua-screen">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.avail">可用區域</span><span class="v mono" id="ua-avail">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.color">色彩深度</span><span class="v" id="ua-color">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.lang">預設語言</span><span class="v" id="ua-lang">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.tz">所在時區</span><span class="v" id="ua-tz">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.cores">CPU 執行緒</span><span class="v" id="ua-cores">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.mem">裝置記憶體</span><span class="v" id="ua-mem">—</span></div>
+      <div class="row"><span class="k" data-i18n="ua.touch">觸控點數</span><span class="v" id="ua-touch">—</span></div>
+      <div class="row"><span class="k">Cookie</span><span class="v" id="ua-cookie">—</span></div>
+      <div class="row"><span class="k">WebRTC</span><span class="v mono" id="ua-webrtc">—</span></div>
+      <div class="row"><span class="k">GPU</span><span class="v" id="ua-gpu">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span data-i18n="parse.title">解析任意 UA 字串</span></div>
+      <form id="parse-form" class="query col">
+        <textarea id="parse-input" rows="3" spellcheck="false" data-i18n-ph="parse.ph"></textarea>
+        <button type="submit" data-i18n="btn.parse">解析</button>
+      </form>
+      <div id="parse-out" class="parse-out hidden"></div>
+    </div>
+  </section>
+
+  <!-- 廣告版位（窄螢幕）：廣告 iframe 由 initAds() 依螢幕寬度掛入 -->
+  <div id="ad-bottom" class="ad-slot" data-size="≤336×280"></div>
+
+  <footer>
+    <span data-i18n="foot.local">UA 與指紋偵測於瀏覽器本機執行 · IP 與伺服端資訊由本站 Cloudflare 節點回報 · 其他資料來源</span>
+    <a href="https://ipwho.is" target="_blank" rel="noopener">ipwho.is</a> /
+    <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a><br>
+    <span data-i18n="foot.fp">指紋僅供辨識能力展示，非加密雜湊。</span>
+  </footer>
+</div>
+
+<!-- 廣告版位（寬螢幕右下角）：廣告 iframe 由 initAds() 依螢幕寬度掛入 -->
+<div id="ad-side" class="ad-slot" data-size="300×250"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= i18n 字典 ================= */
+  var I18N = {
+    zh: {
+      "doc.title":"IP · UA 查詢","brand.suffix":"查詢",
+      "tab.ip":"IP 查詢","tab.ua":"UA 查詢",
+      "ip.ph":"輸入 IP 位址（留空 = 查詢自己）","btn.query":"查詢","btn.copy":"複製","btn.copied":"已複製","btn.parse":"解析",
+      "ip.addr":"IP 位址","ip.result":"查詢結果","ip.type":"類型","ip.geo":"地理位置",
+      "ip.city":"城市","ip.region":"地區","ip.country":"國家","ip.tz":"時區","ip.latlon":"經緯度",
+      "ip.map":"地圖","ip.osm":"在 OpenStreetMap 開啟 ↗",
+      "sv.title":"連線資訊（伺服端觀測）","sv.http":"HTTP 協定","sv.tls":"TLS 版本","sv.colo":"CF 節點","sv.lang":"語言標頭",
+      "ua.client":"客戶端取得","ua.server":"伺服端取得","ua.browser":"瀏覽器資訊",
+      "ua.name":"名稱","ua.version":"版本號","ua.fullver":"完整版本","ua.engine":"渲染引擎","ua.os":"作業系統",
+      "ua.env":"裝置與環境","ua.platform":"系統平台","ua.arch":"CPU 架構","ua.screen":"螢幕尺寸","ua.avail":"可用區域",
+      "ua.color":"色彩深度","ua.lang":"預設語言","ua.tz":"所在時區","ua.cores":"CPU 執行緒","ua.mem":"裝置記憶體","ua.touch":"觸控點數",
+      "fp.title":"瀏覽器指紋","fp.combined":"綜合指紋",
+      "parse.title":"解析任意 UA 字串","parse.ph":"貼上任意 User Agent 字串…",
+      "foot.local":"UA 與指紋偵測於瀏覽器本機執行 · IP 與伺服端資訊由本站 Cloudflare 節點回報 · 其他資料來源","foot.fp":"指紋僅供辨識能力展示，非加密雜湊。",
+      "st.loading":"查詢中…","st.reading":"讀取中…","st.detecting":"偵測中…","st.computing":"計算中…",
+      "st.unavail":"無法取得","st.noipv6":"無 IPv6 連線","st.noserver":"無法取得（伺服端 API 未回應）",
+      "st.webrtc_hidden":"未取得（可能被瀏覽器隱藏）","st.webrtc_unsupported":"不支援 WebRTC",
+      "st.enabled":"啟用","st.disabled":"停用","st.bit":"{n} 位元","st.fonts":"偵測到 {n} 種字型","st.gb":"{n} GB",
+      "os.bits":"({n}位)","err.query":"查詢失敗，請稍後再試",
+      "sb.title":"選單","sb.content":"內容","sb.news":"新聞","sb.posts":"文章","sb.tools":"工具",
+      "sb.admin":"站長","sb.manage":"文章管理","sb.logs":"訪客紀錄",
+      "theme.day":"白天模式（點擊切換）","theme.night":"夜間模式（點擊切換）","theme.auto":"自動日夜（點擊切換）"
+    },
+    en: {
+      "doc.title":"IP · UA Lookup","brand.suffix":"Lookup",
+      "tab.ip":"IP Lookup","tab.ua":"UA Lookup",
+      "ip.ph":"Enter an IP (blank = your own)","btn.query":"Look up","btn.copy":"Copy","btn.copied":"Copied","btn.parse":"Parse",
+      "ip.addr":"IP Address","ip.result":"Result","ip.type":"Type","ip.geo":"Location",
+      "ip.city":"City","ip.region":"Region","ip.country":"Country","ip.tz":"Timezone","ip.latlon":"Lat / Lon",
+      "ip.map":"Map","ip.osm":"Open in OpenStreetMap ↗",
+      "sv.title":"Connection (server view)","sv.http":"HTTP protocol","sv.tls":"TLS version","sv.colo":"CF colo","sv.lang":"Lang header",
+      "ua.client":"Client-side","ua.server":"Server-side","ua.browser":"Browser",
+      "ua.name":"Name","ua.version":"Version","ua.fullver":"Full version","ua.engine":"Engine","ua.os":"OS",
+      "ua.env":"Device & Environment","ua.platform":"Platform","ua.arch":"CPU Arch","ua.screen":"Screen","ua.avail":"Available",
+      "ua.color":"Color depth","ua.lang":"Language","ua.tz":"Timezone","ua.cores":"CPU threads","ua.mem":"Memory","ua.touch":"Touch points",
+      "fp.title":"Fingerprints","fp.combined":"Combined",
+      "parse.title":"Parse any UA string","parse.ph":"Paste any User Agent string…",
+      "foot.local":"UA & fingerprints run locally in your browser · IP & server info from this site's Cloudflare edge · more data from","foot.fp":"Fingerprints are for demo only, not cryptographic hashes.",
+      "st.loading":"Loading…","st.reading":"Loading…","st.detecting":"Detecting…","st.computing":"Computing…",
+      "st.unavail":"Unavailable","st.noipv6":"No IPv6","st.noserver":"Unavailable (server API unreachable)",
+      "st.webrtc_hidden":"Not available (may be hidden)","st.webrtc_unsupported":"WebRTC not supported",
+      "st.enabled":"Enabled","st.disabled":"Disabled","st.bit":"{n}-bit","st.fonts":"{n} fonts detected","st.gb":"{n} GB",
+      "os.bits":"({n}-bit)","err.query":"Lookup failed. Please try again.",
+      "sb.title":"Menu","sb.content":"Content","sb.news":"News","sb.posts":"Articles","sb.tools":"Tools",
+      "sb.admin":"Admin","sb.manage":"Manage posts","sb.logs":"Visitor logs",
+      "theme.day":"Day mode (tap to switch)","theme.night":"Night mode (tap to switch)","theme.auto":"Auto day/night (tap to switch)"
+    }
+  };
+
+  var lang = "zh";
+  function t(key, vars){
+    var s = (I18N[lang] && I18N[lang][key]) || I18N.zh[key] || key;
+    if(vars) for(var k in vars) s = s.split("{"+k+"}").join(vars[k]);
+    return s;
+  }
+  function detectLang(){
+    var l = (navigator.language || (navigator.languages && navigator.languages[0]) || "en").toLowerCase();
+    return l.indexOf("zh") === 0 ? "zh" : "en";
+  }
+
+  /* ================= 小工具 ================= */
+  var $$ = function(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+  function setText(id, txt){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.textContent = (txt === undefined || txt === null || txt === "") ? "—" : txt;
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  // 標準 MD5（與 ip138 等工具同一種雜湊；輸出 32 個 16 進位字元）。本於 blueimp-md5 (MIT)。
+  function md5(string){
+    function sa(x,y){ var l=(x&0xffff)+(y&0xffff), m=(x>>16)+(y>>16)+(l>>16); return (m<<16)|(l&0xffff); }
+    function rl(n,c){ return (n<<c)|(n>>>(32-c)); }
+    function cmn(q,a,b,x,s,t){ return sa(rl(sa(sa(a,q),sa(x,t)),s),b); }
+    function ff(a,b,c,d,x,s,t){ return cmn((b&c)|(~b&d),a,b,x,s,t); }
+    function gg(a,b,c,d,x,s,t){ return cmn((b&d)|(c&~d),a,b,x,s,t); }
+    function hh(a,b,c,d,x,s,t){ return cmn(b^c^d,a,b,x,s,t); }
+    function ii(a,b,c,d,x,s,t){ return cmn(c^(b|~d),a,b,x,s,t); }
+    function core(x,len){
+      x[len>>5] |= 0x80<<(len%32);
+      x[(((len+64)>>>9)<<4)+14] = len;
+      var i, oa, ob, oc, od, a=1732584193, b=-271733879, c=-1732584194, d=271733878;
+      for(i=0;i<x.length;i+=16){
+        oa=a; ob=b; oc=c; od=d;
+        a=ff(a,b,c,d,x[i],7,-680876936); d=ff(d,a,b,c,x[i+1],12,-389564586); c=ff(c,d,a,b,x[i+2],17,606105819); b=ff(b,c,d,a,x[i+3],22,-1044525330);
+        a=ff(a,b,c,d,x[i+4],7,-176418897); d=ff(d,a,b,c,x[i+5],12,1200080426); c=ff(c,d,a,b,x[i+6],17,-1473231341); b=ff(b,c,d,a,x[i+7],22,-45705983);
+        a=ff(a,b,c,d,x[i+8],7,1770035416); d=ff(d,a,b,c,x[i+9],12,-1958414417); c=ff(c,d,a,b,x[i+10],17,-42063); b=ff(b,c,d,a,x[i+11],22,-1990404162);
+        a=ff(a,b,c,d,x[i+12],7,1804603682); d=ff(d,a,b,c,x[i+13],12,-40341101); c=ff(c,d,a,b,x[i+14],17,-1502002290); b=ff(b,c,d,a,x[i+15],22,1236535329);
+        a=gg(a,b,c,d,x[i+1],5,-165796510); d=gg(d,a,b,c,x[i+6],9,-1069501632); c=gg(c,d,a,b,x[i+11],14,643717713); b=gg(b,c,d,a,x[i],20,-373897302);
+        a=gg(a,b,c,d,x[i+5],5,-701558691); d=gg(d,a,b,c,x[i+10],9,38016083); c=gg(c,d,a,b,x[i+15],14,-660478335); b=gg(b,c,d,a,x[i+4],20,-405537848);
+        a=gg(a,b,c,d,x[i+9],5,568446438); d=gg(d,a,b,c,x[i+14],9,-1019803690); c=gg(c,d,a,b,x[i+3],14,-187363961); b=gg(b,c,d,a,x[i+8],20,1163531501);
+        a=gg(a,b,c,d,x[i+13],5,-1444681467); d=gg(d,a,b,c,x[i+2],9,-51403784); c=gg(c,d,a,b,x[i+7],14,1735328473); b=gg(b,c,d,a,x[i+12],20,-1926607734);
+        a=hh(a,b,c,d,x[i+5],4,-378558); d=hh(d,a,b,c,x[i+8],11,-2022574463); c=hh(c,d,a,b,x[i+11],16,1839030562); b=hh(b,c,d,a,x[i+14],23,-35309556);
+        a=hh(a,b,c,d,x[i+1],4,-1530992060); d=hh(d,a,b,c,x[i+4],11,1272893353); c=hh(c,d,a,b,x[i+7],16,-155497632); b=hh(b,c,d,a,x[i+10],23,-1094730640);
+        a=hh(a,b,c,d,x[i+13],4,681279174); d=hh(d,a,b,c,x[i],11,-358537222); c=hh(c,d,a,b,x[i+3],16,-722521979); b=hh(b,c,d,a,x[i+6],23,76029189);
+        a=hh(a,b,c,d,x[i+9],4,-640364487); d=hh(d,a,b,c,x[i+12],11,-421815835); c=hh(c,d,a,b,x[i+15],16,530742520); b=hh(b,c,d,a,x[i+2],23,-995338651);
+        a=ii(a,b,c,d,x[i],6,-198630844); d=ii(d,a,b,c,x[i+7],10,1126891415); c=ii(c,d,a,b,x[i+14],15,-1416354905); b=ii(b,c,d,a,x[i+5],21,-57434055);
+        a=ii(a,b,c,d,x[i+12],6,1700485571); d=ii(d,a,b,c,x[i+3],10,-1894986606); c=ii(c,d,a,b,x[i+10],15,-1051523); b=ii(b,c,d,a,x[i+1],21,-2054922799);
+        a=ii(a,b,c,d,x[i+8],6,1873313359); d=ii(d,a,b,c,x[i+15],10,-30611744); c=ii(c,d,a,b,x[i+6],15,-1560198380); b=ii(b,c,d,a,x[i+13],21,1309151649);
+        a=ii(a,b,c,d,x[i+4],6,-145523070); d=ii(d,a,b,c,x[i+11],10,-1120210379); c=ii(c,d,a,b,x[i+2],15,718787259); b=ii(b,c,d,a,x[i+9],21,-343485551);
+        a=sa(a,oa); b=sa(b,ob); c=sa(c,oc); d=sa(d,od);
+      }
+      return [a,b,c,d];
+    }
+    function toBin(s){ var out=[], n=s.length*8, i; for(i=0;i<((s.length>>2)+1);i++) out[i]=0; for(i=0;i<n;i+=8) out[i>>5] |= (s.charCodeAt(i/8)&0xff)<<(i%32); return out; }
+    function toHex(b){ var h="0123456789abcdef", o="", i, x; for(i=0;i<b.length*4;i++){ x=(b[i>>2]>>((i%4)*8))&0xff; o+=h.charAt((x>>>4)&0x0f)+h.charAt(x&0x0f); } return o; }
+    var utf8 = unescape(encodeURIComponent(string));
+    return toHex(core(toBin(utf8), utf8.length*8));
+  }
+  function fp(str){ return md5(String(str)).toUpperCase(); }
+
+  function fetchJSON(url, timeout){
+    timeout = timeout || 8000;
+    var ctrl = new AbortController();
+    var tid = setTimeout(function(){ ctrl.abort(); }, timeout);
+    return fetch(url, { signal: ctrl.signal, cache: "no-store" })
+      .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function(d){ clearTimeout(tid); return d; }, function(e){ clearTimeout(tid); throw e; });
+  }
+  // 本站 /api/whoami（Cloudflare Pages Function）：UA 面板與 IP 面板共用同一次請求；
+  // 失敗不快取，重新查詢時會再試一次。
+  var whoamiPromise = null;
+  function getWhoami(){
+    if(!whoamiPromise){
+      whoamiPromise = fetchJSON("/api/whoami", 6000).catch(function(e){ whoamiPromise = null; throw e; });
+    }
+    return whoamiPromise;
+  }
+  function copyText(text, btn){
+    var done = function(){
+      if(!btn) return;
+      var old = btn.textContent; btn.textContent = t("btn.copied");
+      setTimeout(function(){ btn.textContent = old; }, 1200);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done, fb); }
+    else fb();
+    function fb(){
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position="fixed"; ta.style.left="-9999px";
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); }catch(e){}
+      document.body.removeChild(ta); done();
+    }
+  }
+  function tzOffset(){
+    var off = -new Date().getTimezoneOffset();
+    var s = off >= 0 ? "+" : "-", a = Math.abs(off);
+    return s + String(Math.floor(a/60)).padStart(2,"0") + ":" + String(a%60).padStart(2,"0");
+  }
+
+  // 太陽高度角（度）：>0 表示太陽在地平線上 = 白天。演算法本於 SunCalc。
+  function sunAltitude(lat, lon, date){
+    var rad = Math.PI/180, dayMs = 86400000, J1970 = 2440588, J2000 = 2451545;
+    var d = (date.valueOf()/dayMs - 0.5 + J1970) - J2000;
+    var e = rad * 23.4397;
+    var M = rad * (357.5291 + 0.98560028 * d);
+    var C = rad * (1.9148*Math.sin(M) + 0.02*Math.sin(2*M) + 0.0003*Math.sin(3*M));
+    var L = M + C + rad*102.9372 + Math.PI;
+    var dec = Math.asin(Math.sin(e) * Math.sin(L));
+    var ra  = Math.atan2(Math.sin(L)*Math.cos(e), Math.cos(L));
+    var lw  = rad * -lon;
+    var th  = rad * (280.16 + 360.9856235 * d) - lw;
+    var H   = th - ra;
+    var phi = rad * lat;
+    var alt = Math.asin(Math.sin(phi)*Math.sin(dec) + Math.cos(phi)*Math.cos(dec)*Math.cos(H));
+    return alt / rad;
+  }
+
+  /* ================= UA 字串解析 ================= */
+  function parseUA(ua){
+    var res = { name:"Unknown", version:"", engine:"Unknown", os:"Unknown", is64:false };
+    if(!ua) return res;
+    var m;
+    if((m = ua.match(/Edg(?:e|A|iOS)?\/([\d.]+)/)))      { res.name="Edge";              res.version=m[1]; res.engine="Blink"; }
+    else if((m = ua.match(/OPR\/([\d.]+)/)) || (m = ua.match(/Opera[ \/]([\d.]+)/))) { res.name="Opera"; res.version=m[1]; res.engine="Blink"; }
+    else if((m = ua.match(/SamsungBrowser\/([\d.]+)/)))  { res.name="Samsung Internet";  res.version=m[1]; res.engine="Blink"; }
+    else if((m = ua.match(/CriOS\/([\d.]+)/)))           { res.name="Chrome (iOS)";      res.version=m[1]; res.engine="WebKit"; }
+    else if((m = ua.match(/FxiOS\/([\d.]+)/)))           { res.name="Firefox (iOS)";     res.version=m[1]; res.engine="WebKit"; }
+    else if((m = ua.match(/Firefox\/([\d.]+)/)))         { res.name="Firefox";           res.version=m[1]; res.engine="Gecko"; }
+    else if((m = ua.match(/Chrome\/([\d.]+)/)))          { res.name="Chrome";            res.version=m[1]; res.engine="Blink"; }
+    else if((m = ua.match(/Version\/([\d.]+).*Safari/))) { res.name="Safari";            res.version=m[1]; res.engine="WebKit"; }
+    else if(/Safari\//.test(ua))                         { res.name="Safari";            res.engine="WebKit"; }
+    else if((m = ua.match(/MSIE ([\d.]+)/)) || (m = ua.match(/Trident.*rv:([\d.]+)/))) { res.name="Internet Explorer"; res.version=m[1]; res.engine="Trident"; }
+
+    if(/Windows NT 10\.0/.test(ua))      res.os = "Windows 10/11";
+    else if(/Windows NT 6\.3/.test(ua))  res.os = "Windows 8.1";
+    else if(/Windows NT 6\.2/.test(ua))  res.os = "Windows 8";
+    else if(/Windows NT 6\.1/.test(ua))  res.os = "Windows 7";
+    else if(/Windows/.test(ua))          res.os = "Windows";
+    else if((m = ua.match(/Android ([\d.]+)/))) res.os = "Android " + m[1];
+    else if(/iPhone|iPad|iPod/.test(ua)){ var v = ua.match(/OS ([\d_]+)/); res.os = "iOS" + (v ? " " + v[1].replace(/_/g,".") : ""); }
+    else if((m = ua.match(/Mac OS X ([\d_]+)/))) res.os = "macOS " + m[1].replace(/_/g,".");
+    else if(/CrOS/.test(ua))             res.os = "ChromeOS";
+    else if(/Linux/.test(ua))            res.os = "Linux";
+
+    res.is64 = /x64|x86_64|Win64|WOW64|aarch64|arm64/i.test(ua);
+    return res;
+  }
+
+  /* ================= 指紋 ================= */
+  function getCanvas(){
+    try{
+      var c = document.createElement("canvas"); c.width=300; c.height=60;
+      var ctx = c.getContext("2d"); if(!ctx) return "N/A";
+      ctx.textBaseline="alphabetic"; ctx.font="16px 'Arial'";
+      ctx.fillStyle="#f60"; ctx.fillRect(125,1,62,20);
+      ctx.fillStyle="#069"; ctx.fillText("IP·UA 指紋 Fingerprint 😀",2,25);
+      ctx.fillStyle="rgba(102,204,0,0.7)"; ctx.fillText("IP·UA 指紋 Fingerprint 😀",4,27);
+      ctx.globalCompositeOperation="multiply"; ctx.fillStyle="rgb(255,0,255)";
+      ctx.beginPath(); ctx.arc(50,50,50,0,Math.PI*2,true); ctx.closePath(); ctx.fill();
+      return fp(c.toDataURL());
+    }catch(e){ return "N/A"; }
+  }
+  function getWebGL(){
+    try{
+      var c = document.createElement("canvas");
+      var gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+      if(!gl) return { hash:"N/A", gpu:"N/A", vendor:"" };
+      var dbg = gl.getExtension("WEBGL_debug_renderer_info"), gpu="Unknown", vendor="";
+      if(dbg){ gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)||"Unknown"; vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)||""; }
+      else { gpu = gl.getParameter(gl.RENDERER)||"Unknown"; }
+      var parts = [ gl.getParameter(gl.VERSION), gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+        gl.getParameter(gl.VENDOR), gl.getParameter(gl.RENDERER), vendor, gpu,
+        (gl.getSupportedExtensions()||[]).join(","),
+        gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+        gl.getParameter(gl.MAX_VERTEX_ATTRIBS), gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+        gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS), String(gl.getParameter(gl.MAX_VIEWPORT_DIMS)),
+        gl.getParameter(gl.RED_BITS), gl.getParameter(gl.GREEN_BITS), gl.getParameter(gl.BLUE_BITS), gl.getParameter(gl.DEPTH_BITS) ];
+      return { hash: fp(parts.join("~")), gpu: gpu, vendor: vendor };
+    }catch(e){ return { hash:"N/A", gpu:"N/A", vendor:"" }; }
+  }
+  function getFonts(){
+    try{
+      var base=["monospace","sans-serif","serif"], testStr="mmmmmmmmmmlli WwQq 中文字型測試";
+      var span=document.createElement("span");
+      span.style.cssText="position:absolute;left:-9999px;top:-9999px;font-size:72px;line-height:normal;visibility:hidden;";
+      span.textContent=testStr;
+      var dw={}, dh={}, body=document.body;
+      base.forEach(function(b){ span.style.fontFamily=b; body.appendChild(span); dw[b]=span.offsetWidth; dh[b]=span.offsetHeight; body.removeChild(span); });
+      var fonts=["Arial","Arial Black","Arial Narrow","Calibri","Cambria","Candara","Comic Sans MS","Consolas","Courier","Courier New",
+        "Georgia","Helvetica","Impact","Lucida Console","Lucida Sans Unicode","Microsoft Sans Serif","Palatino Linotype","Segoe Print",
+        "Segoe Script","Segoe UI","Tahoma","Times","Times New Roman","Trebuchet MS","Verdana","Wingdings","MS Gothic","Meiryo","MS Mincho",
+        "SimSun","SimHei","NSimSun","Microsoft YaHei","Microsoft JhengHei","PMingLiU","MingLiU","DFKai-SB","KaiTi","FangSong","Malgun Gothic",
+        "Batang","Gulim","Apple Color Emoji","PingFang TC","Noto Sans CJK TC","Noto Sans TC"];
+      var found=[];
+      fonts.forEach(function(f){
+        for(var i=0;i<base.length;i++){
+          span.style.fontFamily="'"+f+"',"+base[i]; body.appendChild(span);
+          var w=span.offsetWidth,h=span.offsetHeight; body.removeChild(span);
+          if(w!==dw[base[i]]||h!==dh[base[i]]){ found.push(f); break; }
+        }
+      });
+      return { list: found, hash: fp(found.join(",")) };
+    }catch(e){ return { list: [], hash: "N/A" }; }
+  }
+  function getAudio(){
+    return new Promise(function(resolve){
+      try{
+        var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if(!OAC) return resolve("N/A");
+        var ctx=new OAC(1,44100,44100), osc=ctx.createOscillator();
+        osc.type="triangle"; osc.frequency.value=10000;
+        var comp=ctx.createDynamicsCompressor();
+        comp.threshold.value=-50; comp.knee.value=40; comp.ratio.value=12; comp.attack.value=0; comp.release.value=0.25;
+        osc.connect(comp); comp.connect(ctx.destination); osc.start(0); ctx.startRendering();
+        var done=false;
+        ctx.oncomplete=function(e){ if(done) return; done=true;
+          var buf=e.renderedBuffer.getChannelData(0), sum=0;
+          for(var i=4500;i<5500;i++) sum+=Math.abs(buf[i]);
+          resolve(fp(sum.toString()));
+        };
+        setTimeout(function(){ if(!done){ done=true; resolve("N/A"); } }, 3000);
+      }catch(e){ resolve("N/A"); }
+    });
+  }
+  function getWebRTC(onUpdate){
+    try{
+      var RTCPC = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+      if(!RTCPC){ onUpdate([], true, true); return; }
+      var seen={}, order=[];
+      var pc = new RTCPC({ iceServers:[{ urls:"stun:stun.l.google.com:19302" }] });
+      pc.createDataChannel("x");
+      var re = /((?:\d{1,3}\.){3}\d{1,3})|([a-f0-9]{1,4}(?::[a-f0-9]{0,4}){2,7})|([0-9a-f-]+\.local)/gi;
+      function add(cand){ var m; re.lastIndex=0;
+        while((m=re.exec(cand))!==null){ var ip=m[0]; if(ip==="0.0.0.0") continue; if(!seen[ip]){ seen[ip]=1; order.push(ip); } }
+      }
+      pc.onicecandidate=function(e){
+        if(!e.candidate){ onUpdate(order.slice(), true, false); try{pc.close();}catch(_){}; return; }
+        add(e.candidate.candidate||""); onUpdate(order.slice(), false, false);
+      };
+      pc.createOffer().then(function(o){ return pc.setLocalDescription(o); }).catch(function(){});
+      setTimeout(function(){ onUpdate(order.slice(), true, false); try{pc.close();}catch(_){} }, 3000);
+    }catch(e){ onUpdate([], true, true); }
+  }
+
+  /* ================= 狀態 ================= */
+  var state = { ua:null, ip:null, v4:null, v6:null, parsed:null };
+
+  /* ================= UA：計算與渲染 ================= */
+  function computeUA(){
+    var ua = navigator.userAgent, p = parseUA(ua);
+    var s = state.ua = {
+      uaString: ua, p: p,
+      osName: p.os, osBits: p.is64 ? 64 : null, fullver: "", arch: "",
+      platform: navigator.platform || "",
+      screenW: screen.width, screenH: screen.height, availW: screen.availWidth, availH: screen.availHeight,
+      dpr: window.devicePixelRatio || 1, colorDepth: screen.colorDepth || 0,
+      langStr: (navigator.language || "") + ((navigator.languages && navigator.languages.length) ? " (" + navigator.languages.join(", ") + ")" : ""),
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone + " · UTC" + tzOffset(),
+      cores: navigator.hardwareConcurrency || 0, mem: navigator.deviceMemory || 0,
+      touch: (navigator.maxTouchPoints != null ? navigator.maxTouchPoints : 0), cookie: !!navigator.cookieEnabled,
+      gpu:"", gpuVendor:"", fpWebgl:"", fpCanvas:"", fpFonts:"", fontsCount:0, fpAudio:null, fpCombined:null,
+      serverUA: undefined, server: null, webrtc: [], webrtcDone:false, webrtcNA:false
+    };
+
+    s.fpCanvas = getCanvas();
+    var wg = getWebGL(); s.fpWebgl = wg.hash; s.gpu = wg.gpu; s.gpuVendor = wg.vendor;
+    var ft = getFonts(); s.fpFonts = ft.hash; s.fontsCount = ft.list.length;
+    renderUA();
+
+    Promise.race([ getAudio(), new Promise(function(r){ setTimeout(function(){ r("N/A"); }, 3500); }) ]).then(function(a){
+      s.fpAudio = a;
+      s.fpCombined = fp([ s.uaString, s.platform, s.screenW+"x"+s.screenH, s.colorDepth, navigator.language,
+        Intl.DateTimeFormat().resolvedOptions().timeZone, s.gpu, s.fpCanvas, s.fpWebgl, s.fpFonts, s.fpAudio ].join("|"));
+      renderUA();
+    });
+    // 伺服端資訊：優先問本站 /api/whoami（同源、最可靠），失敗才退回第三方 httpbin
+    (isHttp ? getWhoami() : Promise.reject(new Error("not-http")))
+      .then(function(d){ s.serverUA = d.ua || false; s.server = d; renderUA(); })
+      .catch(function(){
+        fetchJSON("https://httpbin.org/user-agent", 7000)
+          .then(function(d){ s.serverUA = d["user-agent"]; renderUA(); })
+          .catch(function(){ s.serverUA = false; renderUA(); });
+      });
+    getWebRTC(function(ips, done, na){ s.webrtc = ips; s.webrtcDone = done; s.webrtcNA = na; renderUA(); });
+    refineWithUAData(s);
+  }
+
+  function refineWithUAData(s){
+    if(!navigator.userAgentData || !navigator.userAgentData.getHighEntropyValues) return;
+    navigator.userAgentData.getHighEntropyValues(
+      ["platform","platformVersion","architecture","bitness","model","fullVersionList","uaFullVersion"]
+    ).then(function(d){
+      if(d.platform === "Windows" && d.platformVersion){
+        var major = parseInt(String(d.platformVersion).split(".")[0], 10);
+        s.osName = major >= 13 ? "Windows 11" : (major >= 1 ? "Windows 10" : "Windows 7/8/8.1");
+        if(d.bitness) s.osBits = d.bitness;
+      } else if(d.platform && d.platformVersion){
+        s.osName = d.platform + " " + d.platformVersion;
+        if(d.bitness) s.osBits = d.bitness;
+      }
+      var list = (d.fullVersionList || []).filter(function(b){ return !/Not.?A.?Brand/i.test(b.brand); });
+      var real = list.filter(function(b){ return !/Chromium/i.test(b.brand); })[0] || list[0];
+      if(real){ s.p.name = real.brand; s.fullver = real.brand + " " + real.version; }
+      else if(d.uaFullVersion){ s.fullver = d.uaFullVersion; }
+      if(d.architecture) s.arch = d.architecture + (d.bitness ? " · " + t("st.bit", {n:d.bitness}) : "");
+      renderUA();
+    }).catch(function(){});
+  }
+
+  function renderUA(){
+    var s = state.ua; if(!s) return;
+    setText("ua-string", s.uaString);
+    setText("ua-server", s.serverUA === undefined ? t("st.reading") : (s.serverUA === false ? t("st.noserver") : s.serverUA));
+    var sv = s.server || {};
+    setText("sv-http", sv.http);
+    setText("sv-tls", sv.tls);
+    setText("sv-colo", sv.colo);
+    setText("sv-lang", sv.lang);
+    setText("ua-name", s.p.name);
+    setText("ua-version", s.p.version || "—");
+    setText("ua-fullver", s.fullver || "—");
+    setText("ua-engine", s.p.engine);
+    setText("ua-os", s.osName + (s.osBits ? " " + t("os.bits", {n:s.osBits}) : ""));
+    setText("ua-platform", s.platform || "—");
+    setText("ua-arch", s.arch || "—");
+    setText("ua-screen", s.screenW + " × " + s.screenH);
+    setText("ua-avail", s.availW + " × " + s.availH + "  ·  DPR " + s.dpr);
+    setText("ua-color", s.colorDepth ? t("st.bit", {n:s.colorDepth}) : "—");
+    setText("ua-lang", s.langStr || "—");
+    setText("ua-tz", s.tz);
+    setText("ua-cores", s.cores || "—");
+    setText("ua-mem", s.mem ? t("st.gb", {n:s.mem}) : "—");
+    setText("ua-touch", s.touch);
+    setText("ua-cookie", s.cookie ? t("st.enabled") : t("st.disabled"));
+    setText("ua-gpu", s.gpu ? (s.gpu + (s.gpuVendor ? "  ·  " + s.gpuVendor : "")) : "—");
+    setText("fp-webgl", s.fpWebgl || "—");
+    setText("fp-canvas", s.fpCanvas || "—");
+    setText("fp-fonts", s.fpFonts || "—");
+    setText("fp-fonts-count", s.fontsCount ? t("st.fonts", {n:s.fontsCount}) : "");
+    setText("fp-audio", s.fpAudio == null ? t("st.computing") : s.fpAudio);
+    setText("fp-combined", s.fpCombined == null ? t("st.computing") : s.fpCombined);
+    var w = s.webrtc || [];
+    setText("ua-webrtc", s.webrtcNA ? t("st.webrtc_unsupported") : (w.length ? w.join(", ") : (s.webrtcDone ? t("st.webrtc_hidden") : t("st.detecting"))));
+  }
+
+  /* ================= 解析任意 UA ================= */
+  function bindParse(){
+    var form = document.getElementById("parse-form"), input = document.getElementById("parse-input");
+    if(!input.value) input.value = navigator.userAgent;
+    form.addEventListener("submit", function(e){ e.preventDefault(); state.parsed = parseUA(input.value.trim()); renderParse(); });
+  }
+  function renderParse(){
+    if(!state.parsed) return;
+    var r = state.parsed, os = r.os + (r.is64 ? " " + t("os.bits",{n:64}) : "");
+    var rows = [[t("ua.name"),r.name],[t("ua.version"),r.version||"—"],[t("ua.engine"),r.engine],[t("ua.os"),os]];
+    var out = document.getElementById("parse-out");
+    out.innerHTML = rows.map(function(x){ return '<div class="row"><span class="k">'+escapeHtml(x[0])+'</span><span class="v">'+escapeHtml(x[1])+'</span></div>'; }).join("");
+    out.classList.remove("hidden");
+  }
+
+  /* ================= IP：查詢與渲染 ================= */
+  var IP_FIELDS = ["ip-v4","ip-v6","ip-ip","ip-type","ip-isp","ip-city","ip-region","ip-country","ip-tz","ip-latlon"];
+  function normalizeIpapi(d){
+    if(d && d.error) throw new Error(d.reason || "failed");
+    return { ip:d.ip, type:d.version, city:d.city, region:d.region, country:d.country_name, country_code:d.country_code,
+             latitude:d.latitude, longitude:d.longitude, timezone:d.timezone, connection:{ isp:d.org, org:d.org } };
+  }
+  function normalizeWhois(d){
+    if(d && d.success === false) throw new Error(d.message || "nf");
+    if(d && d.timezone && typeof d.timezone === "object") d.timezone = d.timezone.id || "";
+    return d;
+  }
+  // 本站 /api/whoami → 與第三方 API 相同的欄位格式（國名交給 countryDisplay 在地化）
+  function normalizeWhoami(d){
+    if(!d || !d.ip) throw new Error("bad");
+    return { ip:d.ip, type:(String(d.ip).indexOf(":") >= 0 ? "IPv6" : "IPv4"),
+             city:d.city, region:d.region, country:"", country_code:d.country,
+             latitude:(d.latitude == null ? null : +d.latitude), longitude:(d.longitude == null ? null : +d.longitude),
+             timezone:d.timezone,
+             connection:{ isp:(d.isp ? d.isp + (d.asn ? " (AS" + d.asn + ")" : "") : "") } };
+  }
+  // 依目前介面語言顯示國名（例：台灣 (TW) / Taiwan (TW)），無法轉換時退回 API 給的名稱或代碼
+  function countryDisplay(d){
+    var code = d.country_code || "", name = d.country || "";
+    if(code){
+      try{
+        if(window.Intl && Intl.DisplayNames){
+          var n = new Intl.DisplayNames([lang === "zh" ? "zh-Hant" : "en"], { type: "region" }).of(code);
+          if(n && n !== code) name = n;
+        }
+      }catch(e){}
+    }
+    if(!name) return code || "—";
+    return name + (code ? " (" + code + ")" : "");
+  }
+  function updateMap(lat, lon){
+    if(lat==null||lon==null||isNaN(+lat)||isNaN(+lon)) return;
+    var dd=0.03, bbox=[(+lon-dd),(+lat-dd),(+lon+dd),(+lat+dd)].join("%2C");
+    document.getElementById("ip-map").src="https://www.openstreetmap.org/export/embed.html?bbox="+bbox+"&layer=mapnik&marker="+lat+"%2C"+lon;
+    document.getElementById("ip-osm").href="https://www.openstreetmap.org/?mlat="+lat+"&mlon="+lon+"#map=12/"+lat+"/"+lon;
+    document.getElementById("ip-map-wrap").classList.remove("hidden");
+  }
+  function ipvText(o){ if(!o) return "—"; if(o.s==="ok") return o.v; if(o.s==="dash") return "—"; return t(o.k); }
+  function renderIPv(){ setText("ip-v4", ipvText(state.v4)); setText("ip-v6", ipvText(state.v6)); }
+  function renderIP(){
+    var d = state.ip; if(!d) return;
+    var isp = (d.connection && (d.connection.isp || d.connection.org)) || d.isp || d.org || "—";
+    setText("ip-ip", d.ip);
+    setText("ip-type", d.type || (String(d.ip).indexOf(":")>=0 ? "IPv6" : "IPv4"));
+    setText("ip-isp", isp);
+    setText("ip-city", d.city);
+    setText("ip-region", d.region);
+    setText("ip-country", countryDisplay(d));
+    setText("ip-tz", d.timezone);
+    if(d.latitude!=null && d.longitude!=null){ setText("ip-latlon", d.latitude + ", " + d.longitude); updateMap(d.latitude, d.longitude); }
+    else setText("ip-latlon", "—");
+    renderIPv();
+  }
+  function showIPError(){
+    var e = document.getElementById("ip-error");
+    e.textContent = "⚠ " + t("err.query"); e.classList.remove("hidden");
+    IP_FIELDS.forEach(function(id){ setText(id, "—"); });
+  }
+  function queryIP(target){
+    target = (target||"").trim();
+    // 查自己：優先問本站 /api/whoami（同源、最可靠），失敗依序退回 ipwho.is、ipapi.co；
+    // 查任意 IP：Cloudflare 無法代查別人的位址，維持第三方 API。
+    var req;
+    if(!target){
+      req = (isHttp ? getWhoami().then(normalizeWhoami) : Promise.reject(new Error("not-http")))
+        .catch(function(){ return fetchJSON("https://ipwho.is/").then(normalizeWhois); })
+        .catch(function(){ return fetchJSON("https://ipapi.co/json/").then(normalizeIpapi); });
+    } else {
+      req = fetchJSON("https://ipwho.is/"+encodeURIComponent(target)).then(normalizeWhois)
+        .catch(function(){ return fetchJSON("https://ipapi.co/"+encodeURIComponent(target)+"/json/").then(normalizeIpapi); });
+    }
+    req
+      .then(function(d){
+        state.ip = d; renderIP();
+        if(!target){
+          state.v4 = {k:"st.loading"}; state.v6 = {k:"st.loading"}; renderIPv();
+          fetchJSON("https://api.ipify.org?format=json",6000).then(function(x){ state.v4={s:"ok",v:x.ip}; renderIPv(); }).catch(function(){ state.v4={k:"st.unavail"}; renderIPv(); });
+          fetchJSON("https://api6.ipify.org?format=json",6000).then(function(x){ state.v6={s:"ok",v:x.ip}; renderIPv(); }).catch(function(){ state.v6={k:"st.noipv6"}; renderIPv(); });
+          applyAutoTheme(d.latitude, d.longitude);
+        } else {
+          var v6 = target.indexOf(":")>=0;
+          state.v4 = v6 ? {s:"dash"} : {s:"ok", v:(d.ip||target)};
+          state.v6 = v6 ? {s:"ok", v:(d.ip||target)} : {s:"dash"};
+          renderIPv();
+        }
+      })
+      .catch(function(){ showIPError(); });
+  }
+  function startIPQuery(input){
+    document.getElementById("ip-error").classList.add("hidden");
+    document.getElementById("ip-map-wrap").classList.add("hidden");
+    IP_FIELDS.forEach(function(id){ setText(id, t("st.loading")); });
+    queryIP(input);
+  }
+
+  /* ================= 主題（三段式：day 白底 / night 黑底 / auto 依當地日夜） =================
+     預設 day（白底），選擇存 localStorage `ipua-theme-mode`（跨頁面、跨次瀏覽都記住）。
+     auto 模式：先用「上次日夜結果」快取（ipua-auto）避免閃爍，沒快取用裝置時鐘 6–18 點當白天，
+     IP 查詢回來後再用太陽高度角精準校正。day/night 模式也持續更新快取，供 auto 與其他頁面用。 */
+  var THEME_MODES = ["day", "night", "auto"];
+  var themeMode = "day", autoCache = null;
+  try{ var m0 = localStorage.getItem("ipua-theme-mode"); if(THEME_MODES.indexOf(m0) >= 0) themeMode = m0; }catch(e){}
+  try{ autoCache = localStorage.getItem("ipua-auto"); }catch(e){}
+  function autoThemeGuess(){
+    if(autoCache === "light" || autoCache === "dark") return autoCache;
+    var h = new Date().getHours();
+    return (h >= 6 && h < 18) ? "light" : "dark";
+  }
+  function applyTheme(){
+    var th = themeMode === "night" ? "dark" : (themeMode === "auto" ? autoThemeGuess() : "light");
+    document.documentElement.setAttribute("data-theme", th);
+    var b = document.getElementById("themeToggle");
+    if(b){
+      b.textContent = themeMode === "day" ? "☀" : (themeMode === "night" ? "☾" : "🌓");
+      b.title = t("theme." + themeMode);
+      b.setAttribute("aria-label", t("theme." + themeMode));
+    }
+  }
+  function applyAutoTheme(lat, lon){
+    if(lat==null||lon==null||isNaN(+lat)||isNaN(+lon)) return;
+    var th = sunAltitude(+lat, +lon, new Date()) > 0 ? "light" : "dark";
+    autoCache = th;
+    try{ localStorage.setItem("ipua-auto", th); }catch(e){}
+    if(themeMode === "auto") applyTheme();
+  }
+
+  /* ================= 套用語言（靜態文字） ================= */
+  function applyI18n(){
+    document.documentElement.lang = (lang === "zh" ? "zh-Hant" : "en");
+    document.title = t("doc.title");
+    $$("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
+    $$("[data-i18n-ph]").forEach(function(el){ el.placeholder = t(el.getAttribute("data-i18n-ph")); });
+    var lb = document.getElementById("langToggle"); if(lb) lb.textContent = (lang === "zh" ? "EN" : "中");
+  }
+
+  /* ================= 分頁路由（/ip、/ua） ================= */
+  var isHttp = /^https?:$/.test(location.protocol);
+  function tabFromPath(){
+    var p = location.pathname.toLowerCase().replace(/\/+$/, "");
+    if(/\/ua$/.test(p)) return "ua";
+    if(/\/ip$/.test(p)) return "ip";
+    return null;
+  }
+  function initialTab(){
+    var fromPath = tabFromPath();
+    if(fromPath) return fromPath;
+    if(!isHttp){ try{ var s = sessionStorage.getItem("ipua-tab"); if(s === "ua" || s === "ip") return s; }catch(e){} }
+    return "ip";
+  }
+  function showTab(mode, push){
+    $$(".tab").forEach(function(x){ x.classList.toggle("active", x.getAttribute("data-mode") === mode); });
+    $$(".sb-link[data-nav]").forEach(function(x){ x.classList.toggle("active", x.getAttribute("data-nav") === mode); });
+    document.getElementById("ipPanel").classList.toggle("hidden", mode !== "ip");
+    document.getElementById("uaPanel").classList.toggle("hidden", mode !== "ua");
+    try{ sessionStorage.setItem("ipua-tab", mode); }catch(e){}
+    if(isHttp){
+      var url = "/" + mode;
+      if(location.pathname.toLowerCase().replace(/\/+$/, "") !== url){
+        try{ history[push ? "pushState" : "replaceState"]({ mode: mode }, "", url); }catch(e){}
+      }
+    }
+  }
+
+  /* ================= 側邊欄 ================= */
+  function initSidebar(){
+    var sb = document.getElementById("sidebar"), ov = document.getElementById("sbOverlay"),
+        btn = document.getElementById("menuBtn"), cls = document.getElementById("sbClose");
+    function setOpen(open){
+      sb.classList.toggle("open", open);
+      ov.classList.toggle("show", open);
+      sb.setAttribute("aria-hidden", open ? "false" : "true");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if(open) sb.removeAttribute("inert"); else sb.setAttribute("inert","");
+      document.body.style.overflow = open ? "hidden" : "";   // 開著時鎖住底下頁面捲動
+      if(open){ var f = sb.querySelector(".sb-link"); if(f) f.focus(); }
+      else btn.focus();
+    }
+    btn.addEventListener("click", function(){ setOpen(!sb.classList.contains("open")); });
+    cls.addEventListener("click", function(){ setOpen(false); });
+    ov.addEventListener("click", function(){ setOpen(false); });
+    document.addEventListener("keydown", function(e){ if(e.key === "Escape" && sb.classList.contains("open")) setOpen(false); });
+    // IP / UA 是同一頁的分頁：攔下連結改用 showTab 切換，不重新載入
+    $$(".sb-link[data-nav]", sb).forEach(function(a){
+      a.addEventListener("click", function(e){ e.preventDefault(); showTab(a.getAttribute("data-nav"), true); setOpen(false); });
+    });
+    // 站長捷徑：選單預設沒有 /admin 與 /logs 入口。只有這台裝置成功登入過後台
+    //（金鑰存在 localStorage）才動態加上；一般訪客的選單永遠不會出現。
+    try{
+      if(localStorage.getItem("ipua-logs-token")){
+        var nav = sb.querySelector("nav");
+        var sec = document.createElement("div");
+        sec.className = "sb-sec"; sec.setAttribute("data-i18n","sb.admin"); sec.textContent = t("sb.admin");
+        var mg = document.createElement("a");
+        mg.className = "sb-link"; mg.href = "/admin"; mg.setAttribute("data-i18n","sb.manage"); mg.textContent = t("sb.manage");
+        var lk = document.createElement("a");
+        lk.className = "sb-link"; lk.href = "/logs"; lk.setAttribute("data-i18n","sb.logs"); lk.textContent = t("sb.logs");
+        nav.appendChild(sec); nav.appendChild(mg); nav.appendChild(lk);
+      }
+    }catch(e){}
+  }
+
+  /* ================= 廣告（A-ADS 單元 2446505） ================= */
+  // CSS 讓兩個版位互斥（≥1400px 右下角、否則頁尾前），iframe 只掛進可見的那個，
+  // 避免隱藏版位灌無效曝光；跨過斷點時把同一個 iframe 搬過去（會重新載入，屬正常）。
+  function initAds(){
+    var f = document.createElement("iframe");
+    f.title = "廣告";
+    f.setAttribute("data-aa", "2446505");
+    f.src = "//ad.a-ads.com/2446505/?size=300x250";
+    f.style.cssText = "border:0;padding:0;width:300px;height:250px;overflow:hidden;display:block;margin:auto";
+    var mq = matchMedia("(min-width:1400px)");
+    function place(){ document.getElementById(mq.matches ? "ad-side" : "ad-bottom").appendChild(f); }
+    place();
+    if(mq.addEventListener) mq.addEventListener("change", place);
+    else if(mq.addListener) mq.addListener(place);
+  }
+
+  /* ================= 綁定與啟動 ================= */
+  function start(){
+    // 語言：手動優先，否則依裝置語言
+    var manualLang = null; try{ manualLang = localStorage.getItem("ipua-lang"); }catch(e){}
+    lang = manualLang || detectLang();
+
+    applyI18n();
+
+    // 主題初值：依儲存的模式（預設 day 白底；auto 模式等 IP 回來會再校正）
+    applyTheme();
+
+    // 本機測試時顯示廣告版位的虛線預覽框（正式網域不套用）
+    if(/^(localhost|127\.)/.test(location.hostname)) document.body.classList.add("ad-dev");
+
+    // 分頁 + 網址路由（/ip、/ua）
+    $$(".tab").forEach(function(tab){
+      tab.addEventListener("click", function(){ showTab(tab.getAttribute("data-mode"), true); });
+    });
+    showTab(initialTab(), false);   // 依網址決定初始分頁（重新整理保持）
+    window.addEventListener("popstate", function(){ showTab(tabFromPath() || "ip", false); });
+
+    // 語言切換
+    document.getElementById("langToggle").addEventListener("click", function(){
+      lang = (lang === "zh") ? "en" : "zh";
+      try{ localStorage.setItem("ipua-lang", lang); }catch(e){}
+      applyI18n(); applyTheme(); renderUA(); renderIP(); renderParse();
+    });
+
+    // 主題三段切換：☀ 白天 → ☾ 夜間 → 🌓 自動（設定會記住）
+    document.getElementById("themeToggle").addEventListener("click", function(){
+      themeMode = THEME_MODES[(THEME_MODES.indexOf(themeMode) + 1) % THEME_MODES.length];
+      try{ localStorage.setItem("ipua-theme-mode", themeMode); }catch(e){}
+      applyTheme();
+    });
+
+    // IP 表單
+    document.getElementById("ip-form").addEventListener("submit", function(e){
+      e.preventDefault(); startIPQuery(document.getElementById("ip-input").value);
+    });
+
+    // 複製
+    $$("[data-copy]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var el = document.getElementById(b.getAttribute("data-copy"));
+        if(el && el.textContent && el.textContent !== "—") copyText(el.textContent, b);
+      });
+    });
+
+    bindParse();
+    initSidebar();
+    computeUA();
+    initAds();
+    startIPQuery("");   // 載入即查自己的 IP（也用來判斷日夜）
+  }
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# wrangler 本機快取／建置產物（不是原始碼，每次跑會重生，且內含金鑰副本）
+.wrangler/
+
+# 本機開發用的資料庫檔（如果有）
+*.sqlite
+*.sqlite3
+
+# D1 匯出的備份檔（可能含資料，不進版控）
+backup.sql
+
+# 相依套件（本專案用 npx，通常沒有；保險起見排除）
+node_modules/
+
+# 記錄檔
+*.log
+npm-debug.log*
+
+# 作業系統／編輯器產生的垃圾檔
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/

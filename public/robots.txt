@@ -1,0 +1,7 @@
+# 搜尋引擎爬蟲規則：全站開放收錄（/logs 與 /admin 已用 noindex 標頭排除，
+# 刻意不在這裡寫 Disallow — 寫了反而等於昭告天下有這兩個路徑）。
+User-agent: *
+Allow: /
+
+# 全站網址清單（由 Pages Function 從資料庫即時產生）
+Sitemap: https://uaip.cc.cd/sitemap

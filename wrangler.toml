@@ -1,0 +1,12 @@
+# Cloudflare Pages 專案設定（uaip → https://uaip.cc.cd）
+# 有了這個檔，部署只要打：npx wrangler pages deploy
+#（不要再加「.」！靜態檔已搬進 public/，根目錄的設定檔、筆記不會被上傳）
+name = "uaip"
+compatibility_date = "2026-07-01"
+pages_build_output_dir = "public"
+
+# D1 資料庫綁定：functions 裡用 env.DB 存取訪客紀錄
+[[d1_databases]]
+binding = "DB"
+database_name = "ipua-logs"
+database_id = "75e2b765-66fd-4946-99c4-4524b4149ce0"
