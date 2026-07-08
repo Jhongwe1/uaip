@@ -6,28 +6,35 @@
 ipua/
 ├─ wrangler.toml          ← Pages 設定：專案名、輸出資料夾、D1 綁定
 ├─ ADMIN.md               ← 這份筆記
-├─ db/schema.sql          ← 資料表結構（visits 訪客紀錄＋articles 文章＋media 圖片）
+├─ db/schema.sql          ← 資料表結構（visits 訪客＋articles 文章＋media 圖片＋menu 選單＋settings 設定）
 ├─ lib/                   ← Functions 共用程式（部署時自動打包，不會上網）
-│  ├─ site.js             ← 頁面外殼（配色/側邊欄/主題）、站長驗證、共用工具。站名改 BRAND 常數
+│  ├─ site.js             ← 頁面外殼、站長驗證、共用工具；DEFAULT_MENU 預設選單、getChrome 讀選單/站名
 │  ├─ pages.js            ← 列表頁與文章頁的實際內容（antutu 式排版、SEO 標籤）
+│  ├─ apidoc.js           ← API 文件的 Markdown 原稿（單一來源；改 API 記得同步改這裡）
 │  └─ vendor/marked.mjs   ← Markdown 轉 HTML 函式庫（marked 18.0.5，已內建免安裝）
 ├─ functions/             ← Cloudflare Pages Functions（伺服端程式）
-│  ├─ _middleware.js      ← 每次頁面瀏覽 → 寫一筆到 D1（不記 /api、/logs、/admin、/img）
+│  ├─ _middleware.js      ← 每次頁面瀏覽 → 寫一筆到 D1（不記 /api*、/logs、/admin、/img）
 │  ├─ news/index.js       ← GET /news 新聞列表（?p=2 換頁）
 │  ├─ news/[id].js        ← GET /news/12 單篇新聞
 │  ├─ articles/…          ← GET /articles、/articles/34（同上，文章分類）
 │  ├─ img/[id].js         ← GET /img/5 從 D1 讀圖（邊緣快取）
 │  ├─ feed.js             ← GET /feed RSS 訂閱源
 │  ├─ sitemap.js          ← GET /sitemap 給搜尋引擎的網址清單
+│  ├─ api-docs.js         ← GET /api-docs API 文件頁（金鑰閘門，站長才看得到內容）
 │  └─ api/
 │     ├─ whoami.js        ← GET /api/whoami（回報訪客自己的資訊）
 │     ├─ logs.js          ← GET /api/logs（站長查紀錄，要金鑰）
-│     └─ admin/           ← 文章後台 API（都要金鑰）：articles 增刪改查、media 上傳
+│     ├─ menu.js          ← GET /api/menu（公開：側邊欄選單；表空回預設）
+│     ├─ settings.js      ← GET /api/settings（公開：站名）
+│     ├─ articles/        ← GET /api/articles、/api/articles/12（公開：只回已發佈）
+│     └─ admin/           ← 站長 API（都要金鑰）：articles 增刪改查、media 上傳、
+│                            menu 覆蓋選單、settings 改站名、apidoc 取 API 文件
 └─ public/                ← 真正上網的檔案（只有這個資料夾會部署）
-   ├─ index.html          ← 主站（☰ 側邊欄：內容→新聞/文章、工具→IP/UA）
+   ├─ index.html          ← 主站（☰ 側邊欄；選單由 /api/menu 動態載入）
    ├─ logs.html           ← /logs 訪客紀錄管理頁
-   ├─ admin.html          ← /admin 文章管理後台（寫作、傳圖、發佈）
-   ├─ assets/marked.js    ← 後台即時預覽用的 Markdown 函式庫（與 lib/vendor 同版本 18.0.5）
+   ├─ admin.html          ← /admin 文章管理後台（支援 ?edit=編號、?new=分類 直達）
+   ├─ assets/marked.js    ← 後台/文件頁渲染 Markdown（與 lib/vendor 同版本 18.0.5）
+   ├─ assets/adminbar.js  ← ✎ 編輯模式（只有登入過的裝置會載入；見「編輯模式」章節）
    ├─ robots.txt          ← 爬蟲規則＋sitemap 位置
    ├─ _headers            ← 回應標頭設定（/logs、/admin 皆 noindex）
    └─ _redirects          ← （空）SPA 路由說明
@@ -92,29 +99,42 @@ DELETE FROM visits WHERE ts < datetime('now', '-180 days');
   框架翻譯字典在 `lib/site.js` 的 SHELL_JS 裡（I18N 物件），加字串要 zh/en 一起補。
 - 文章頁底部自動長出「上一篇／下一篇」（同分類、依發佈時間）；內文圖片自動 lazy 載入。
 - RSS：`/feed`；sitemap：`/sitemap`（robots.txt 已指路）。
-- 站名目前暫用網址 `uaip.cc.cd` — 想好名字後改 `lib/site.js` 的 `BRAND` 再部署即可。
+- 站名目前暫用網址 `uaip.cc.cd` — 想好名字後在右上角 ✎ →「⚙️ 網站名稱」直接改（免部署、立即生效）。
 - 已知小事：cc.cd 的代理層會把 404 狀態改成 200（內容仍是「找不到內容」頁，且該頁 noindex，
   對 SEO 無實際影響；直連 uaip.pages.dev 是正常 404）。
 
-### 發文 API（程式化新增文章；2026-07-07 起已實戰使用）
+## 編輯模式（✎）— 2026-07-09 上線
 
-所有 `/api/admin/*` 都要帶標頭 `Authorization: Bearer <管理金鑰>`（就是上面那把 LOGS_TOKEN）。
+**在網站上直接改網站**，像手機整理桌面。只有「登入過後台的裝置」（瀏覽器 localStorage 有金鑰）
+右上角才會出現 **✎** 按鈕（一般訪客連那支程式 `assets/adminbar.js` 都不會下載；真正的權限在伺服器端驗金鑰）。
 
-| 動作 | 方法與路徑 | 說明 |
-|---|---|---|
-| 列出全部文章 | `GET /api/admin/articles` | 含草稿，給後台列表用 |
-| 讀單篇 | `GET /api/admin/articles/12` | 含 Markdown 原稿 |
-| **新增文章** | `POST /api/admin/articles` | JSON 本體，欄位見下；回 `{id, status}` |
-| 更新文章 | `PUT /api/admin/articles/12` | **整包覆蓋**：先 GET 拿舊資料改完再 PUT，沒帶的欄位會被清空 |
-| 刪除文章 | `DELETE /api/admin/articles/12` | 刪了找不回來 |
-| 上傳圖片 | `POST /api/admin/media?w=寬&h=高` | 本體＝圖片二進位，Content-Type 帶 image/jpeg 等；回 `{id, url:"/img/5"}` |
+按 ✎ 出現選單：
 
-**文章 JSON 欄位**：`category`（"news" 或 "article"）、`status`（"draft" 或 "published"）、
-`title`（必填，≤200 字）、`summary`（≤500 字，列表與 SEO 描述）、`cover`（圖片網址，通常是 /img/編號）、
-`body_md`（Markdown 內文，≤200KB）。
+| 選項 | 做什麼 |
+|---|---|
+| ✏️ 編輯這篇文章 | 只在文章頁出現 — 一鍵跳進 `/admin?edit=這篇的編號` 直接改 |
+| ＋ 新增文章 | 開後台編輯器寫新的（在 /articles 相關頁按，分類自動選「文章」） |
+| ☰ 編輯選單 | 側邊欄變成編輯器：↑↓ 排順序、「改」改名/改網址、✕ 刪除、＋連結、＋分類、還原預設。**每個動作即時自動儲存**，按「✓ 完成」重新整理套用 |
+| ⚙️ 網站名稱 | 改站名（分頁標題、分享卡、RSS 立即生效；**留空＝還原預設**）。不用再改程式了 |
+| 📄/👣/📖 | 文章管理、訪客紀錄、API 文件的捷徑 |
+
+- 選單與站名存在 D1（`menu`、`settings` 表）；**兩張表是空的時候自動用內建預設**（lib/site.js 的 DEFAULT_MENU／BRAND），所以「還原預設」＝清空資料表。
+- 選單連結網址限「/開頭」或「http(s)://」；分類（section）是不能點的小標題，用來分組。
+- 主站的 IP 查詢/UA 查詢連結（/ip、/ua）保持前端切換不重新載入；側邊欄「站長區」不在選單資料裡，是 adminbar 動態長的，編輯器裡看不到也不用管。
+
+## API（全功能都有；文件見 /api-docs）
+
+**完整 API 文件在 <https://uaip.cc.cd/api-docs>**（要管理金鑰才看得到內容；原稿在 `lib/apidoc.js`，
+**改任何 API 記得同步更新它**）。涵蓋：公開 API（whoami、已發佈文章列表/單篇、選單、站名）＋
+站長 API（文章增刪改查、圖片上傳、選單覆蓋、站名、訪客紀錄）。
+
+所有 `/api/admin/*` 與 `/api/logs` 都要帶標頭 `Authorization: Bearer <管理金鑰>`（上面那把 LOGS_TOKEN）。
+最常用的「發文」長這樣：
 
 ```
-# 1) 文章存成 UTF-8 的 art.json（欄位如上）
+# 1) 文章存成 UTF-8 的 art.json：
+#    {"category":"news","status":"published","title":"標題","summary":"摘要",
+#     "cover":"/img/5","body_md":"內文 Markdown"}
 # 2) 發佈：
 curl -X POST https://uaip.cc.cd/api/admin/articles ^
   -H "Authorization: Bearer 管理金鑰" ^
@@ -126,6 +146,7 @@ curl -X POST "https://uaip.cc.cd/api/admin/media?w=1200&h=675" ^
 
 - **中文內容一定要走 `--data-binary @檔案`**：直接把中文寫在指令列，Windows 終端機會把編碼弄壞（Big5/UTF-8 打架，2026-07-06 實測踩過）。
 - 圖片上限 1.8MB（D1 單值限 2MB），格式收 webp/jpeg/png/gif；後台網頁上傳會自動壓縮，走 API 要自己先縮好。
+- 更新文章的 `PUT` 是**整包覆蓋**：先 GET 拿舊資料改完再 PUT，沒帶的欄位會被清空。
 - 轉貼別站新聞的原則：**用自己的話改寫＋文末附資料來源連結**，不要整篇照抄（侵權，之後接廣告也會被判抄襲站）。
 
 ### ⚠️ 圖片編號絕不能重複使用
@@ -168,9 +189,10 @@ npx wrangler pages dev                                           # http://localh
 
 ## 側邊欄
 
-主站「螢幕最左上角」固定一顆 ☰（捲動時也在）。要加新頁面／功能：在 index.html 搜「sb-link」，
-在 <nav> 裡照樣多加一行 `<a class="sb-link" href="/xxx" data-i18n="sb.xxx">名稱</a>`，
-並在 I18N 的 zh / en 字典補上 `"sb.xxx"` 翻譯即可。
+主站「螢幕最左上角」固定一顆 ☰（捲動時也在）。**2026-07-09 起選單存在 D1（menu 表）**：
+要加分類/連結、改順序 → 右上角 ✎ →「編輯選單」直接在網頁上改（見「編輯模式」章節），
+或程式化 `PUT /api/admin/menu`（見 /api-docs），**不用再改程式碼**。
+menu 表空＝用內建預設（lib/site.js 的 DEFAULT_MENU；index.html 也留了一份靜態預設當載入前的底）。
 
 **「訪客紀錄」入口一般訪客看不到**：選單 HTML 裡沒有這個連結，
 只有「這台裝置成功登入過 /logs」（瀏覽器 localStorage 存有金鑰）才會動態長出「站長 → 訪客紀錄」。

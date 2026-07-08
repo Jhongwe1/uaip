@@ -49,3 +49,23 @@ CREATE TABLE IF NOT EXISTS media (
   data       BLOB NOT NULL,
   created_at TEXT NOT NULL
 );
+
+-- 側邊欄選單（2026-07-09 編輯模式上線）：站長在網頁上就能加分類/連結、排順序。
+-- 表是「整份選單由上到下」的平面清單：kind='section' 是分類標題、'link' 是連結，依 pos 排序。
+-- 表空的時候網站自動用內建預設選單（lib/site.js 的 DEFAULT_MENU）；
+-- 寫入走 PUT /api/admin/menu（整包覆蓋），傳空陣列＝清空＝還原預設。
+CREATE TABLE IF NOT EXISTS menu (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  pos      INTEGER NOT NULL DEFAULT 0,   -- 顯示順序（小的在上面）
+  kind     TEXT NOT NULL DEFAULT 'link', -- 'section'（分類標題）或 'link'（連結）
+  label    TEXT NOT NULL,                -- 中文名稱
+  label_en TEXT NOT NULL DEFAULT '',     -- 英文名稱（空＝顯示中文）
+  url      TEXT NOT NULL DEFAULT ''      -- 連結網址（section 留空；限 / 開頭或 http(s)://）
+);
+
+-- 網站設定（key-value）：目前只有 brand（站名）。表空或沒該鍵時用程式內建預設。
+-- 寫入走 PUT /api/admin/settings。
+CREATE TABLE IF NOT EXISTS settings (
+  k TEXT PRIMARY KEY,
+  v TEXT NOT NULL
+);

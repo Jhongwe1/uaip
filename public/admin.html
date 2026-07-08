@@ -281,6 +281,8 @@
       if(r.status === 401) throw { auth:true };
       return r.json().catch(function(){ return {}; }).then(function(d){
         if(!r.ok) throw new Error(d.hint || d.error || ("HTTP " + r.status));
+        // 驗證通過就把金鑰記在這台裝置（含 ?edit= 直達的情況），下次免輸入
+        try{ if(token) localStorage.setItem("ipua-logs-token", token); }catch(e){}
         return d;
       });
     });
@@ -312,7 +314,8 @@
   }
   function loadList(){
     api("/api/admin/articles").then(function(d){
-      try{ if(token) localStorage.setItem("ipua-logs-token", token); }catch(e){}
+      // 回到列表＝離開直達模式，把網址上的 ?edit= / ?new= 清掉（重新整理不會又跳回編輯器）
+      try{ if(location.search) history.replaceState({}, "", "/admin"); }catch(e){}
       var tb = $("tbody"); tb.innerHTML = "";
       (d.rows || []).forEach(function(r){
         var tr = el("tr");
@@ -350,8 +353,8 @@
     show("edit");
     if(!row.id) $("fTitle").focus();
   }
-  function openNew(){
-    fillEditor({ id:null, category:"news", status:"draft", views:0 });
+  function openNew(cat){
+    fillEditor({ id:null, category: cat === "article" ? "article" : "news", status:"draft", views:0 });
   }
   function openEdit(id){
     api("/api/admin/articles/" + id).then(function(d){ fillEditor(d.row); })
@@ -503,9 +506,9 @@
   $("gateForm").addEventListener("submit", function(e){
     e.preventDefault();
     token = $("tokenInput").value.trim();
-    if(token) loadList();
+    if(token) boot();   // 金鑰對了會回到原本要去的地方（含 ?edit= / ?new= 直達）
   });
-  $("newBtn").addEventListener("click", openNew);
+  $("newBtn").addEventListener("click", function(){ openNew(); });
   $("reloadBtn").addEventListener("click", loadList);
   $("logoutBtn").addEventListener("click", function(){
     token = "";
@@ -534,7 +537,17 @@
     });
   });
 
-  loadList();   // 有存過金鑰就直接進；沒有或錯誤 → 顯示驗證畫面
+  // 網址直達（✎ 編輯模式用）：/admin?edit=12 直接開該篇編輯器、/admin?new=article 直接寫新文章；
+  // 沒帶參數＝照舊進列表。金鑰不對會先出現驗證畫面，過了再繼續。
+  function boot(){
+    var q = location.search || "";
+    var em = q.match(/[?&]edit=(\d+)/);
+    var nm = q.match(/[?&]new=(news|article)/);
+    if(em) openEdit(parseInt(em[1], 10));
+    else if(nm) openNew(nm[1]);
+    else loadList();
+  }
+  boot();
 })();
 </script>
 </body>
