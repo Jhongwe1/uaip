@@ -1,0 +1,51 @@
+// /api/admin/relay/channels/<編號> — 站長專用：PUT 更新管道、DELETE 刪除管道。
+// PUT 整包覆蓋，唯一例外：本體「沒帶 api_key 欄位」＝上游金鑰保留舊值
+//（帶空字串 ""＝清掉金鑰）。這樣改名／換網址不用重貼金鑰。
+import { json } from "../../../../../lib/site.js";
+import { adminOk } from "../../../../../lib/auth.js";
+import { cleanChannel, maskRow } from "./index.js";
+
+function idOf(params) {
+  const id = parseInt(params.id, 10);
+  return id > 0 ? id : null;
+}
+
+export async function onRequestPut({ request, env, params }) {
+  const url = new URL(request.url);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
+  const id = idOf(params);
+  if (!id || !env.DB) return json({ error: "bad-id" }, 400);
+
+  let body = null;
+  try { body = await request.json(); } catch (e) {}
+  const c = cleanChannel(body);
+  if (c.err) return json({ error: "bad-input", hint: c.err }, 400);
+
+  try {
+    const old = await env.DB.prepare("SELECT * FROM relay_channels WHERE id=?1").bind(id).first();
+    if (!old) return json({ error: "not-found" }, 404);
+    const key = c.ch.api_key === undefined ? old.api_key : c.ch.api_key;
+    await env.DB.prepare(
+      "UPDATE relay_channels SET slug=?1,name=?2,kind=?3,base_url=?4,api_key=?5,enabled=?6 WHERE id=?7"
+    ).bind(c.ch.slug, c.ch.name, c.ch.kind, c.ch.base_url, key, c.ch.enabled, id).run();
+    const row = await env.DB.prepare("SELECT * FROM relay_channels WHERE id=?1").bind(id).first();
+    return json({ row: maskRow(row) });
+  } catch (e) {
+    const msg = String(e && e.message || e);
+    if (msg.indexOf("UNIQUE") >= 0) return json({ error: "slug-taken", hint: "slug「" + c.ch.slug + "」已有管道在用" }, 409);
+    return json({ error: "update-failed", detail: msg }, 500);
+  }
+}
+
+export async function onRequestDelete({ request, env, params }) {
+  const url = new URL(request.url);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
+  const id = idOf(params);
+  if (!id || !env.DB) return json({ error: "bad-id" }, 400);
+  try {
+    await env.DB.prepare("DELETE FROM relay_channels WHERE id=?1").bind(id).run();
+    return json({ ok: true });
+  } catch (e) {
+    return json({ error: "delete-failed", detail: String(e && e.message || e) }, 500);
+  }
+}

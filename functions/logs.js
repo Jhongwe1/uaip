@@ -28,7 +28,7 @@ const BODY = `
 <!-- 金鑰輸入（驗證失敗或第一次來會顯示） -->
 <section id="gate" class="card hidden">
   <div class="card-title">站長驗證</div>
-  <p class="hint">這一頁只有站長能看。請輸入管理金鑰（LOGS_TOKEN）；金鑰只會存在這台裝置的瀏覽器裡，不會外傳。</p>
+  <p class="hint">這一頁只有站長能看。用站長 Google 帳號 <a href="/auth/login?next=/logs">登入</a>，或輸入管理金鑰（LOGS_TOKEN）；金鑰只會存在這台裝置的瀏覽器裡，不會外傳。</p>
   <form id="gateForm" class="query">
     <input id="tokenInput" type="password" autocomplete="off" placeholder="管理金鑰">
     <button type="submit">進入</button>

@@ -55,7 +55,7 @@ export async function onRequestGet({ env }) {
   const body =
     '<style>' + GATE_CSS + '</style>\n' +
     '<div id="docGate" class="gatecard" hidden>\n' +
-    '  <p>API 文件只開放站長閱讀。請輸入管理金鑰（與 /logs、/admin 同一把）；金鑰只存在這台裝置的瀏覽器裡。</p>\n' +
+    '  <p>API 文件只開放站長閱讀。用站長 Google 帳號 <a href="/auth/login?next=/api-docs">登入</a>，或輸入管理金鑰（與 /logs、/admin 同一把）；金鑰只存在這台裝置的瀏覽器裡。</p>\n' +
     '  <form id="docForm"><input id="docToken" type="password" autocomplete="off" placeholder="管理金鑰"><button type="submit">進入</button></form>\n' +
     '  <div id="docErr" class="gateerr" hidden>⚠ 金鑰不正確，請再試一次。</div>\n' +
     '</div>\n' +

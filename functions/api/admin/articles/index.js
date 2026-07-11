@@ -2,7 +2,8 @@
 //   GET  列出全部文章（含草稿），供後台列表
 //   POST 新增文章
 // 驗證與 /api/logs 相同：Authorization: Bearer <LOGS_TOKEN>；localhost 開發免驗證。
-import { authed, json } from "../../../../lib/site.js";
+import { json } from "../../../../lib/site.js";
+import { adminOk } from "../../../../lib/auth.js";
 
 // 表單欄位整理與上限（title 必填；category / status 只收白名單值）
 export function cleanArticle(b) {
@@ -21,7 +22,7 @@ export function cleanArticle(b) {
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
   try {
     const res = await env.DB.prepare(
@@ -36,7 +37,7 @@ export async function onRequestGet({ request, env }) {
 
 export async function onRequestPost({ request, env }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
 
   let body = null;

@@ -14,8 +14,13 @@
 | 上傳圖片 | `POST /api/admin/media` |
 | 改側邊欄選單、改站名 | `PUT /api/admin/menu`、`PUT /api/admin/settings` |
 | 看流量 | `GET /api/logs` |
+| 核准／管理會員 | `GET /api/admin/users`、`PUT /api/admin/users/{id} {"action":"approve"}` |
+| 加／改 API 中轉管道 | `POST/PUT/DELETE /api/admin/relay/channels…` |
+| 設 VPN 訂閱來源 | `PUT /api/admin/vpn {"source_url":"…"}` 或 `{"node_links":"…"}` |
 
 只有「改程式或版型」才需要動這個 repo 並部署（見文末）。
+
+**2026-07-11 起新增會員系統**（Google 登入）：訪客登入後要站長**核准**才能用 API 中轉站（/relay）與 VPN 訂閱（/vpn）。站長身分＝ADMIN_EMAILS 指定的信箱或 is_admin 帳號。逐端點細節見 [API.md](./API.md) 的 §5b–§5e。用管理金鑰（LOGS_TOKEN）就能操作全部站長 API，不需登入。
 
 ## 連線與驗證
 

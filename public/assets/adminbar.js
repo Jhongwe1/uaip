@@ -1,15 +1,11 @@
-/* adminbar.js — 站長「編輯模式」（2026-07-09）。
-   只有登入過後台的裝置（localStorage 有金鑰）或本機開發才會載入這支：
-   主站 index.html 與內容頁外殼（lib/site.js SHELL_JS）都有同一段載入判斷。
+/* adminbar.js — 站長編輯工具（2026-07-11 改版：不再有右上角 ✎，全部收進 ☰ 側邊欄「站長」區）。
+   載入時機：登入過後台的裝置（localStorage 有金鑰）、Google 站長（account.js 偵測到 is_admin 後載入）、
+   或本機開發。一般訪客不會下載這支；真正的權限仍在伺服器端每支 /api/admin/* 驗證。
 
-   提供：
-   1. 右上角 ✎ 按鈕 → 下拉選單（編輯這篇文章／新增文章／編輯選單／網站名稱／各管理頁捷徑）
-   2. 側邊欄「站長」區（文章管理、訪客紀錄、API 文件）— 一般訪客的選單裡沒有這一區
-   3. 選單編輯器：像手機整理桌面 — ↑↓ 排順序、改名、刪除、＋分類、＋連結、還原預設；
-      每個動作都即時 PUT /api/admin/menu（整包覆蓋），按「完成」重新整理頁面套用
-   4. 網站名稱設定（存 settings 表，全站標題/RSS/分享卡立即生效）
-
-   注意：這裡只是「入口顯示」，真正的權限在伺服器 — 每支 /api/admin/* 都會驗金鑰。 */
+   側邊欄「站長」區提供：
+     ✏️ 編輯這篇文章（文章頁才有）、＋新增文章、☰ 編輯選單、⚙️ 網站名稱、
+     📄 文章管理、👥 成員管理、👣 訪客紀錄、📖 API 文件
+   編輯選單＝把側邊欄變成編輯器（↑↓ 排序、改名、刪除、＋連結/分類、還原預設），即時自動儲存。 */
 (function () {
   "use strict";
   if (window.__ipuaAdminbar) return;
@@ -17,11 +13,10 @@
 
   var token = "";
   try { token = localStorage.getItem("ipua-logs-token") || ""; } catch (e) {}
-  var isLocal = /^(localhost|127\.)/.test(location.hostname);
-  if (!token && !isLocal) return;
 
   var lang = "zh";
   try { if (localStorage.getItem("ipua-lang") === "en") lang = "en"; } catch (e) {}
+  function tx(zh, en) { return lang === "en" ? en : zh; }
 
   /* ===== 小工具 ===== */
   function el(tag, cls, text) {
@@ -33,7 +28,7 @@
   function api(path, opts) {
     opts = opts || {};
     opts.headers = opts.headers || {};
-    if (token) opts.headers["Authorization"] = "Bearer " + token;
+    if (token) opts.headers["Authorization"] = "Bearer " + token;   // 沒 token 就靠登入 cookie（同源自動帶）
     if (opts.json !== undefined) {
       opts.method = opts.method || "POST";
       opts.headers["content-type"] = "application/json";
@@ -49,19 +44,14 @@
     });
   }
   function alertErr(e) {
-    if (e && e.auth) alert("管理金鑰無效或已更換 — 請到 /admin 重新登入一次。");
-    else alert("操作失敗：" + (e && e.message || e));
+    if (e && e.auth) alert(tx("登入已失效 — 請用站長 Google 帳號重新登入，或到 /admin 輸入管理金鑰。", "Session expired — sign in again."));
+    else alert(tx("操作失敗：", "Failed: ") + (e && e.message || e));
   }
 
   /* ===== 樣式 ===== */
   var css =
-    "#abBtn{width:38px;padding:0;font-size:15px}" +
-    "#abBtn.on{background:var(--accent);color:var(--accent-fg);border-color:var(--line2)}" +
-    ".ab-panel{position:fixed;z-index:70;min-width:196px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.2);padding:6px;display:none}" +
-    ".ab-panel.open{display:block}" +
-    ".ab-item{display:block;width:100%;text-align:left;padding:10px 12px;border:0;background:none;color:var(--fg);font-family:inherit;font-size:14px;font-weight:600;line-height:1.4;border-radius:8px;cursor:pointer;text-decoration:none;box-sizing:border-box}" +
-    ".ab-item:hover{background:var(--field)}" +
-    ".ab-hr{border-top:1px solid var(--line);margin:6px 4px}" +
+    "button.sb-link{width:100%;text-align:left;border:0;background:none;font-family:inherit;cursor:pointer}" +
+    ".sb-action{font-size:13.5px}" +
     ".ab-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}" +
     ".ab-dlg{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:18px;width:100%;max-width:360px;box-shadow:0 12px 44px rgba(0,0,0,.3)}" +
     ".ab-dlg h3{font-size:16px;font-weight:700;margin:0 0 4px}" +
@@ -90,31 +80,46 @@
   styleEl.textContent = css;
   document.head.appendChild(styleEl);
 
-  /* ===== 頁面情境：在哪一頁決定下拉選單長怎樣 ===== */
+  /* ===== 頁面情境 ===== */
   var artM = location.pathname.match(/^\/(news|articles)\/(\d+)$/);   // 文章頁 → 可「編輯這篇」
   var newCat = /^\/articles/.test(location.pathname) ? "article" : "news";
 
-  /* ===== 側邊欄「站長」區（只有這台裝置看得到；伺服器端仍會驗金鑰） ===== */
-  function tx(zh, en) { return lang === "en" ? en : zh; }
+  /* ===== 側邊欄「站長」區 ===== */
+  function itemLink(icon, zh, en, href) {
+    var a = el("a", "sb-link sb-action", icon + " " + tx(zh, en));
+    a.href = href;
+    a.setAttribute("data-en", icon + " " + en); a.setAttribute("data-zh", icon + " " + zh);
+    if (location.pathname === href) a.className += " active";
+    return a;
+  }
+  function itemBtn(icon, zh, en, fn) {
+    var b = el("button", "sb-link sb-action", icon + " " + tx(zh, en));
+    b.type = "button";
+    b.setAttribute("data-en", icon + " " + en); b.setAttribute("data-zh", icon + " " + zh);
+    b.addEventListener("click", fn);
+    return b;
+  }
   function adminNav() {
     var host = document.getElementById("sbAdmin") ||
       (document.getElementById("sidebar") && document.getElementById("sidebar").querySelector("nav"));
     if (!host || host.getAttribute("data-ab")) return;
     host.setAttribute("data-ab", "1");
+
     var sec = el("div", "sb-sec", tx("站長", "Admin"));
     sec.setAttribute("data-en", "Admin"); sec.setAttribute("data-zh", "站長");
     host.appendChild(sec);
-    [["/admin", "文章管理", "Manage posts"],
-     ["/logs", "訪客紀錄", "Visitor logs"],
-     ["/api-docs", "API 文件", "API docs"]].forEach(function (x) {
-      var a = el("a", "sb-link" + (location.pathname === x[0] ? " active" : ""), tx(x[1], x[2]));
-      a.href = x[0];
-      a.setAttribute("data-en", x[2]); a.setAttribute("data-zh", x[1]);
-      host.appendChild(a);
-    });
+
+    if (artM) host.appendChild(itemLink("✏️", "編輯這篇文章", "Edit this post", "/admin?edit=" + artM[2]));
+    host.appendChild(itemBtn("＋", "新增文章", "New post", function () { location.href = "/admin?new=" + newCat; }));
+    host.appendChild(itemBtn("☰", "編輯選單", "Edit menu", startMenuEdit));
+    host.appendChild(itemBtn("⚙️", "網站名稱", "Site name", editBrand));
+    host.appendChild(itemLink("📄", "文章管理", "Manage posts", "/admin"));
+    host.appendChild(itemLink("👥", "成員管理", "Members", "/members"));
+    host.appendChild(itemLink("👣", "訪客紀錄", "Visitor logs", "/logs"));
+    host.appendChild(itemLink("📖", "API 文件", "API docs", "/api-docs"));
   }
 
-  /* ===== 通用小對話框（取代 prompt，手機上也好按） ===== */
+  /* ===== 通用小對話框 ===== */
   function dialog(title, hint, fields, onOk) {
     var ov = el("div", "ab-ov"), dlg = el("div", "ab-dlg");
     dlg.appendChild(el("h3", null, title));
@@ -129,8 +134,8 @@
       form.appendChild(lb); form.appendChild(inp);
     });
     var btns = el("div", "ab-btns");
-    var cancel = el("button", "ab-btn", "取消"); cancel.type = "button";
-    var ok = el("button", "ab-btn pri", "確定"); ok.type = "submit";
+    var cancel = el("button", "ab-btn", tx("取消", "Cancel")); cancel.type = "button";
+    var ok = el("button", "ab-btn pri", tx("確定", "OK")); ok.type = "submit";
     btns.appendChild(cancel); btns.appendChild(ok);
     form.appendChild(btns);
     dlg.appendChild(form);
@@ -152,66 +157,17 @@
     if (first) first.focus();
   }
 
-  /* ===== ✎ 按鈕與下拉選單 ===== */
-  var panel = null, btn = null;
-  function closePanel() {
-    if (panel) { panel.classList.remove("open"); btn.classList.remove("on"); }
-  }
-  function buildPanel() {
-    panel = el("div", "ab-panel");
-    function add(text, hrefOrFn) {
-      var it;
-      if (typeof hrefOrFn === "string") { it = el("a", "ab-item", text); it.href = hrefOrFn; }
-      else { it = el("button", "ab-item", text); it.type = "button"; it.addEventListener("click", hrefOrFn); }
-      panel.appendChild(it);
-      return it;
-    }
-    if (artM) add("✏️ 編輯這篇文章", "/admin?edit=" + artM[2]);
-    add("＋ 新增文章", "/admin?new=" + newCat);
-    add("☰ 編輯選單", startMenuEdit);
-    add("⚙️ 網站名稱", editBrand);
-    panel.appendChild(el("div", "ab-hr"));
-    add("📄 文章管理", "/admin");
-    add("👣 訪客紀錄", "/logs");
-    add("📖 API 文件", "/api-docs");
-    document.body.appendChild(panel);
-  }
-  function togglePanel() {
-    if (!panel) buildPanel();
-    if (panel.classList.contains("open")) { closePanel(); return; }
-    var r = btn.getBoundingClientRect();
-    panel.style.top = (r.bottom + 8) + "px";
-    panel.style.right = Math.max(8, window.innerWidth - r.right) + "px";
-    panel.classList.add("open");
-    btn.classList.add("on");
-  }
-  function mountBtn() {
-    var ctrls = document.querySelector("header .ctrls");
-    if (!ctrls || document.getElementById("abBtn")) return;
-    btn = el("button", "ctrl", "✎");
-    btn.id = "abBtn";
-    btn.title = "編輯模式";
-    btn.setAttribute("aria-label", "編輯模式");
-    ctrls.insertBefore(btn, ctrls.firstChild);
-    btn.addEventListener("click", function (e) { e.stopPropagation(); togglePanel(); });
-    document.addEventListener("click", function (e) {
-      if (panel && panel.classList.contains("open") && !panel.contains(e.target)) closePanel();
-    });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
-    window.addEventListener("scroll", closePanel, { passive: true });
-  }
-
   /* ===== 選單編輯器 ===== */
   var items = null, saveTimer = null, statusEl = null, rowsBox = null;
 
   function status(t) { if (statusEl) statusEl.textContent = t || ""; }
   function scheduleSave() {
-    status("儲存中…");
+    status(tx("儲存中…", "Saving…"));
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       api("/api/admin/menu", { method: "PUT", json: { items: items } })
-        .then(function () { status("✓ 已儲存"); })
-        .catch(function (e) { status("⚠ 儲存失敗"); alertErr(e); });
+        .then(function () { status(tx("✓ 已儲存", "✓ Saved")); })
+        .catch(function (e) { status(tx("⚠ 儲存失敗", "⚠ Save failed")); alertErr(e); });
     }, 600);
   }
   function openSidebar() {
@@ -222,7 +178,6 @@
     }
   }
   function startMenuEdit() {
-    closePanel();
     api("/api/menu").then(function (d) {
       items = (d.items || []).map(function (it) {
         return {
@@ -235,7 +190,7 @@
       openSidebar();
       buildEditor();
       renderRows();
-      if (!d.custom) status("目前是預設選單，改了才會存成自訂");
+      if (!d.custom) status(tx("目前是預設選單，改了才會存成自訂", "Default menu — edits will be saved as custom"));
     }).catch(alertErr);
   }
   function buildEditor() {
@@ -243,11 +198,11 @@
     var sb = document.getElementById("sidebar");
     var nav = sb && sb.querySelector("nav");
     if (!nav) return;
-    // 隱藏原本的選單與站長區（.ab-ed 的存在也讓主站知道「編輯中，別重繪選單」）
     var m = document.getElementById("sbMenu"); if (m) m.style.display = "none";
     var a = document.getElementById("sbAdmin"); if (a) a.style.display = "none";
     var ed = el("div", "ab-ed");
-    ed.appendChild(el("div", "ab-ed-head", "編輯選單 — ↑↓ 排順序、「改」改名／改網址；改動會自動儲存，按「完成」重新整理套用。"));
+    ed.appendChild(el("div", "ab-ed-head", tx("編輯選單 — ↑↓ 排順序、「改」改名／改網址；改動會自動儲存，按「完成」重新整理套用。",
+      "Edit menu — reorder with ↑↓, tap 改 to rename/relink; changes auto-save, tap Done to apply.")));
     statusEl = el("div", "ab-status");
     ed.appendChild(statusEl);
     rowsBox = el("div");
@@ -260,10 +215,10 @@
       foot.appendChild(b);
       return b;
     }
-    fbtn("＋ 連結", false, addLink);
-    fbtn("＋ 分類", false, addSection);
-    fbtn("還原預設", false, restoreDefault);
-    fbtn("✓ 完成", true, finishEdit);
+    fbtn(tx("＋ 連結", "＋ Link"), false, addLink);
+    fbtn(tx("＋ 分類", "＋ Section"), false, addSection);
+    fbtn(tx("還原預設", "Reset"), false, restoreDefault);
+    fbtn(tx("✓ 完成", "✓ Done"), true, finishEdit);
     ed.appendChild(foot);
     nav.appendChild(ed);
   }
@@ -284,13 +239,13 @@
       mini("↓", i === items.length - 1, function () { move(i, 1); });
       var main = el("div", "ab-main");
       main.appendChild(el("div", "ab-lab", it.label + (it.label_en ? "｜" + it.label_en : "")));
-      main.appendChild(el("div", "ab-url", it.kind === "section" ? "分類標題" : it.url));
+      main.appendChild(el("div", "ab-url", it.kind === "section" ? tx("分類標題", "Section") : it.url));
       row.appendChild(main);
-      mini("改", false, function () { editItem(i); });
+      mini(tx("改", "✎"), false, function () { editItem(i); });
       mini("✕", false, function () { removeItem(i); });
       rowsBox.appendChild(row);
     });
-    if (!items.length) rowsBox.appendChild(el("div", "ab-ed-head", "（選單是空的 — 加點東西，或「還原預設」）"));
+    if (!items.length) rowsBox.appendChild(el("div", "ab-ed-head", tx("（選單是空的 — 加點東西，或「還原預設」）", "(empty — add items or Reset)")));
   }
   function move(i, d) {
     var j = i + d;
@@ -300,7 +255,7 @@
     scheduleSave();
   }
   function removeItem(i) {
-    if (!confirm("刪除「" + items[i].label + "」？")) return;
+    if (!confirm(tx("刪除「", "Delete “") + items[i].label + "”？")) return;
     items.splice(i, 1);
     renderRows();
     scheduleSave();
@@ -309,13 +264,13 @@
   function editItem(i) {
     var it = items[i];
     var fields = [
-      { k: "label", label: "名稱（中文）", val: it.label },
-      { k: "label_en", label: "英文名稱（可留空）", val: it.label_en }
+      { k: "label", label: tx("名稱（中文）", "Name"), val: it.label },
+      { k: "label_en", label: tx("英文名稱（可留空）", "English name (optional)"), val: it.label_en }
     ];
-    if (it.kind === "link") fields.push({ k: "url", label: "連結網址", val: it.url, ph: "/news 或 https://…" });
-    dialog(it.kind === "section" ? "編輯分類" : "編輯連結", "", fields, function (v) {
-      if (!v.label) { alert("名稱不能是空的"); return; }
-      if (it.kind === "link" && !validUrl(v.url)) { alert("網址要以 / 或 http(s):// 開頭"); return; }
+    if (it.kind === "link") fields.push({ k: "url", label: tx("連結網址", "URL"), val: it.url, ph: "/news 或 https://…" });
+    dialog(it.kind === "section" ? tx("編輯分類", "Edit section") : tx("編輯連結", "Edit link"), "", fields, function (v) {
+      if (!v.label) { alert(tx("名稱不能是空的", "Name required")); return; }
+      if (it.kind === "link" && !validUrl(v.url)) { alert(tx("網址要以 / 或 http(s):// 開頭", "URL must start with / or http(s)://")); return; }
       it.label = v.label; it.label_en = v.label_en;
       if (it.kind === "link") it.url = v.url;
       renderRows();
@@ -323,31 +278,31 @@
     });
   }
   function addLink() {
-    dialog("新增連結", "會加在選單最下面，再用 ↑ 移到想要的位置。", [
-      { k: "label", label: "名稱（中文）", ph: "例：關於本站" },
-      { k: "label_en", label: "英文名稱（可留空）", ph: "About" },
-      { k: "url", label: "連結網址", ph: "/news 或 https://…" }
+    dialog(tx("新增連結", "New link"), tx("會加在選單最下面，再用 ↑ 移到想要的位置。", "Added at the bottom; move up with ↑."), [
+      { k: "label", label: tx("名稱（中文）", "Name"), ph: tx("例：關於本站", "e.g. About") },
+      { k: "label_en", label: tx("英文名稱（可留空）", "English name (optional)"), ph: "About" },
+      { k: "url", label: tx("連結網址", "URL"), ph: "/news 或 https://…" }
     ], function (v) {
-      if (!v.label) { alert("名稱不能是空的"); return; }
-      if (!validUrl(v.url)) { alert("網址要以 / 或 http(s):// 開頭"); return; }
+      if (!v.label) { alert(tx("名稱不能是空的", "Name required")); return; }
+      if (!validUrl(v.url)) { alert(tx("網址要以 / 或 http(s):// 開頭", "URL must start with / or http(s)://")); return; }
       items.push({ kind: "link", label: v.label, label_en: v.label_en, url: v.url });
       renderRows();
       scheduleSave();
     });
   }
   function addSection() {
-    dialog("新增分類", "分類是選單裡的小標題，用來把連結分組。", [
-      { k: "label", label: "名稱（中文）", ph: "例：站外連結" },
-      { k: "label_en", label: "英文名稱（可留空）", ph: "Links" }
+    dialog(tx("新增分類", "New section"), tx("分類是選單裡的小標題，用來把連結分組。", "A section is a heading to group links."), [
+      { k: "label", label: tx("名稱（中文）", "Name"), ph: tx("例：站外連結", "e.g. Links") },
+      { k: "label_en", label: tx("英文名稱（可留空）", "English name (optional)"), ph: "Links" }
     ], function (v) {
-      if (!v.label) { alert("名稱不能是空的"); return; }
+      if (!v.label) { alert(tx("名稱不能是空的", "Name required")); return; }
       items.push({ kind: "section", label: v.label, label_en: v.label_en, url: "" });
       renderRows();
       scheduleSave();
     });
   }
   function restoreDefault() {
-    if (!confirm("還原成預設選單？自訂的項目會全部刪除。")) return;
+    if (!confirm(tx("還原成預設選單？自訂的項目會全部刪除。", "Reset to default menu? Custom items will be removed."))) return;
     clearTimeout(saveTimer);
     api("/api/admin/menu", { method: "PUT", json: { items: [] } })
       .then(function () { location.reload(); })
@@ -362,11 +317,10 @@
 
   /* ===== 網站名稱 ===== */
   function editBrand() {
-    closePanel();
     api("/api/settings").then(function (d) {
-      dialog("網站名稱",
-        "用在分頁標題、分享卡、RSS。留空＝還原預設（" + (d.custom ? "uaip.cc.cd" : d.brand) + "）。",
-        [{ k: "brand", label: "站名", val: d.custom ? d.brand : "", ph: d.brand }],
+      dialog(tx("網站名稱", "Site name"),
+        tx("用在分頁標題、分享卡、RSS。留空＝還原預設（", "Used in title, share cards, RSS. Blank = default (") + (d.custom ? "uaip.cc.cd" : d.brand) + "）。",
+        [{ k: "brand", label: tx("站名", "Name"), val: d.custom ? d.brand : "", ph: d.brand }],
         function (v) {
           api("/api/admin/settings", { method: "PUT", json: { brand: v.brand } })
             .then(function () { location.reload(); })
@@ -376,6 +330,5 @@
   }
 
   /* ===== 啟動 ===== */
-  mountBtn();
   adminNav();
 })();

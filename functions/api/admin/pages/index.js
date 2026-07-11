@@ -2,7 +2,8 @@
 //   GET  列出全部頁面（含草稿）
 //   POST 新增頁面（slug 與 title 必填；slug 重複回 409）
 // 驗證與其他站長 API 相同：Authorization: Bearer <LOGS_TOKEN>；localhost 開發免驗證。
-import { authed, json, SLUG_RE } from "../../../../lib/site.js";
+import { json, SLUG_RE } from "../../../../lib/site.js";
+import { adminOk } from "../../../../lib/auth.js";
 
 // 欄位整理與上限（slug、title 必填；status 只收白名單值）。不合規回 null／錯誤字串。
 export function cleanPage(b) {
@@ -24,7 +25,7 @@ export function cleanPage(b) {
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
   try {
     const res = await env.DB.prepare(
@@ -38,7 +39,7 @@ export async function onRequestGet({ request, env }) {
 
 export async function onRequestPost({ request, env }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
 
   let body = null;

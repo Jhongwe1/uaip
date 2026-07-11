@@ -77,9 +77,56 @@ CREATE TABLE IF NOT EXISTS pages (
   updated_at TEXT NOT NULL
 );
 
--- 網站設定（key-value）：目前只有 brand（站名）。表空或沒該鍵時用程式內建預設。
--- 寫入走 PUT /api/admin/settings。
+-- 網站設定（key-value）：brand（站名）、vpn_source（VPN 上游訂閱網址）。表空或沒該鍵時用程式內建預設。
+-- 寫入走 PUT /api/admin/settings（brand）與 PUT /api/admin/vpn（vpn_source）。
 CREATE TABLE IF NOT EXISTS settings (
   k TEXT PRIMARY KEY,
   v TEXT NOT NULL
+);
+
+-- 會員（2026-07-11 Google 登入上線）：任何人都能用 Google 登入，但 status 要站長核准（approved）
+-- 之後，API 中轉與 VPN 訂閱才真的能用。站長信箱（lib/auth.js ADMIN_EMAILS_DEFAULT 或環境變數
+-- ADMIN_EMAILS）第一次登入自動 approved＋is_admin=1。
+CREATE TABLE IF NOT EXISTS users (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  google_sub   TEXT NOT NULL UNIQUE,          -- Google 帳號的永久編號（本機測試登入是 dev:信箱）
+  email        TEXT NOT NULL,
+  name         TEXT NOT NULL DEFAULT '',
+  picture      TEXT NOT NULL DEFAULT '',      -- Google 大頭貼網址
+  status       TEXT NOT NULL DEFAULT 'pending', -- pending（待核准）/ approved（已核准）/ blocked（封鎖）
+  is_admin     INTEGER NOT NULL DEFAULT 0,
+  api_key_hash TEXT NOT NULL DEFAULT '',      -- 會員 API 金鑰（uak-…）的 SHA-256；空字串＝還沒產生
+  api_key_hint TEXT NOT NULL DEFAULT '',      -- 顯示用提示（開頭…結尾），明文金鑰不落地
+  api_key_at   TEXT,                          -- 金鑰產生時間（UTC ISO）
+  vpn_token    TEXT NOT NULL DEFAULT '',      -- VPN 訂閱網址代碼（/vpn/sub/<token>），可重生
+  relay_calls  INTEGER NOT NULL DEFAULT 0,    -- 中轉累計請求數
+  vpn_pulls    INTEGER NOT NULL DEFAULT 0,    -- 訂閱被抓取次數
+  created_at   TEXT NOT NULL,
+  last_login   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_users_key ON users (api_key_hash);
+CREATE INDEX IF NOT EXISTS idx_users_vpn ON users (vpn_token);
+
+-- 登入狀態（HttpOnly cookie ipua_sess ↔ 這張表）：sid 存的是 SHA-256 雜湊，
+-- 資料庫外洩也拿不到能用的 cookie。過期列在每次登入時順手清掉。
+CREATE TABLE IF NOT EXISTS sessions (
+  sid        TEXT PRIMARY KEY,   -- cookie 值的 SHA-256
+  user_id    INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_exp ON sessions (expires_at);
+
+-- API 中轉站的上游管道（2026-07-11）：站長在 /relay 管理。會員打 /relay/<slug>/...，
+-- 伺服器把驗證換成這裡存的上游金鑰後轉發。kind 決定上游收金鑰的方式：
+-- openai/custom → Authorization: Bearer；anthropic → x-api-key；gemini → x-goog-api-key。
+CREATE TABLE IF NOT EXISTS relay_channels (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug       TEXT NOT NULL UNIQUE,            -- 網址代稱（小寫英數與連字號），例 openai、my-ollama
+  name       TEXT NOT NULL,                   -- 顯示名稱
+  kind       TEXT NOT NULL DEFAULT 'openai',  -- openai / anthropic / gemini / custom
+  base_url   TEXT NOT NULL,                   -- 上游根網址，例 https://api.openai.com
+  api_key    TEXT NOT NULL DEFAULT '',        -- 上游金鑰（只有站長 API 摸得到，回讀一律遮罩）
+  enabled    INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
 );

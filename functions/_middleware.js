@@ -8,6 +8,8 @@ function shouldLog(request, url) {
   if (request.method !== "GET" && request.method !== "HEAD") return false;
   const p = url.pathname.toLowerCase().replace(/\/+$/, "") || "/";
   if (p === "/logs" || p === "/admin" || p.indexOf("/api") === 0 || p.indexOf("/img/") === 0) return false;
+  // 登入流程、API 中轉轉發、VPN 訂閱抓取都不是「頁面瀏覽」，不記
+  if (p.indexOf("/auth") === 0 || p.indexOf("/relay/") === 0 || p.indexOf("/vpn/sub") === 0) return false;
   // 瀏覽器「預先抓取」不是真的瀏覽，跳過
   const purpose = (request.headers.get("sec-purpose") || request.headers.get("purpose") || "").toLowerCase();
   if (purpose.indexOf("prefetch") >= 0 || purpose.indexOf("preview") >= 0) return false;

@@ -15,15 +15,16 @@
 | 回應格式 | 一律 JSON（UTF-8） |
 | 時間欄位 | 一律 UTC 的 ISO 8601（例 `2026-07-09T03:00:00.000Z`），顯示時自行轉時區 |
 
-**驗證**：公開 API 免金鑰；站長 API（路徑含 `/admin` 的與 `/api/logs`）要帶請求標頭：
+**三種身分**：
 
-```
-Authorization: Bearer <管理金鑰>
-```
-
-- 管理金鑰＝Cloudflare Pages 環境變數 **LOGS_TOKEN**，跟 /logs、/admin 網頁登入同一把；目前的值記在專案根目錄 ADMIN.md（該檔不會上網）。
-- **本機開發（localhost）免金鑰**；正式站沒帶或帶錯一律回 401。
-- 換金鑰：`printf '新金鑰' | npx wrangler pages secret put LOGS_TOKEN --project-name uaip`，跑完要重新部署才生效。
+1. **公開**：免驗證（whoami、已發佈內容、選單、站名）。
+2. **站長**：路徑含 `/admin` 的、以及 `/api/logs`。兩種通過方式（擇一）：
+   - 請求標頭 `Authorization: Bearer <管理金鑰>`（curl／排程／AI agent 用）。管理金鑰＝Cloudflare Pages 環境變數 **LOGS_TOKEN**，跟 /logs、/admin 網頁登入同一把；值記在 ADMIN.md（不會上網）。
+   - 站長 Google 帳號的登入 cookie（瀏覽器用）：站長信箱登入後，管理頁與站長 API 免金鑰。站長信箱＝環境變數 **ADMIN_EMAILS**（逗號分隔，預設 `zwwe1f@gmail.com`）。
+   - **本機開發（localhost）免金鑰**；正式站沒帶或帶錯一律回 401。用 cookie 身分時，跨網站送出的請求會被 Origin 檢查擋掉（防 CSRF）。
+   - 換金鑰：`printf '新金鑰' | npx wrangler pages secret put LOGS_TOKEN --project-name uaip`，跑完要重新部署才生效。
+3. **會員**：任何人用 Google 登入即為會員（見 `/auth/login`）。會員功能（API 中轉、VPN 訂閱）要**站長核准**（status=approved）後才生效。
+   - 網頁操作靠登入 cookie；**API 中轉**另用會員自己的金鑰 `uak-…`（在 /relay 頁產生，帶法同各家 AI API）。
 
 ### 30 秒上手：發一篇新聞
 
@@ -57,6 +58,25 @@ curl -X POST https://uaip.cc.cd/api/admin/articles ^
 | `GET /feed` | RSS 訂閱源（最新 20 篇） |
 | `GET /sitemap` | 搜尋引擎網址清單（含文章與自訂頁面） |
 
+### 會員（要登入 cookie）
+
+| 方法與路徑 | 用途 |
+|---|---|
+| `GET /api/me` | 我是誰（登入狀態、核准狀態、是否站長；未登入回 `{user:null}`） |
+| `POST /api/account/key` | 產生／重生自己的中轉金鑰 `uak-…`（明文只回一次） |
+| `DELETE /api/account/key` | 撤銷自己的中轉金鑰 |
+| `POST /api/account/vpn-token` | 重生自己的 VPN 訂閱代碼（舊訂閱網址立即失效） |
+| `GET /api/relay/channels` | 目前可用的中轉管道清單（不含金鑰） |
+
+### 會員服務端點（不同驗證）
+
+| 方法與路徑 | 驗證 | 用途 |
+|---|---|---|
+| `ANY /relay/{管道}/{上游路徑…}` | 會員金鑰 `uak-…` | API 中轉：轉發到上游、串流直通（見 §6） |
+| `GET /vpn/sub/{token}` | 訂閱 token 本身 | VPN 訂閱鏡像：給 Clash／v2rayN 直接訂閱（見 §7） |
+| `GET /auth/login?next=…` | — | 導向 Google 登入（localhost 提供測試登入表單） |
+| `POST /auth/logout` | 登入 cookie | 登出 |
+
 ### 站長（要金鑰）
 
 | 方法與路徑 | 用途 |
@@ -76,6 +96,15 @@ curl -X POST https://uaip.cc.cd/api/admin/articles ^
 | `PUT /api/admin/settings` | 改網站設定（站名） |
 | `GET /api/logs` | 訪客紀錄查詢 |
 | `GET /api/admin/apidoc` | 這份文件的 Markdown 原稿（`{ md }`） |
+| `GET /api/admin/users` | 全部會員（狀態、用量、最後登入） |
+| `PUT /api/admin/users/{id}` | 核准／封鎖／升降管理員（`{ action }`） |
+| `DELETE /api/admin/users/{id}` | 刪除會員 |
+| `GET /api/admin/relay/channels` | 全部中轉管道（上游金鑰遮罩） |
+| `POST /api/admin/relay/channels` | 新增中轉管道 |
+| `PUT /api/admin/relay/channels/{id}` | 更新管道（整包覆蓋；沒帶 api_key＝保留舊金鑰） |
+| `DELETE /api/admin/relay/channels/{id}` | 刪除管道 |
+| `GET /api/admin/vpn` | 讀 VPN 訂閱來源設定（上游網址遮罩） |
+| `PUT /api/admin/vpn` | 設 VPN 上游訂閱網址與手動節點 |
 
 ## 3. 三條鐵則（先讀這個再動手）
 
@@ -232,6 +261,59 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 
 回 `{ rows, total, today?, todayIps? }`。
 
+## 5b. 會員與帳號 API
+
+- `GET /api/me` → `{ user }`（未登入 `{ user:null }`）。user 含 `email`、`name`、`picture`、`status`（pending/approved/blocked）、`is_admin`、`approved`、`has_key`、`key_hint`、`key_at`、`vpn_token`、`relay_calls`、`vpn_pulls`。
+- `POST /api/account/key` → `{ key, key_hint, key_at }`。**key 明文只在這次回應出現**，資料庫只存 SHA-256；重生會讓舊金鑰立即失效。`DELETE` 撤銷。
+- `POST /api/account/vpn-token` → `{ vpn_token }`。重生訂閱代碼（舊 `/vpn/sub/<舊token>` 立即失效）。
+- 以上都要登入 cookie；跨站請求被 Origin 擋（403 bad-origin）。
+
+## 5c. 成員管理：/api/admin/users
+
+- `GET` → `{ rows }`：每筆 `id`、`email`、`name`、`picture`、`status`、`is_admin`、`relay_calls`、`vpn_pulls`、`last_login`、`created_at`；排序 pending 在前。
+- `PUT /api/admin/users/{id}` 本體 `{ "action": "approve" | "block" | "unblock" | "make_admin" | "drop_admin" }`。封鎖會同時把該會員踢下線（刪其 session）。
+- `DELETE /api/admin/users/{id}` 刪除帳號。
+- **護欄**：不能封鎖／降級／刪除自己；也不能動到 ADMIN_EMAILS 指定的站長帳號（回 403 protected — 要改就改環境變數）。
+
+## 5d. API 中轉站
+
+**站長設管道**（存 `relay_channels` 表）：`POST /api/admin/relay/channels`，本體：
+
+| 欄位 | 規則 |
+|---|---|
+| `slug` | **必填** 網址代稱（小寫英數與連字號），例 `openai`、`my-ollama` |
+| `name` | **必填** 顯示名稱 |
+| `kind` | `openai`（含所有 OpenAI 相容服務與本地 AI）／`anthropic`／`gemini`／`custom`；決定金鑰帶給上游的方式 |
+| `base_url` | **必填** 上游根網址，例 `https://api.openai.com` |
+| `api_key` | 上游金鑰（只有站長 API 摸得到，回讀一律遮罩） |
+| `enabled` | 預設 true |
+
+- `PUT /api/admin/relay/channels/{id}` 整包覆蓋；**本體沒帶 `api_key` 欄位＝保留舊金鑰**（帶空字串＝清掉）。
+- `kind` 對應的上游驗證頭：openai/custom → `Authorization: Bearer`、anthropic → `x-api-key`、gemini → `x-goog-api-key`。
+
+**會員使用**：把 AI 工具的 Base URL 設成 `https://uaip.cc.cd/relay/{slug}`、API Key 填自己的 `uak-…`：
+
+```
+POST https://uaip.cc.cd/relay/openai/v1/chat/completions
+Authorization: Bearer uak-你的金鑰
+→ 伺服器驗身分＋核准狀態 → 換成站長存的上游金鑰 → 轉發到 https://api.openai.com/v1/chat/completions
+```
+
+- 金鑰放哪都收：`Authorization: Bearer`、`x-api-key`、`x-goog-api-key`、`?key=`（配合各家 SDK）。
+- 路徑照上游原本的填（中轉只換金鑰不改路徑）；回應串流直通。
+- 未帶金鑰 401、金鑰無效 401、帳號未核准 403、管道不存在或停用 404、上游連不上 502。
+
+## 5e. VPN 訂閱
+
+**站長設來源**（存 `settings` 表）：`PUT /api/admin/vpn`，本體 `{ source_url?, node_links? }`：
+
+- `source_url`：上游訂閱網址（機場／自建）。會員訂閱時伺服器抓它、邊緣快取 5 分鐘後轉發，並透傳流量／到期資訊（Subscription-Userinfo）。
+- `node_links`：手動節點，一行一條（`vmess://`、`vless://`…）。
+- 欄位缺席＝不動；空字串＝清掉。兩者可只填一個；都空＝關閉訂閱功能。
+- `GET /api/admin/vpn` → `{ has_source, source_hint, node_count, node_links }`。
+
+**會員使用**：`GET /vpn/sub/{token}`（token＝會員的 `vpn_token`，等於通行證）。把這網址加進 Clash／v2rayN 的訂閱即可，App 會自動定時更新。未核准／被封鎖的 token → 403。上游是標準 base64 訂閱時，手動節點會解碼附加後重新編碼；上游是 Clash YAML 等其他格式則原樣透傳。
+
 ## 6. 常用流程速查
 
 | 想做的事 | 步驟 |
@@ -243,9 +325,12 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 | 頁面掛進選單 | GET /api/menu → items 加 `{ kind:"link", label, url:"/p/{slug}" }` → PUT /api/admin/menu |
 | 改站名 | PUT /api/admin/settings `{ "brand":"…" }` |
 | 看流量 | GET /api/logs?limit=50&since=今天零點的UTC時間 |
+| 加中轉管道 | POST /api/admin/relay/channels `{ slug, name, kind, base_url, api_key }` |
+| 核准會員 | GET /api/admin/users 找 id → PUT /api/admin/users/{id} `{ "action":"approve" }` |
+| 設 VPN 來源 | PUT /api/admin/vpn `{ "source_url":"https://…" }` 或 `{ "node_links":"vless://…" }` |
 
 轉貼別站新聞的原則：**用自己的話改寫＋文末附資料來源連結**，不要整篇照抄。
-這些操作在網頁上也都能做：文章後台 /admin、右上角 ✎ 編輯模式（改選單、改站名）、訪客紀錄 /logs（自訂頁面目前只有 API）。
+這些操作在網頁上也都能做：文章後台 /admin、☰ 側邊欄「站長」區（改選單、改站名、成員管理）、訪客紀錄 /logs、中轉站 /relay、VPN /vpn（自訂頁面目前只有 API）。
 
 ## 7. 錯誤回應
 
@@ -253,10 +338,12 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 
 | HTTP 狀態 | 常見 error | 說明 |
 |---|---|---|
-| 400 | bad-input / bad-id / bad-slug / bad-url / too-many / empty | 參數或本體不合規則（看 hint） |
-| 401 | unauthorized | 金鑰沒帶或不對 |
-| 404 | not-found | 內容不存在（或公開 API 查到的是草稿） |
-| 409 | slug-taken | 自訂頁面的 slug 已被使用 |
+| 400 | bad-input / bad-id / bad-slug / bad-url / too-many / empty / bad-action / self | 參數或本體不合規則（看 hint） |
+| 401 | unauthorized / no-key / bad-key | 金鑰沒帶或不對（中轉：會員金鑰無效） |
+| 403 | bad-origin / not-approved / blocked / protected | 跨站被擋／帳號未核准或被封鎖／受保護的站長帳號 |
+| 404 | not-found / unknown-channel | 內容不存在（或公開 API 查到的是草稿）／中轉管道不存在 |
+| 409 | slug-taken | 自訂頁面或管道的 slug 已被使用 |
+| 502 | upstream-unreachable / upstream error | 中轉／VPN 上游連不上或回錯 |
 | 413 | too-large | 圖片超過 1.8MB |
 | 415 | bad-type | 圖片格式不是 webp / jpeg / png / gif |
 | 500 | no-db / query-failed / insert-failed / update-failed / delete-failed / save-failed | 伺服器或資料庫問題（看 detail） |

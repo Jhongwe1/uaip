@@ -6,12 +6,8 @@
 // 參數：limit（1–200，預設 50）、offset（分頁）、q（模糊搜尋 ip/ua/path/country/city/isp）、
 //       since（ISO 時間，回傳該時間之後的瀏覽數與不重複 IP 數，管理頁拿來算「今日」）。
 
-function authed(request, env, url) {
-  const auth = request.headers.get("authorization") || "";
-  const token = auth.indexOf("Bearer ") === 0 ? auth.slice(7).trim() : "";
-  if (env.LOGS_TOKEN) return token === env.LOGS_TOKEN;
-  return url.hostname === "localhost" || url.hostname === "127.0.0.1";
-}
+// 2026-07-11 起：站長 Google 帳號的登入 cookie 也可以（與金鑰並存），驗證邏輯統一在 lib/auth.js
+import { adminOk } from "../../lib/auth.js";
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
@@ -20,7 +16,7 @@ export async function onRequestGet({ request, env }) {
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
   });
 
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
 
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit"), 10) || 50, 1), 200);

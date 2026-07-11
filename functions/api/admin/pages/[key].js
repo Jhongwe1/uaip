@@ -1,7 +1,8 @@
 // /api/admin/pages/<編號或slug> — 站長專用：GET 讀單頁（含內文原稿）、PUT 更新、DELETE 刪除。
 // <key> 純數字＝用編號找，其他＝用 slug 找（agent 用 slug 操作比較直覺）。
 // PUT 跟文章一樣是「整包覆蓋」：先 GET 拿舊資料、改完整包送回；slug 也可以在 PUT 裡改（等於搬家）。
-import { authed, json, SLUG_RE } from "../../../../lib/site.js";
+import { json, SLUG_RE } from "../../../../lib/site.js";
+import { adminOk } from "../../../../lib/auth.js";
 import { cleanPage } from "./index.js";
 
 // 依 key 找頁面：回 row 或 null；key 不合法回 undefined
@@ -17,7 +18,7 @@ async function findPage(env, key) {
 
 export async function onRequestGet({ request, env, params }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
   try {
     const row = await findPage(env, params.key);
@@ -31,7 +32,7 @@ export async function onRequestGet({ request, env, params }) {
 
 export async function onRequestPut({ request, env, params }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
 
   let body = null;
@@ -59,7 +60,7 @@ export async function onRequestPut({ request, env, params }) {
 
 export async function onRequestDelete({ request, env, params }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
   try {
     const row = await findPage(env, params.key);

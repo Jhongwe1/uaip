@@ -1,5 +1,6 @@
 // /api/admin/articles/<編號> — 站長專用：GET 讀單篇（含內文原稿）、PUT 更新、DELETE 刪除。
-import { authed, json } from "../../../../lib/site.js";
+import { json } from "../../../../lib/site.js";
+import { adminOk } from "../../../../lib/auth.js";
 import { cleanArticle } from "./index.js";
 
 function idOf(params) {
@@ -9,7 +10,7 @@ function idOf(params) {
 
 export async function onRequestGet({ request, env, params }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   const id = idOf(params);
   if (!id || !env.DB) return json({ error: "bad-id" }, 400);
   try {
@@ -23,7 +24,7 @@ export async function onRequestGet({ request, env, params }) {
 
 export async function onRequestPut({ request, env, params }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   const id = idOf(params);
   if (!id || !env.DB) return json({ error: "bad-id" }, 400);
 
@@ -49,7 +50,7 @@ export async function onRequestPut({ request, env, params }) {
 
 export async function onRequestDelete({ request, env, params }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   const id = idOf(params);
   if (!id || !env.DB) return json({ error: "bad-id" }, 400);
   try {

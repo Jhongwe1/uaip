@@ -155,6 +155,9 @@
       <div class="sb-sec" data-i18n="sb.tools">工具</div>
       <a class="sb-link" href="/ip" data-nav="ip" data-i18n="tab.ip">IP 查詢</a>
       <a class="sb-link" href="/ua" data-nav="ua" data-i18n="tab.ua">UA 查詢</a>
+      <div class="sb-sec" data-i18n="sb.services">服務</div>
+      <a class="sb-link" href="/relay" data-i18n="sb.relay">API 中轉站</a>
+      <a class="sb-link" href="/vpn" data-i18n="sb.vpn">VPN 訂閱</a>
     </div>
     <div id="sbAdmin"></div>
   </nav>
@@ -316,6 +319,7 @@
       "st.enabled":"啟用","st.disabled":"停用","st.bit":"{n} 位元","st.fonts":"偵測到 {n} 種字型","st.gb":"{n} GB",
       "os.bits":"({n}位)","err.query":"查詢失敗，請稍後再試",
       "sb.title":"選單","sb.content":"內容","sb.news":"新聞","sb.posts":"文章","sb.tools":"工具",
+      "sb.services":"服務","sb.relay":"API 中轉站","sb.vpn":"VPN 訂閱",
       "sb.admin":"站長","sb.manage":"文章管理","sb.logs":"訪客紀錄",
       "theme.day":"白天模式（點擊切換）","theme.night":"夜間模式（點擊切換）","theme.auto":"自動日夜（點擊切換）"
     },
@@ -340,6 +344,7 @@
       "st.enabled":"Enabled","st.disabled":"Disabled","st.bit":"{n}-bit","st.fonts":"{n} fonts detected","st.gb":"{n} GB",
       "os.bits":"({n}-bit)","err.query":"Lookup failed. Please try again.",
       "sb.title":"Menu","sb.content":"Content","sb.news":"News","sb.posts":"Articles","sb.tools":"Tools",
+      "sb.services":"Services","sb.relay":"API relay","sb.vpn":"VPN",
       "sb.admin":"Admin","sb.manage":"Manage posts","sb.logs":"Visitor logs",
       "theme.day":"Day mode (tap to switch)","theme.night":"Night mode (tap to switch)","theme.auto":"Auto day/night (tap to switch)"
     }
@@ -1042,5 +1047,6 @@
   else start();
 })();
 </script>
+<script src="/assets/account.js"></script>
 </body>
 </html>

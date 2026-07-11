@@ -28,7 +28,7 @@ const BODY = `
 <!-- 金鑰驗證（與 /logs 同一把管理金鑰） -->
 <section id="gate" class="card hidden">
   <div class="card-title">站長驗證</div>
-  <p class="hint">這一頁只有站長能用。請輸入管理金鑰（與訪客紀錄相同那一把）；金鑰只存在這台裝置的瀏覽器裡。</p>
+  <p class="hint">這一頁只有站長能用。用站長 Google 帳號 <a href="/auth/login?next=/admin">登入</a>，或輸入管理金鑰（與訪客紀錄相同那一把）；金鑰只存在這台裝置的瀏覽器裡。</p>
   <form id="gateForm" class="query">
     <input id="tokenInput" type="password" autocomplete="off" placeholder="管理金鑰">
     <button type="submit">進入</button>

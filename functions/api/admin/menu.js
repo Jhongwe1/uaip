@@ -1,13 +1,14 @@
 // PUT /api/admin/menu — 站長專用：整包覆蓋側邊欄選單。
 // 本體 { items: [ { kind:"section"|"link", label, label_en?, url? }, … ] }，依陣列順序顯示。
 // 傳空陣列 = 清空自訂選單 = 還原成內建預設。整個覆蓋動作在同一個交易裡（batch），不會存到一半。
-import { authed, json } from "../../../lib/site.js";
+import { json } from "../../../lib/site.js";
+import { adminOk } from "../../../lib/auth.js";
 
 const MAX_ITEMS = 60;
 
 export async function onRequestPut({ request, env }) {
   const url = new URL(request.url);
-  if (!authed(request, env, url)) return json({ error: "unauthorized" }, 401);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
 
   let body = null;

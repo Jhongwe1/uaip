@@ -230,6 +230,45 @@ menu 表空＝用內建預設（lib/site.js 的 DEFAULT_MENU；index.html 也留
 所以站長的進入方式＝直接在網址列打 `uaip.cc.cd/logs` 輸入金鑰；登入過一次，之後選單就有捷徑。
 在 /logs 按「清除金鑰」捷徑就會消失。就算有人翻原始碼猜到 /logs，沒金鑰 API 一律回 401。
 
+## Google 登入 ＋ 會員系統（2026-07-11 上線）
+
+任何人都能用 Google 登入成為「會員」；會員功能（**API 中轉站** /relay、**VPN 訂閱** /vpn）要**站長核准**後才生效。站長信箱登入後自動是管理員，管理頁與站長 API 免金鑰（金鑰仍可用，給 curl／agent）。右上角是「帳號」鈕（登入／頭像下拉）；站長的編輯工具從舊的右上角 ✎ **搬進 ☰ 側邊欄「站長」區**了。
+
+### 資料表（都在同一個 D1 `ipua-logs`）
+- `users`：會員（google_sub、email、status=pending/approved/blocked、is_admin、api_key_hash＝中轉金鑰的 SHA-256、vpn_token＝訂閱代碼、用量）。
+- `sessions`：登入狀態（cookie `ipua_sess` 存的是 SHA-256）。
+- `relay_channels`：中轉上游管道（slug、kind、base_url、api_key）。
+- VPN 來源存在 `settings`：`vpn_source`（上游訂閱網址）、`vpn_nodes`（手動節點）。
+
+### 要設的環境變數（secrets）
+```
+# 1) 站長信箱（逗號分隔，可多個）。沒設就用程式內建預設 zwwe1f@gmail.com。
+printf 'zwwe1f@gmail.com' | npx wrangler pages secret put ADMIN_EMAILS --project-name uaip
+
+# 2) Google OAuth 憑證（申請步驟見下）：
+printf '你的CLIENT_ID' | npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name uaip
+printf '你的CLIENT_SECRET' | npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name uaip
+# 設完要重新 npx wrangler pages deploy 一次才生效。
+```
+沒設 GOOGLE_CLIENT_ID 時：正式站 /auth/login 顯示「尚未開通」；本機（localhost）會改用「輸入信箱就登入」的測試表單，不需 Google 憑證也能開發測試。
+
+### 申請 Google OAuth 憑證（一次性，約 5 分鐘）
+1. 開 <https://console.cloud.google.com/> → 建一個專案（例 uaip）。
+2. 左側「APIs & Services」→「OAuth consent screen」：User Type 選 **External**、填 App 名稱與你的信箱、Scopes 只要 `email`/`profile`/`openid`；發佈狀態 Testing 就夠（要用的人先加進 Test users，或按 Publish 讓任何人都能登入）。
+3.「Credentials」→ Create Credentials →「OAuth client ID」→ Application type **Web application**。
+4. **Authorized redirect URIs** 填這兩個（一定要完全一致）：
+   - `https://uaip.cc.cd/auth/callback`
+   - `https://uaip.pages.dev/auth/callback`（備用網域，可省）
+   - 本機測試不用登記（localhost 走測試表單）。
+5. 建好後把 **Client ID** 與 **Client secret** 用上面的指令設進 Cloudflare。
+- 之後要多開放誰：把對方信箱加進 OAuth consent screen 的 Test users（或已 Publish 就不用）；要升成站長就在 /members 頁按「設為站長」，或把信箱加進 ADMIN_EMAILS。
+
+### 日常操作
+- **核准會員**：/members 頁（站長）→ 待核准清單按「核准」。或 API：`PUT /api/admin/users/{id} {"action":"approve"}`。
+- **加中轉管道**：/relay 頁（站長）「管道管理」→ 新增，填上游 base_url 與該平台的 API Key。之後會員用自己的 `uak-` 金鑰 + Base URL `https://uaip.cc.cd/relay/<slug>` 就能打。
+- **設 VPN 來源**：/vpn 頁（站長）→ 貼上游訂閱網址或手動節點。會員在 /vpn 拿到專屬 `/vpn/sub/<token>` 訂閱網址。
+- 護欄：站長不能在網頁上封鎖／刪除自己，也動不了 ADMIN_EMAILS 指定的帳號（要改就改環境變數）。
+
 ## 廣告計畫
 
 > 目標：加**非侵入式**廣告（明確不要彈窗／popunder／插頁）。2026-07-02 定路線：**Adsterra 先上車＋A-ADS 先體驗**，暫不買網域。
