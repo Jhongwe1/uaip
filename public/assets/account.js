@@ -18,9 +18,9 @@
   var adminHint = cookie("ipua_adm") === "1";
   var isLocal = /^(localhost|127\.)/.test(location.hostname);
 
-  var lang = "zh";
-  try { if (localStorage.getItem("ipua-lang") === "en") lang = "en"; } catch (e) {}
-  function tx(zh, en) { return lang === "en" ? en : zh; }
+  // 每次讀最新語言，右上角切換 EN/中 後帳號鈕跟著變
+  function curLang() { try { return localStorage.getItem("ipua-lang") === "en" ? "en" : "zh"; } catch (e) { return "zh"; } }
+  function tx(zh, en) { return curLang() === "en" ? en : zh; }
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -101,7 +101,7 @@
 
     function link(text, href) { var a = el("a", "acct-item", text); a.href = href; panel.appendChild(a); }
     link(tx("🔌 API 中轉站", "🔌 API relay"), "/relay");
-    link(tx("🌐 VPN 訂閱", "🌐 VPN"), "/vpn");
+    link(tx("🌐 VPN", "🌐 VPN"), "/vpn");
     if (me.is_admin) {
       panel.appendChild(el("div", "acct-hr"));
       link(tx("👥 成員管理", "👥 Members"), "/members");
@@ -123,6 +123,19 @@
     panel.classList.add("open"); btn.classList.add("on");
   }
   function closePanel() { if (panel) { panel.classList.remove("open"); if (btn) btn.classList.remove("on"); } }
+
+  // 右上角切換 EN/中 時：登入鈕改字、頭像下拉重建（下次開啟就是新語言）
+  function onLangChange() {
+    var a = document.getElementById("acctLogin");
+    if (a) a.textContent = tx("登入", "Sign in");
+    if (btn) { btn.title = tx("帳號", "Account"); btn.setAttribute("aria-label", tx("帳號", "Account")); }
+    if (panel) {
+      var wasOpen = panel.classList.contains("open");
+      panel.remove(); panel = null;
+      if (wasOpen) togglePanel();
+    }
+  }
+  window.addEventListener("ipua:lang", onLangChange);
 
   function logout() {
     var f = document.createElement("form");

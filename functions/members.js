@@ -33,11 +33,12 @@ export async function onRequestGet({ env }) {
     '<script>' + MEMBERS_JS + '</script>';
   return html(pageShell({
     title: "成員管理",
+    tkey: "page.members",
     desc: "站長專用的成員管理頁。",
     noindex: true,
     chrome: chrome,
     activePath: "/members",
-    h1: '<a href="/">成員管理</a>',
+    h1: '<a href="/" data-zh="成員管理" data-en="Members">成員管理</a>',
     headExtra: "<style>" + MEMBER_CSS + PAGE_CSS + "</style>\n",
     body: body
   }));
@@ -55,20 +56,22 @@ const MEMBERS_JS = `
     return fetch(path,opts).then(function(r){return r.json().catch(function(){return{};}).then(function(d){if(!r.ok)throw new Error(d.hint||d.error||("HTTP "+r.status));return d;});});
   }
 
-  function start(){
-    MU.me(true).then(function(u){
-      me=u;
-      if(!me){MU.gateLogin(root,tx("成員管理","Members"),tx("這一頁只有站長能看，請先登入。","Owner only. Please sign in."));return;}
-      if(!me.is_admin){
-        root.innerHTML="";root.appendChild(MU.acctCard(me));
-        var g=el("div","gate");g.appendChild(el("div","big","\\uD83D\\uDEAB"));
-        g.appendChild(el("h2",null,tx("僅限站長","Owner only")));
-        g.appendChild(el("p",null,tx("這一頁只有站長能看。","This page is for the site owner only.")));
-        root.appendChild(g);return;
-      }
-      load();
-    }).catch(function(e){root.innerHTML='<div class="gate"><p>'+esc(e.message||e)+'</p></div>';});
+  function paint(){
+    if(!me){MU.gateLogin(root,tx("成員管理","Members"),tx("這一頁只有站長能看，請先登入。","Owner only. Please sign in."));return;}
+    if(!me.is_admin){
+      root.innerHTML="";root.appendChild(MU.acctCard(me));
+      var g=el("div","gate");g.appendChild(el("div","big","\\uD83D\\uDEAB"));
+      g.appendChild(el("h2",null,tx("僅限站長","Owner only")));
+      g.appendChild(el("p",null,tx("這一頁只有站長能看。","This page is for the site owner only.")));
+      root.appendChild(g);return;
+    }
+    render();
   }
+  function start(){
+    MU.me(true).then(function(u){ me=u; if(me&&me.is_admin){load();} else {paint();} })
+      .catch(function(e){root.innerHTML='<div class="gate"><p>'+esc(e.message||e)+'</p></div>';});
+  }
+  MU.onLang(paint);
 
   function load(){
     api("/api/admin/users").then(function(d){rows=d.rows||[];render();}).catch(function(e){

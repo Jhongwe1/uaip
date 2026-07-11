@@ -29,12 +29,13 @@ export async function onRequestGet({ env }) {
     '<script>' + MEMBER_JS + '</script>\n' +
     '<script>' + VPN_JS + '</script>';
   return html(pageShell({
-    title: "VPN 訂閱",
+    title: "VPN",
+    tkey: "page.vpn",
     desc: "會員專用的 VPN 訂閱 — 一個網址匯入所有節點，自動更新。",
     noindex: true,
     chrome: chrome,
     activePath: "/vpn",
-    h1: '<a href="/">VPN 訂閱</a>',
+    h1: '<a href="/" data-zh="VPN" data-en="VPN">VPN</a>',
     headExtra: "<style>" + MEMBER_CSS + PAGE_CSS + "</style>\n",
     body: body
   }));
@@ -53,14 +54,16 @@ const VPN_JS = `
   }
   function subUrl(){return origin+"/vpn/sub/"+me.vpn_token;}
 
-  function start(){
-    MU.me(true).then(function(u){
-      me=u;
-      if(!me){MU.gateLogin(root,tx("VPN 訂閱","VPN subscription"),tx("一個訂閱網址匯入所有節點、自動更新。請先用 Google 登入。","One subscription URL for all nodes. Please sign in with Google first."));return;}
-      if(!me.approved){MU.gatePending(root,me);return;}
-      render();
-    }).catch(function(e){root.innerHTML='<div class="gate"><p>'+tx("讀取失敗：","Failed: ")+esc(e.message||e)+'</p></div>';});
+  function paint(){
+    if(!me){MU.gateLogin(root,tx("VPN","VPN"),tx("一個訂閱網址匯入所有節點、自動更新。請先用 Google 登入。","One subscription URL for all nodes. Please sign in with Google first."));return;}
+    if(!me.approved){MU.gatePending(root,me);return;}
+    render();
   }
+  function start(){
+    MU.me(true).then(function(u){ me=u; paint(); })
+      .catch(function(e){root.innerHTML='<div class="gate"><p>'+tx("讀取失敗：","Failed: ")+esc(e.message||e)+'</p></div>';});
+  }
+  MU.onLang(paint);
 
   function render(){
     root.innerHTML="";

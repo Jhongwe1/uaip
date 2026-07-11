@@ -151,15 +151,15 @@
   </div>
   <nav>
     <div id="sbMenu">
-      <div class="sb-sec" data-i18n="sb.content">內容</div>
-      <a class="sb-link" href="/news" data-i18n="sb.news">新聞</a>
-      <a class="sb-link" href="/articles" data-i18n="sb.posts">文章</a>
       <div class="sb-sec" data-i18n="sb.tools">工具</div>
       <a class="sb-link" href="/ip" data-nav="ip" data-i18n="tab.ip">IP 查詢</a>
       <a class="sb-link" href="/ua" data-nav="ua" data-i18n="tab.ua">UA 查詢</a>
       <div class="sb-sec" data-i18n="sb.services">服務</div>
       <a class="sb-link" href="/relay" data-i18n="sb.relay">API 中轉站</a>
-      <a class="sb-link" href="/vpn" data-i18n="sb.vpn">VPN 訂閱</a>
+      <a class="sb-link" href="/vpn" data-i18n="sb.vpn">VPN</a>
+      <div class="sb-sec" data-i18n="sb.content">內容</div>
+      <a class="sb-link" href="/news" data-i18n="sb.news">新聞</a>
+      <a class="sb-link" href="/articles" data-i18n="sb.posts">文章</a>
     </div>
     <div id="sbAdmin"></div>
   </nav>
@@ -321,7 +321,7 @@
       "st.enabled":"啟用","st.disabled":"停用","st.bit":"{n} 位元","st.fonts":"偵測到 {n} 種字型","st.gb":"{n} GB",
       "os.bits":"({n}位)","err.query":"查詢失敗，請稍後再試",
       "sb.title":"選單","sb.content":"內容","sb.news":"新聞","sb.posts":"文章","sb.tools":"工具",
-      "sb.services":"服務","sb.relay":"API 中轉站","sb.vpn":"VPN 訂閱",
+      "sb.services":"服務","sb.relay":"API 中轉站","sb.vpn":"VPN",
       "sb.admin":"站長","sb.manage":"文章管理","sb.logs":"訪客紀錄",
       "theme.day":"白天模式（點擊切換）","theme.night":"夜間模式（點擊切換）","theme.auto":"自動日夜（點擊切換）"
     },
@@ -1005,6 +1005,8 @@
       lang = (lang === "zh") ? "en" : "zh";
       try{ localStorage.setItem("ipua-lang", lang); }catch(e){}
       applyI18n(); applyTheme(); renderUA(); renderIP(); renderParse();
+      // 廣播給 account.js 的帳號鈕跟著切語言
+      try{ window.dispatchEvent(new CustomEvent("ipua:lang", { detail:{ lang: lang } })); }catch(e){}
     });
 
     // 主題三段切換：☀ 白天 → ☾ 夜間 → 🌓 自動（設定會記住）
