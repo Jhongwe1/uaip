@@ -39,6 +39,8 @@
     height:38px;min-width:38px;padding:0 13px;border:1px solid var(--line);background:var(--card);
     color:var(--fg);border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;line-height:1;
     font-family:inherit;transition:.15s;
+    /* 與 lib/site.js 外殼的 .ctrl 對齊：登入是 <a>，要 flex 置中＋不要底線，否則文字偏上又拉長 */
+    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
   }
   .ctrl:hover{border-color:var(--line2);}
   #themeToggle{width:38px;padding:0;font-size:15px;}
