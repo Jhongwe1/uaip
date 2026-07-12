@@ -265,7 +265,8 @@ printf '你的CLIENT_SECRET' | npx wrangler pages secret put GOOGLE_CLIENT_SECRE
 
 ### 日常操作
 - **核准會員**：/members 頁（站長）→ 待核准清單按「核准」。或 API：`PUT /api/admin/users/{id} {"action":"approve"}`。
-- **加中轉管道**：/relay 頁（站長）「管道管理」→ 新增，填上游 base_url 與該平台的 API Key。之後會員用自己的 `uak-` 金鑰 + Base URL `https://uaip.cc.cd/relay/<slug>` 就能打。**每找到一個便宜渠道就加一個**（各自的 base_url 與金鑰），暫時不想用就按「停用」（留著不刪）。
+- **加中轉管道**：/relay 頁（站長）「管道管理」→ 新增。**選類型（OpenAI／Anthropic／Gemini）會自動帶入官方 Base URL**，用便宜的第三方渠道就把網址改成他家的、金鑰填他給的（你手打過的網址不會被自動蓋掉）。之後會員用自己的 `uak-` 金鑰 + Base URL `https://uaip.cc.cd/relay/<slug>` 就能打。**每找到一個渠道就加一個**，暫時不想用就按「停用」（留著不刪）。
+  - ✅ **2026-07-12 已上線 Gemini 官方渠道**（slug `gemini`），正式站實測會員視角可用：Gemini SDK（`x-goog-api-key`）、OpenAI SDK（`/relay/gemini/v1beta/openai` + `Authorization: Bearer`）、串流三種都通。
 - **加 VPN 渠道**：/vpn 頁（站長）「渠道管理」→ 新增，貼機場訂閱網址（kind=sub）或自己的節點連結（kind=nodes）。**會員的訂閱網址永遠是同一條**，伺服器自動把所有啟用中渠道的節點合併給他們。
 - 護欄：站長不能在網頁上封鎖／刪除自己，也動不了 ADMIN_EMAILS 指定的帳號（要改就改環境變數）。
 
@@ -283,6 +284,7 @@ printf '你的CLIENT_SECRET' | npx wrangler pages secret put GOOGLE_CLIENT_SECRE
 | 未核准的人 | 401／403（金鑰無效或帳號未核准） | 403（訂閱抓不到東西） |
 
 - **VPN 多渠道的格式眉角**：只啟用「一個」訂閱渠道時＝原樣轉發（機場的 Clash YAML、流量／到期資訊都保留）；啟用「兩個以上」時，伺服器改抓 base64 節點清單合併（Clash YAML 沒法安全合併會被略過，流量資訊也無法合併）。想保留流量顯示就只開那一個機場。
+- **中轉的驗證頭眉角（2026-07-12 實測踩到）**：金鑰要放哪個標頭是**看路徑**、不是只看 kind。各家的「OpenAI 相容層」（路徑含 `/openai/` 或結尾 `chat/completions`）一律收 `Authorization: Bearer`；原生介面才用自家標頭（Anthropic `x-api-key`、Gemini `x-goog-api-key`）。**Gemini 原生端點多送一個 `Authorization` 就會 401**（Google 當成 OAuth token），所以只能二選一。
 - 會員的用量（`relay_calls` 中轉次數、`vpn_pulls` 訂閱抓取次數）在 /members 頁看得到。
 - 上游金鑰／訂閱網址在站長 API 回讀時一律**遮罩**（只回開頭…結尾），要換就直接重填；編輯時該欄留空＝保留舊值。
 

@@ -291,7 +291,18 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 | `enabled` | 預設 true |
 
 - `PUT /api/admin/relay/channels/{id}` 整包覆蓋；**本體沒帶 `api_key` 欄位＝保留舊金鑰**（帶空字串＝清掉）。
-- `kind` 對應的上游驗證頭：openai/custom → `Authorization: Bearer`、anthropic → `x-api-key`、gemini → `x-goog-api-key`。
+- 網頁上新增管道時，選 kind 會自動帶入該家的**官方 Base URL**；用其他供應商（便宜渠道／自架／本地模型）直接改掉即可（你手打過的網址不會被自動蓋掉）。
+
+**上游金鑰放哪個標頭：依「路徑」決定，不是只看 kind**（2026-07-12 實測修正）。各家都有兩套介面：
+
+| 上游路徑 | 中轉送出的驗證頭 |
+|---|---|
+| 含 `/openai/` 或結尾是 `chat/completions`（各家的 **OpenAI 相容層**） | `Authorization: Bearer` |
+| Anthropic 原生 `v1/messages` | `x-api-key` |
+| Gemini 原生 `v1beta/models/…` | `x-goog-api-key` |
+| 其他（openai／custom） | `Authorization: Bearer` |
+
+> ⚠️ **Gemini 原生端點不能多送 `Authorization`**：Google 一看到這個標頭就當成 OAuth token，直接回 401「API keys are not supported by this API」。所以是二選一，不能兩個都送。
 
 **會員使用**：把 AI 工具的 Base URL 設成 `https://uaip.cc.cd/relay/{slug}`、API Key 填自己的 `uak-…`：
 

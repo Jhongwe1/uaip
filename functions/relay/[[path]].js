@@ -64,12 +64,22 @@ export async function onRequest(context) {
   const qs = url.searchParams.toString();
   // 段落重新編碼（防注入），但保留 Gemini 路徑會用到的 : 與 @（例 models/gemini-2.5-flash:generateContent）
   const enc = function (s) { return encodeURIComponent(s).replace(/%3A/gi, ":").replace(/%40/gi, "@"); };
-  const target = ch.base_url + "/" + segs.slice(1).map(enc).join("/") + (qs ? "?" + qs : "");
+  const upPath = segs.slice(1).map(enc).join("/");
+  const target = ch.base_url + "/" + upPath + (qs ? "?" + qs : "");
+
+  // 上游金鑰要放哪個標頭，看的是「走原生介面還是 OpenAI 相容介面」，不能只看 kind：
+  //   Gemini 原生 v1beta/models/…      → x-goog-api-key（多送 Authorization 會被當成 OAuth token 而 401，實測踩過）
+  //   Gemini 相容 v1beta/openai/…      → Authorization: Bearer
+  //   Anthropic 原生 v1/messages       → x-api-key
+  //   Anthropic 相容 v1/chat/completions → Authorization: Bearer
+  // 各家的 OpenAI 相容層一律收 Bearer，所以先判斷是不是相容路徑，是的話統一用 Bearer。
+  const openaiCompat = /(^|\/)openai(\/|$)/.test(upPath) || /chat\/completions$/.test(upPath);
 
   const fh = new Headers();
   request.headers.forEach(function (v, k) { if (!DROP.test(k)) fh.set(k, v); });
   if (ch.api_key) {
-    if (ch.kind === "anthropic") fh.set("x-api-key", ch.api_key);
+    if (openaiCompat) fh.set("authorization", "Bearer " + ch.api_key);
+    else if (ch.kind === "anthropic") fh.set("x-api-key", ch.api_key);
     else if (ch.kind === "gemini") fh.set("x-goog-api-key", ch.api_key);
     else fh.set("authorization", "Bearer " + ch.api_key);   // openai / custom（含本地 AI 的 OpenAI 相容介面）
   }
