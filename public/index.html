@@ -1042,7 +1042,7 @@
     try{
       if(localStorage.getItem("ipua-logs-token") || /^(localhost|127\.)/.test(location.hostname)){
         var abs = document.createElement("script");
-        abs.src = "/assets/adminbar.js";
+        abs.src = "/assets/adminbar.js?v=20260714";
         document.head.appendChild(abs);
       }
     }catch(e){}
@@ -1052,6 +1052,6 @@
   else start();
 })();
 </script>
-<script src="/assets/account.js"></script>
+<script src="/assets/account.js?v=20260714"></script>
 </body>
 </html>

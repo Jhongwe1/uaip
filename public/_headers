@@ -5,5 +5,10 @@
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
+# assets 預設被快取 4 小時，改了 JS 會員要等很久才看到新版（2026-07-14 踩過：
+# 帳號選單的圖示改掉了、瀏覽器還顯示舊的）。縮成 10 分鐘＋引用處帶 ?v= 版本參數雙保險。
+/assets/*
+  Cache-Control: public, max-age=600, must-revalidate
+
 # /logs、/admin 已改由 Functions 輸出（2026-07-09 起與全站共用外殼），
 # _headers 只作用在靜態檔，所以它們的 noindex 改由頁面本身的 meta robots 處理。
