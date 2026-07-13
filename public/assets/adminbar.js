@@ -2,9 +2,9 @@
    載入時機：登入過後台的裝置（localStorage 有金鑰）、Google 站長（account.js 偵測到 is_admin 後載入）、
    或本機開發。一般訪客不會下載這支；真正的權限仍在伺服器端每支 /api/admin/* 驗證。
 
-   側邊欄「站長」區提供：
-     ✏️ 編輯這篇文章（文章頁才有）、＋新增文章、☰ 編輯選單、⚙️ 網站名稱、
-     📄 文章管理、👥 成員管理、👣 訪客紀錄、📖 API 文件
+   側邊欄「站長」區提供（2026-07-14 起純文字、不加前綴小圖示）：
+     編輯這篇文章（文章頁才有）、新增文章、編輯選單、網站名稱、
+     文章管理、成員管理、訪客紀錄、API 文件
    編輯選單＝把側邊欄變成編輯器（↑↓ 排序、改名、刪除、＋連結/分類、還原預設），即時自動儲存。 */
 (function () {
   "use strict";
@@ -84,18 +84,18 @@
   var artM = location.pathname.match(/^\/(news|articles)\/(\d+)$/);   // 文章頁 → 可「編輯這篇」
   var newCat = /^\/articles/.test(location.pathname) ? "article" : "news";
 
-  /* ===== 側邊欄「站長」區 ===== */
-  function itemLink(icon, zh, en, href) {
-    var a = el("a", "sb-link sb-action", icon + " " + tx(zh, en));
+  /* ===== 側邊欄「站長」區（純文字，不加前綴小圖示 — 站長 2026-07-14 要求） ===== */
+  function itemLink(zh, en, href) {
+    var a = el("a", "sb-link sb-action", tx(zh, en));
     a.href = href;
-    a.setAttribute("data-en", icon + " " + en); a.setAttribute("data-zh", icon + " " + zh);
+    a.setAttribute("data-en", en); a.setAttribute("data-zh", zh);
     if (location.pathname === href) a.className += " active";
     return a;
   }
-  function itemBtn(icon, zh, en, fn) {
-    var b = el("button", "sb-link sb-action", icon + " " + tx(zh, en));
+  function itemBtn(zh, en, fn) {
+    var b = el("button", "sb-link sb-action", tx(zh, en));
     b.type = "button";
-    b.setAttribute("data-en", icon + " " + en); b.setAttribute("data-zh", icon + " " + zh);
+    b.setAttribute("data-en", en); b.setAttribute("data-zh", zh);
     b.addEventListener("click", fn);
     return b;
   }
@@ -109,14 +109,14 @@
     sec.setAttribute("data-en", "Admin"); sec.setAttribute("data-zh", "站長");
     host.appendChild(sec);
 
-    if (artM) host.appendChild(itemLink("✏️", "編輯這篇文章", "Edit this post", "/admin?edit=" + artM[2]));
-    host.appendChild(itemBtn("＋", "新增文章", "New post", function () { location.href = "/admin?new=" + newCat; }));
-    host.appendChild(itemBtn("☰", "編輯選單", "Edit menu", startMenuEdit));
-    host.appendChild(itemBtn("⚙️", "網站名稱", "Site name", editBrand));
-    host.appendChild(itemLink("📄", "文章管理", "Manage posts", "/admin"));
-    host.appendChild(itemLink("👥", "成員管理", "Members", "/members"));
-    host.appendChild(itemLink("👣", "訪客紀錄", "Visitor logs", "/logs"));
-    host.appendChild(itemLink("📖", "API 文件", "API docs", "/api-docs"));
+    if (artM) host.appendChild(itemLink("編輯這篇文章", "Edit this post", "/admin?edit=" + artM[2]));
+    host.appendChild(itemBtn("新增文章", "New post", function () { location.href = "/admin?new=" + newCat; }));
+    host.appendChild(itemBtn("編輯選單", "Edit menu", startMenuEdit));
+    host.appendChild(itemBtn("網站名稱", "Site name", editBrand));
+    host.appendChild(itemLink("文章管理", "Manage posts", "/admin"));
+    host.appendChild(itemLink("成員管理", "Members", "/members"));
+    host.appendChild(itemLink("訪客紀錄", "Visitor logs", "/logs"));
+    host.appendChild(itemLink("API 文件", "API docs", "/api-docs"));
   }
 
   /* ===== 通用小對話框 ===== */

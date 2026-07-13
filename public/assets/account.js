@@ -99,13 +99,15 @@
     panel.appendChild(head);
     panel.appendChild(el("div", "acct-hr"));
 
+    // 純文字項目，不加前綴小圖示（站長 2026-07-14 要求全站拿掉這類裝飾）
     function link(text, href) { var a = el("a", "acct-item", text); a.href = href; panel.appendChild(a); }
-    link(tx("🔌 API 中轉站", "🔌 API relay"), "/relay");
-    link(tx("🌐 VPN", "🌐 VPN"), "/vpn");
+    link(tx("LLM playground", "LLM playground"), "/playground");
+    link(tx("API 中轉站", "API relay"), "/relay");
+    link(tx("VPN", "VPN"), "/vpn");
     if (me.is_admin) {
       panel.appendChild(el("div", "acct-hr"));
-      link(tx("👥 成員管理", "👥 Members"), "/members");
-      link(tx("📄 文章管理", "📄 Manage posts"), "/admin");
+      link(tx("成員管理", "Members"), "/members");
+      link(tx("文章管理", "Manage posts"), "/admin");
     }
     panel.appendChild(el("div", "acct-hr"));
     var out = el("button", "acct-item", tx("登出", "Sign out"));
