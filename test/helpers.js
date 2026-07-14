@@ -75,9 +75,12 @@ export function seedAdmin(over) {
   }, over || {}));
 }
 
-// 幫既有會員配一把 uak- 金鑰：資料庫存雜湊、回傳明文（測試拿去打 relay）
+// 幫既有會員配一把 uak- 金鑰：資料庫存雜湊、回傳明文（測試拿去打 relay）。
+// 注意 userFromKey 的格式檢查是 uak- 後 16–64 個 a-z2-7 — 太短會直接 401。
 export async function giveKey(user) {
-  const key = "uak-testkey" + Math.random().toString(36).slice(2, 10).replace(/[^a-z2-7]/g, "a");
+  let rand = "";
+  while (rand.length < 20) rand += Math.random().toString(36).slice(2).replace(/[^a-z2-7]/g, "");
+  const key = "uak-" + rand.slice(0, 20);
   await testEnv.DB.prepare("UPDATE users SET api_key_hash=?1, api_key_hint=?2 WHERE id=?3")
     .bind(await sha256hex(key), key.slice(0, 8) + "…" + key.slice(-4), user.id).run();
   return key;

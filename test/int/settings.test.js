@@ -1,0 +1,66 @@
+// PUT /api/admin/settings —「帶哪個鍵就改哪個鍵」語意（沒帶的絕不動）。
+import { describe, it, expect } from "vitest";
+import { env } from "cloudflare:test";
+import { onRequestPut } from "../../functions/api/admin/settings.js";
+import { makeCtx, envWith, ORIGIN } from "../helpers.js";
+
+const TOK = "admintok";
+function ctx(body) {
+  return makeCtx({
+    url: ORIGIN + "/api/admin/settings",
+    init: {
+      method: "PUT",
+      headers: { authorization: "Bearer " + TOK, "content-type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    env: envWith({ LOGS_TOKEN: TOK })
+  });
+}
+const getKey = (k) => env.DB.prepare("SELECT v FROM settings WHERE k=?1").bind(k).first();
+
+describe("settings 帶哪鍵改哪鍵", () => {
+  it("只帶 brand：改站名、pg_open 不動", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('pg_open','1')").run();
+    const r = await onRequestPut(ctx({ brand: "新站名" }));
+    expect(r.status).toBe(200);
+    const j = await r.json();
+    expect(j.brand).toBe("新站名");
+    expect(j.pg_open).toBe(true);                       // 沒帶的鍵原封不動
+    expect((await getKey("brand")).v).toBe("新站名");
+  });
+
+  it("只帶 pg_open：brand 不動", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('brand','舊站名')").run();
+    const r = await onRequestPut(ctx({ pg_open: true }));
+    const j = await r.json();
+    expect(j.pg_open).toBe(true);
+    expect(j.brand).toBe("舊站名");
+    expect((await getKey("pg_open")).v).toBe("1");
+  });
+
+  it("brand 空字串＝刪鍵＝還原預設", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('brand','自訂')").run();
+    const j = await (await onRequestPut(ctx({ brand: "" }))).json();
+    expect(j.custom).toBe(false);
+    expect(await getKey("brand")).toBeNull();
+  });
+
+  it("pg_open false＝刪鍵＝回到逐人批准", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('pg_open','1')").run();
+    const j = await (await onRequestPut(ctx({ pg_open: false }))).json();
+    expect(j.pg_open).toBe(false);
+    expect(await getKey("pg_open")).toBeNull();
+  });
+
+  it("站名截斷 60 字；一個鍵都沒帶 → 400；沒授權 → 401", async () => {
+    const j = await (await onRequestPut(ctx({ brand: "x".repeat(100) }))).json();
+    expect(j.brand.length).toBe(60);
+    expect((await onRequestPut(ctx({}))).status).toBe(400);
+    const anon = makeCtx({
+      url: ORIGIN + "/api/admin/settings",
+      init: { method: "PUT", headers: { "content-type": "application/json" }, body: "{}" },
+      env: envWith({ LOGS_TOKEN: TOK })
+    });
+    expect((await onRequestPut(anon)).status).toBe(401);
+  });
+});
