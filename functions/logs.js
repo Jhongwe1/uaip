@@ -141,15 +141,17 @@ const BODY = `
 <script data-nonce src="/assets/logs.js?v=20260714"><\/script>`;
 
 export async function onRequestGet({ request, env }) {
-  const { chrome } = await getChromeFor(env, request);   // 選單依身分過濾（VPN 隱形）
-  return html(pageShell({
-    title: "訪客紀錄",
-    desc: "站長專用的訪客紀錄管理頁。",
-    noindex: true,
-    chrome: chrome,
-    activePath: "/logs",
-    h1: "訪客紀錄",
-    headExtra: "<style>" + ADMIN_CSS + PAGE_CSS + "</style>\n",
-    body: BODY
-  }));
+  const { chrome } = await getChromeFor(env, request); // 選單依身分過濾（VPN 隱形）
+  return html(
+    pageShell({
+      title: "訪客紀錄",
+      desc: "站長專用的訪客紀錄管理頁。",
+      noindex: true,
+      chrome: chrome,
+      activePath: "/logs",
+      h1: "訪客紀錄",
+      headExtra: "<style>" + ADMIN_CSS + PAGE_CSS + "</style>\n",
+      body: BODY
+    })
+  );
 }

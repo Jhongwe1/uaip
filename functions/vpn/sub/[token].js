@@ -16,10 +16,13 @@
 import { hasService } from "../../../lib/auth.js";
 
 function textResp(body, status, extraHeaders) {
-  const h = Object.assign({
-    "content-type": "text/plain; charset=utf-8",
-    "cache-control": "no-store"
-  }, extraHeaders || {});
+  const h = Object.assign(
+    {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    extraHeaders || {}
+  );
   return new Response(body, { status: status || 200, headers: h });
 }
 
@@ -32,7 +35,9 @@ function b64decode(s) {
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new TextDecoder().decode(bytes);
-  } catch (e) { return null; }
+  } catch (e) {
+    return null;
+  }
 }
 function b64encode(s) {
   const bytes = new TextEncoder().encode(s);
@@ -44,8 +49,14 @@ function b64encode(s) {
 // 一段文字 → 節點連結陣列（vmess:// vless:// trojan:// ss:// …）；不是節點清單回空陣列
 function nodeLines(text) {
   if (!text) return [];
-  return text.split(/\r?\n/).map(function (s) { return s.trim(); })
-    .filter(function (s) { return /^[a-z][a-z0-9+.-]*:\/\//i.test(s); });
+  return text
+    .split(/\r?\n/)
+    .map(function (s) {
+      return s.trim();
+    })
+    .filter(function (s) {
+      return /^[a-z][a-z0-9+.-]*:\/\//i.test(s);
+    });
 }
 
 // 抓一個上游訂閱 → 回節點連結陣列（base64 或純文字清單都收；YAML 等解不開回 null）
@@ -56,12 +67,14 @@ async function fetchNodes(url, ua) {
       headers: { "user-agent": ua },
       cf: { cacheTtl: 300, cacheEverything: true }
     });
-  } catch (e) { return null; }
+  } catch (e) {
+    return null;
+  }
   if (!up.ok) return null;
   const raw = (await up.text()).trim();
   const decoded = b64decode(raw);
   let lines = nodeLines(decoded);
-  if (!lines.length) lines = nodeLines(raw);   // 有些來源直接回純文字清單
+  if (!lines.length) lines = nodeLines(raw); // 有些來源直接回純文字清單
   return lines.length ? lines : null;
 }
 
@@ -74,7 +87,9 @@ export async function onRequestGet(context) {
   // 驗 token → 會員（分服務批准：要有 vpn 服務才能訂閱）
   let user = null;
   try {
-    user = await env.DB.prepare("SELECT id,email,status,services,is_admin FROM users WHERE vpn_token=?1").bind(token).first();
+    user = await env.DB.prepare("SELECT id,email,status,services,is_admin FROM users WHERE vpn_token=?1")
+      .bind(token)
+      .first();
   } catch (e) {}
   if (!user) return textResp("invalid token", 404);
   if (user.status === "blocked") return textResp("account blocked", 403);
@@ -90,14 +105,20 @@ export async function onRequestGet(context) {
   const manual = [];
   const subs = [];
   channels.forEach(function (c) {
-    if (c.kind === "nodes") nodeLines(c.nodes).forEach(function (l) { manual.push(l); });
+    if (c.kind === "nodes")
+      nodeLines(c.nodes).forEach(function (l) {
+        manual.push(l);
+      });
     else if (c.url) subs.push(c);
   });
 
   // 記一次抓取（背景執行，不拖慢訂閱更新）
   try {
     context.waitUntil(
-      env.DB.prepare("UPDATE users SET vpn_pulls = vpn_pulls + 1 WHERE id=?1").bind(user.id).run().catch(function () {})
+      env.DB.prepare("UPDATE users SET vpn_pulls = vpn_pulls + 1 WHERE id=?1")
+        .bind(user.id)
+        .run()
+        .catch(function () {})
     );
   } catch (e) {}
 
@@ -134,18 +155,25 @@ export async function onRequestGet(context) {
     const decoded = b64decode(raw.trim());
     if (decoded && nodeLines(decoded).length) {
       const merged = dedupe(nodeLines(decoded).concat(manual));
-      delete passHeaders["content-type"];   // 重新編碼後就是純 base64 訂閱
+      delete passHeaders["content-type"]; // 重新編碼後就是純 base64 訂閱
       return textResp(b64encode(merged.join("\n")), 200, passHeaders);
     }
     return textResp(raw, 200, passHeaders);
   }
 
   // 兩個以上訂閱渠道：並行抓、解碼、合併（解不開的略過，全部失敗才報錯）
-  const results = await Promise.all(subs.map(function (c) { return fetchNodes(c.url, "v2rayN/6.60"); }));
+  const results = await Promise.all(
+    subs.map(function (c) {
+      return fetchNodes(c.url, "v2rayN/6.60");
+    })
+  );
   let all = [];
   let okCount = 0;
   results.forEach(function (lines) {
-    if (lines) { okCount++; all = all.concat(lines); }
+    if (lines) {
+      okCount++;
+      all = all.concat(lines);
+    }
   });
   all = all.concat(manual);
   if (!okCount && !manual.length) return textResp("all upstreams unreachable", 502);

@@ -15,9 +15,9 @@ import { adminOk, getSessionUser, adminEmails, SERVICES } from "../../../../lib/
 import { audit } from "../../../../lib/observe.js";
 
 const ACTIONS = {
-  approve:    { status: "approved", services: SERVICES.join(",") },
-  block:      { status: "blocked" },
-  unblock:    { status: "approved" },
+  approve: { status: "approved", services: SERVICES.join(",") },
+  block: { status: "blocked" },
+  unblock: { status: "approved" },
   make_admin: { is_admin: 1, status: "approved" },
   drop_admin: { is_admin: 0 }
 };
@@ -41,16 +41,22 @@ export async function onRequestPut(context) {
   if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   const id = idOf(params);
   if (!id || !env.DB) return json({ error: "bad-id" }, 400);
-  const wu = function (p) { context.waitUntil(p); };
+  const wu = function (p) {
+    context.waitUntil(p);
+  };
 
   let body = null;
-  try { body = await request.json(); } catch (e) {}
+  try {
+    body = await request.json();
+  } catch (e) {}
   let act = body && ACTIONS[body.action];
   if (body && body.action === "set_services") {
     // 分服務批准：整包覆蓋服務清單（只收合法服務名，去重）
     const want = Array.isArray(body.services) ? body.services : null;
     if (!want) return json({ error: "bad-input", hint: "set_services 要帶 services 陣列" }, 400);
-    const clean = SERVICES.filter(function (s) { return want.indexOf(s) >= 0; });
+    const clean = SERVICES.filter(function (s) {
+      return want.indexOf(s) >= 0;
+    });
     act = { services: clean.join(",") };
   }
   if (body && body.action === "set_quota") {
@@ -60,19 +66,38 @@ export async function onRequestPut(context) {
     for (const k of QUOTA_FIELDS) {
       if (!(k in body)) continue;
       const v = body[k];
-      if (v === null || v === "") { act[k] = null; touched++; continue; }
+      if (v === null || v === "") {
+        act[k] = null;
+        touched++;
+        continue;
+      }
       const n = parseInt(v, 10);
       if (!Number.isFinite(n) || n < 0 || String(n) !== String(v).trim()) {
         return json({ error: "bad-input", hint: k + " 要是 0 以上的整數，或 null＝回到全域預設" }, 400);
       }
-      act[k] = n; touched++;
+      act[k] = n;
+      touched++;
     }
-    if (!touched) return json({ error: "bad-input", hint: "set_quota 至少要帶一個配額鍵（quota_relay_day / quota_pg_day / rl_per_min）" }, 400);
+    if (!touched)
+      return json(
+        {
+          error: "bad-input",
+          hint: "set_quota 至少要帶一個配額鍵（quota_relay_day / quota_pg_day / rl_per_min）"
+        },
+        400
+      );
   }
-  if (body && body.action === "revoke_sessions") act = {};   // 不改欄位，於下方特別處理
-  if (!act) return json({ error: "bad-action", hint: "action 要是 approve/block/unblock/make_admin/drop_admin/set_services/set_quota/revoke_sessions" }, 400);
+  if (body && body.action === "revoke_sessions") act = {}; // 不改欄位，於下方特別處理
+  if (!act)
+    return json(
+      {
+        error: "bad-action",
+        hint: "action 要是 approve/block/unblock/make_admin/drop_admin/set_services/set_quota/revoke_sessions"
+      },
+      400
+    );
 
-  const me = await getSessionUser(request, env);   // 金鑰身分時為 null（金鑰＝超級站長，不受自我保護限制）
+  const me = await getSessionUser(request, env); // 金鑰身分時為 null（金鑰＝超級站長，不受自我保護限制）
   const target = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(id).first();
   if (!target) return json({ error: "not-found" }, 404);
 
@@ -83,7 +108,7 @@ export async function onRequestPut(context) {
       audit(env, wu, request, "users.revoke_sessions", id, target.email);
       return json({ ok: true });
     } catch (e) {
-      return json({ error: "save-failed", detail: String(e && e.message || e) }, 500);
+      return json({ error: "save-failed", detail: String((e && e.message) || e) }, 500);
     }
   }
 
@@ -104,24 +129,44 @@ export async function onRequestPut(context) {
     act = { status: "pending" };
   }
 
-  const sets = [], binds = [];
+  const sets = [],
+    binds = [];
   ["status", "is_admin", "services"].concat(QUOTA_FIELDS).forEach(function (k) {
-    if (act[k] !== undefined) { sets.push(k + "=?" + (binds.length + 1)); binds.push(act[k]); }
+    if (act[k] !== undefined) {
+      sets.push(k + "=?" + (binds.length + 1));
+      binds.push(act[k]);
+    }
   });
   binds.push(id);
   try {
-    await env.DB.prepare("UPDATE users SET " + sets.join(",") + " WHERE id=?" + binds.length).bind(...binds).run();
+    await env.DB.prepare("UPDATE users SET " + sets.join(",") + " WHERE id=?" + binds.length)
+      .bind(...binds)
+      .run();
     if (body.action === "block") {
-      await env.DB.prepare("DELETE FROM sessions WHERE user_id=?1").bind(id).run();   // 封鎖＝踢下線
+      await env.DB.prepare("DELETE FROM sessions WHERE user_id=?1").bind(id).run(); // 封鎖＝踢下線
     }
     // 稽核：set_services 記清單、set_quota 記改了哪些鍵值，其餘記動作名（都不含秘密）
-    const detail = body.action === "set_services" ? (act.services || "（清空）")
-      : body.action === "set_quota" ? Object.keys(act).map(function (k) { return k + "=" + act[k]; }).join(",")
-      : "";
-    audit(env, wu, request, "users." + body.action, id, (target.email || "") + (detail ? " → " + detail : ""));
+    const detail =
+      body.action === "set_services"
+        ? act.services || "（清空）"
+        : body.action === "set_quota"
+          ? Object.keys(act)
+              .map(function (k) {
+                return k + "=" + act[k];
+              })
+              .join(",")
+          : "";
+    audit(
+      env,
+      wu,
+      request,
+      "users." + body.action,
+      id,
+      (target.email || "") + (detail ? " → " + detail : "")
+    );
     return json({ ok: true });
   } catch (e) {
-    return json({ error: "save-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "save-failed", detail: String((e && e.message) || e) }, 500);
   }
 }
 
@@ -135,7 +180,8 @@ export async function onRequestDelete(context) {
   const me = await getSessionUser(request, env);
   const target = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(id).first();
   if (!target) return json({ error: "not-found" }, 404);
-  if (isRootAdmin(target, env)) return json({ error: "protected", hint: "設定檔指定的站長帳號不能在此刪除" }, 403);
+  if (isRootAdmin(target, env))
+    return json({ error: "protected", hint: "設定檔指定的站長帳號不能在此刪除" }, 403);
   if (me && me.id === target.id) return json({ error: "self", hint: "不能刪除自己" }, 400);
 
   try {
@@ -143,9 +189,18 @@ export async function onRequestDelete(context) {
       env.DB.prepare("DELETE FROM sessions WHERE user_id=?1").bind(id),
       env.DB.prepare("DELETE FROM users WHERE id=?1").bind(id)
     ]);
-    audit(env, function (p) { context.waitUntil(p); }, request, "users.delete", id, target.email || "");
+    audit(
+      env,
+      function (p) {
+        context.waitUntil(p);
+      },
+      request,
+      "users.delete",
+      id,
+      target.email || ""
+    );
     return json({ ok: true });
   } catch (e) {
-    return json({ error: "delete-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "delete-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

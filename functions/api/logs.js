@@ -11,10 +11,11 @@ import { adminOk } from "../../lib/auth.js";
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
-  const json = (obj, status) => new Response(JSON.stringify(obj), {
-    status: status || 200,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
-  });
+  const json = (obj, status) =>
+    new Response(JSON.stringify(obj), {
+      status: status || 200,
+      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
+    });
 
   if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "no-db" }, 500);
@@ -24,27 +25,36 @@ export async function onRequestGet({ request, env }) {
   const q = (url.searchParams.get("q") || "").trim();
   const since = (url.searchParams.get("since") || "").trim();
 
-  let where = "", binds = [];
+  let where = "",
+    binds = [];
   if (q) {
-    where = " WHERE (ip LIKE ?1 OR ua LIKE ?1 OR path LIKE ?1 OR country LIKE ?1 OR city LIKE ?1 OR isp LIKE ?1)";
+    where =
+      " WHERE (ip LIKE ?1 OR ua LIKE ?1 OR path LIKE ?1 OR country LIKE ?1 OR city LIKE ?1 OR isp LIKE ?1)";
     binds.push("%" + q + "%");
   }
 
   // limit/offset 已驗證為整數，可安全串進 SQL；搜尋字串一律走參數繫結
   const stmts = [
-    env.DB.prepare("SELECT * FROM visits" + where + " ORDER BY id DESC LIMIT " + limit + " OFFSET " + offset).bind(...binds),
+    env.DB.prepare(
+      "SELECT * FROM visits" + where + " ORDER BY id DESC LIMIT " + limit + " OFFSET " + offset
+    ).bind(...binds),
     env.DB.prepare("SELECT COUNT(*) AS c FROM visits" + where).bind(...binds)
   ];
   if (since) {
-    stmts.push(env.DB.prepare("SELECT COUNT(*) AS c, COUNT(DISTINCT ip) AS ips FROM visits WHERE ts >= ?").bind(since));
+    stmts.push(
+      env.DB.prepare("SELECT COUNT(*) AS c, COUNT(DISTINCT ip) AS ips FROM visits WHERE ts >= ?").bind(since)
+    );
   }
 
   try {
     const res = await env.DB.batch(stmts);
     const out = { rows: res[0].results, total: res[1].results[0].c };
-    if (since) { out.today = res[2].results[0].c; out.todayIps = res[2].results[0].ips; }
+    if (since) {
+      out.today = res[2].results[0].c;
+      out.todayIps = res[2].results[0].ips;
+    }
     return json(out);
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

@@ -4,8 +4,9 @@ import { esc, json, fmtDate, html } from "../../lib/site.js";
 
 describe("esc（HTML 跳脫）", () => {
   it("五個危險字元全跳", () => {
-    expect(esc(`<a href="x" onclick='y'>&</a>`))
-      .toBe("&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;&lt;/a&gt;");
+    expect(esc(`<a href="x" onclick='y'>&</a>`)).toBe(
+      "&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;&lt;/a&gt;"
+    );
   });
   it("null / undefined → 空字串；數字轉字串", () => {
     expect(esc(null)).toBe("");
@@ -29,9 +30,10 @@ describe("json（API 回應工具）", () => {
 
 describe("html（SSR 單一入口：CSP nonce 只蓋外殼的 data-nonce 標記）", () => {
   it("data-nonce 標記蓋上 nonce；內容層 <script> 拿不到（CSP 會封殺）", async () => {
-    const body = "<html><head><script data-nonce>var a=1;</script></head>" +
+    const body =
+      "<html><head><script data-nonce>var a=1;</script></head>" +
       '<body><script data-nonce src="/assets/x.js"></script>' +
-      "<script>alert(1)</script>" +   // 模擬混進內容層的 script：不蓋章
+      "<script>alert(1)</script>" + // 模擬混進內容層的 script：不蓋章
       "<p>&lt;script&gt; 這是跳脫過的字不該被蓋</p></body></html>";
     const r = html(body);
     const csp = r.headers.get("content-security-policy");
@@ -39,10 +41,10 @@ describe("html（SSR 單一入口：CSP nonce 只蓋外殼的 data-nonce 標記�
     expect(m).toBeTruthy();
     const text = await r.text();
     const stamped = text.match(/<script nonce="([^"]+)"/g) || [];
-    expect(stamped.length).toBe(2);                            // 只有兩顆標記 script 蓋到
-    expect(text).toContain('<script nonce="' + m[1] + '">');   // nonce 與標頭一致
-    expect(text).toContain("<script>alert(1)</script>");       // 內容層 script 原樣（無 nonce）
-    expect(text).toContain("&lt;script&gt;");                  // 跳脫內容不受影響
+    expect(stamped.length).toBe(2); // 只有兩顆標記 script 蓋到
+    expect(text).toContain('<script nonce="' + m[1] + '">'); // nonce 與標頭一致
+    expect(text).toContain("<script>alert(1)</script>"); // 內容層 script 原樣（無 nonce）
+    expect(text).toContain("&lt;script&gt;"); // 跳脫內容不受影響
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("report-uri /api/csp-report");
     expect(r.headers.get("strict-transport-security")).toContain("max-age=");

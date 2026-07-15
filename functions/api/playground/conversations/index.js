@@ -11,9 +11,11 @@ export async function onRequestGet({ request, env }) {
   try {
     const res = await env.DB.prepare(
       "SELECT id,title,channel,model,created_at,updated_at FROM pg_conversations WHERE user_id=?1 ORDER BY updated_at DESC LIMIT 100"
-    ).bind(who.user.id).all();
+    )
+      .bind(who.user.id)
+      .all();
     return json({ rows: res.results || [] });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

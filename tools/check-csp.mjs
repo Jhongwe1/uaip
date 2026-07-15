@@ -29,10 +29,16 @@ if (process.argv.includes("--print")) {
 
 let ok = true;
 for (const h of hashes) {
-  if (!headersTxt.includes(h)) { console.error("✗ public/_headers 缺少：" + h); ok = false; }
+  if (!headersTxt.includes(h)) {
+    console.error("✗ public/_headers 缺少：" + h);
+    ok = false;
+  }
 }
 for (const h of headersTxt.match(/'sha256-[A-Za-z0-9+/=]+'/g) || []) {
-  if (!hashes.includes(h)) { console.error("✗ public/_headers 有對不上任何 inline script 的 hash：" + h); ok = false; }
+  if (!hashes.includes(h)) {
+    console.error("✗ public/_headers 有對不上任何 inline script 的 hash：" + h);
+    ok = false;
+  }
 }
 if (!headersTxt.includes("Content-Security-Policy")) {
   console.error("✗ public/_headers 沒有 Content-Security-Policy 行");

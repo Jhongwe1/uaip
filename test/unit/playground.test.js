@@ -1,6 +1,13 @@
 // lib/playground.js 純函式 — 請求驗證、三種上游的請求轉換、串流解析 fixtures。
 import { describe, it, expect } from "vitest";
-import { cleanChat, buildUpstream, extractDelta, extractFull, chModels, PG_LIMITS } from "../../lib/playground.js";
+import {
+  cleanChat,
+  buildUpstream,
+  extractDelta,
+  extractFull,
+  chModels,
+  PG_LIMITS
+} from "../../lib/playground.js";
 
 describe("cleanChat（聊天請求驗證）", () => {
   const good = () => ({ channel: "Demo", model: "m1", messages: [{ role: "user", content: "hi" }] });
@@ -32,14 +39,25 @@ describe("cleanChat（聊天請求驗證）", () => {
     expect(cleanChat({ channel: "c", model: "m", messages: msgs }).err).toBeTruthy();
   });
   it("非法 role → err；system 合法", () => {
-    expect(cleanChat({ channel: "c", model: "m", messages: [{ role: "tool", content: "x" }] }).err).toBeTruthy();
-    const v = cleanChat({ channel: "c", model: "m", messages: [{ role: "system", content: "s" }, { role: "user", content: "u" }] });
+    expect(
+      cleanChat({ channel: "c", model: "m", messages: [{ role: "tool", content: "x" }] }).err
+    ).toBeTruthy();
+    const v = cleanChat({
+      channel: "c",
+      model: "m",
+      messages: [
+        { role: "system", content: "s" },
+        { role: "user", content: "u" }
+      ]
+    });
     expect(v.err).toBeUndefined();
     expect(v.messages[0].role).toBe("system");
   });
   it("單則超長／整包超長 → err", () => {
     const long = "x".repeat(PG_LIMITS.maxChars + 1);
-    expect(cleanChat({ channel: "c", model: "m", messages: [{ role: "user", content: long }] }).err).toBeTruthy();
+    expect(
+      cleanChat({ channel: "c", model: "m", messages: [{ role: "user", content: long }] }).err
+    ).toBeTruthy();
     const chunk = "x".repeat(PG_LIMITS.maxChars);
     const msgs = [];
     for (let total = 0; total <= PG_LIMITS.maxTotal; total += chunk.length) {
@@ -48,10 +66,26 @@ describe("cleanChat（聊天請求驗證）", () => {
     expect(cleanChat({ channel: "c", model: "m", messages: msgs }).err).toBeTruthy();
   });
   it("空白訊息會被剔除；最後一則必須是 user", () => {
-    const v = cleanChat({ channel: "c", model: "m", messages: [{ role: "user", content: "hi" }, { role: "assistant", content: "  " }] });
-    expect(v.err).toBeUndefined();          // 尾端空白 assistant 被剔除後，最後一則是 user
+    const v = cleanChat({
+      channel: "c",
+      model: "m",
+      messages: [
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "  " }
+      ]
+    });
+    expect(v.err).toBeUndefined(); // 尾端空白 assistant 被剔除後，最後一則是 user
     expect(v.messages.length).toBe(1);
-    expect(cleanChat({ channel: "c", model: "m", messages: [{ role: "user", content: "hi" }, { role: "assistant", content: "yo" }] }).err).toBeTruthy();
+    expect(
+      cleanChat({
+        channel: "c",
+        model: "m",
+        messages: [
+          { role: "user", content: "hi" },
+          { role: "assistant", content: "yo" }
+        ]
+      }).err
+    ).toBeTruthy();
   });
 });
 
@@ -81,9 +115,11 @@ describe("buildUpstream（三種上游的請求轉換）", () => {
   it("gemini：streamGenerateContent?alt=sse、x-goog-api-key、assistant→model、systemInstruction", () => {
     const ch = { kind: "gemini", base_url: "https://generativelanguage.googleapis.com", api_key: "sk-goog" };
     const up = buildUpstream(ch, "gemini-x", msgs);
-    expect(up.url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-x:streamGenerateContent?alt=sse");
+    expect(up.url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-x:streamGenerateContent?alt=sse"
+    );
     expect(up.headers["x-goog-api-key"]).toBe("sk-goog");
-    expect(up.headers.authorization).toBeUndefined();   // 多送 Authorization 會 401（實測踩過）
+    expect(up.headers.authorization).toBeUndefined(); // 多送 Authorization 會 401（實測踩過）
     const b = JSON.parse(up.body);
     expect(b.systemInstruction.parts[0].text).toBe("你是助理");
     expect(b.contents.map((c) => c.role)).toEqual(["user", "model", "user"]);
@@ -105,10 +141,14 @@ describe("extractDelta（SSE 一筆 JSON → 增量文字）", () => {
   it("anthropic：content_block_delta 取字、error 事件丟例外", () => {
     expect(extractDelta("anthropic", { type: "content_block_delta", delta: { text: "喵" } })).toBe("喵");
     expect(extractDelta("anthropic", { type: "message_start" })).toBe("");
-    expect(() => extractDelta("anthropic", { type: "error", error: { message: "overloaded" } })).toThrow("overloaded");
+    expect(() => extractDelta("anthropic", { type: "error", error: { message: "overloaded" } })).toThrow(
+      "overloaded"
+    );
   });
   it("gemini：candidates parts 併字、error 丟例外", () => {
-    expect(extractDelta("gemini", { candidates: [{ content: { parts: [{ text: "a" }, { text: "b" }] } }] })).toBe("ab");
+    expect(
+      extractDelta("gemini", { candidates: [{ content: { parts: [{ text: "a" }, { text: "b" }] } }] })
+    ).toBe("ab");
     expect(extractDelta("gemini", { candidates: [] })).toBe("");
     expect(() => extractDelta("gemini", { error: { message: "quota" } })).toThrow("quota");
   });

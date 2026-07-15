@@ -12,13 +12,15 @@ export async function onRequestGet({ request, env }) {
   try {
     const res = await env.DB.prepare(
       "SELECT id,email,name,picture,status,services,is_admin,api_key_at,relay_calls,vpn_pulls,created_at,last_login," +
-      "quota_relay_day,quota_pg_day,rl_per_min," +
-      "(SELECT COUNT(*) FROM req_log r WHERE r.user_id=users.id AND r.svc='relay' AND r.ts>=?1) AS relay_today," +
-      "(SELECT COUNT(*) FROM req_log r WHERE r.user_id=users.id AND r.svc='pg' AND r.ts>=?1) AS pg_today " +
-      "FROM users ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, last_login DESC"
-    ).bind(utcDayStart()).all();
+        "quota_relay_day,quota_pg_day,rl_per_min," +
+        "(SELECT COUNT(*) FROM req_log r WHERE r.user_id=users.id AND r.svc='relay' AND r.ts>=?1) AS relay_today," +
+        "(SELECT COUNT(*) FROM req_log r WHERE r.user_id=users.id AND r.svc='pg' AND r.ts>=?1) AS pg_today " +
+        "FROM users ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, last_login DESC"
+    )
+      .bind(utcDayStart())
+      .all();
     return json({ rows: res.results || [] });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

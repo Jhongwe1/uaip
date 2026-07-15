@@ -36,7 +36,9 @@ describe("playground 配額", () => {
     const r = await onRequestPost(ctx);
     expect(r.status).toBe(429);
     expect((await r.json()).error).toBe("quota-exceeded");
-    const convs = await env.DB.prepare("SELECT COUNT(*) c FROM pg_conversations WHERE user_id=?1").bind(u.id).first();
+    const convs = await env.DB.prepare("SELECT COUNT(*) c FROM pg_conversations WHERE user_id=?1")
+      .bind(u.id)
+      .first();
     expect(convs.c).toBe(0);
     const msgs = await env.DB.prepare("SELECT COUNT(*) c FROM pg_messages").first();
     expect(msgs.c).toBe(0);
@@ -47,8 +49,15 @@ describe("playground 計量（三家 usage 進 req_log）", () => {
   async function run(kind, slug, body, headers) {
     const u = await seedUser({ status: "approved", services: "playground" });
     await seedChannel({ slug, kind, base_url: UP, models: "m" });
-    const paths = { anthropic: "/v1/messages", gemini: /^\/v1beta\/models\//, openai: "/v1/chat/completions", custom: "/v1/chat/completions" };
-    fetchMock.get(UP).intercept({ path: paths[kind], method: "POST" })
+    const paths = {
+      anthropic: "/v1/messages",
+      gemini: /^\/v1beta\/models\//,
+      openai: "/v1/chat/completions",
+      custom: "/v1/chat/completions"
+    };
+    fetchMock
+      .get(UP)
+      .intercept({ path: paths[kind], method: "POST" })
       .reply(200, body, { headers: headers || { "content-type": "text/event-stream" } });
     const ctx = await chatCtx(u, { channel: slug, model: "m", messages: [{ role: "user", content: "hi" }] });
     const resp = await onRequestPost(ctx);
@@ -92,7 +101,8 @@ describe("playground 計量（三家 usage 進 req_log）", () => {
   });
 
   it("非串流整包 JSON（openai 相容）也記 usage", async () => {
-    const body = '{"choices":[{"message":{"content":"整包"}}],"usage":{"prompt_tokens":1,"completion_tokens":2}}';
+    const body =
+      '{"choices":[{"message":{"content":"整包"}}],"usage":{"prompt_tokens":1,"completion_tokens":2}}';
     const { log } = await run("custom", "pc", body, { "content-type": "application/json" });
     expect(log.tokens_in).toBe(1);
     expect(log.tokens_out).toBe(2);

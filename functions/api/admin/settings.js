@@ -24,14 +24,24 @@ export async function onRequestPut(context) {
   if (!env.DB) return json({ error: "no-db" }, 500);
 
   let body = null;
-  try { body = await request.json(); } catch (e) {}
+  try {
+    body = await request.json();
+  } catch (e) {}
   if (!body || typeof body !== "object") return json({ error: "bad-input", hint: "需要 JSON 本體" }, 400);
-  if (!ALL_KEYS.some(function (k) { return k in body; })) {
+  if (
+    !ALL_KEYS.some(function (k) {
+      return k in body;
+    })
+  ) {
     return json({ error: "bad-input", hint: "至少要帶一個設定鍵（" + ALL_KEYS.join(" / ") + "）" }, 400);
   }
 
   const put = function (k, v) {
-    return env.DB.prepare("INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, v).run();
+    return env.DB.prepare(
+      "INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v=excluded.v"
+    )
+      .bind(k, v)
+      .run();
   };
   const del = function (k) {
     return env.DB.prepare("DELETE FROM settings WHERE k=?1").bind(k).run();
@@ -39,17 +49,23 @@ export async function onRequestPut(context) {
 
   try {
     if ("brand" in body) {
-      const brand = String(body.brand == null ? "" : body.brand).trim().slice(0, 60);
+      const brand = String(body.brand == null ? "" : body.brand)
+        .trim()
+        .slice(0, 60);
       if (!brand) await del("brand");
       else await put("brand", brand);
     }
     if ("contact_url" in body) {
-      const cu = String(body.contact_url == null ? "" : body.contact_url).trim().slice(0, 300);
+      const cu = String(body.contact_url == null ? "" : body.contact_url)
+        .trim()
+        .slice(0, 300);
       if (!cu) await del("contact_url");
       else if (!/^https?:\/\//i.test(cu)) {
-        return json({ error: "bad-input", hint: "contact_url 要是 http(s):// 開頭的網址，或空字串＝移除" }, 400);
-      }
-      else await put("contact_url", cu);
+        return json(
+          { error: "bad-input", hint: "contact_url 要是 http(s):// 開頭的網址，或空字串＝移除" },
+          400
+        );
+      } else await put("contact_url", cu);
     }
     if ("pg_open" in body) {
       if (body.pg_open) await put("pg_open", "1");
@@ -58,29 +74,52 @@ export async function onRequestPut(context) {
     for (const k of QUOTA_KEYS) {
       if (!(k in body)) continue;
       const v = body[k];
-      if (v === null || v === "") { await del(k); continue; }
+      if (v === null || v === "") {
+        await del(k);
+        continue;
+      }
       const n = parseInt(v, 10);
       if (!Number.isFinite(n) || n < 1) {
-        return json({ error: "bad-input", hint: k + " 要是正整數，或 null＝回到內建預設（" + QUOTA_DEFAULTS[k] + "）" }, 400);
+        return json(
+          { error: "bad-input", hint: k + " 要是正整數，或 null＝回到內建預設（" + QUOTA_DEFAULTS[k] + "）" },
+          400
+        );
       }
       await put(k, String(n));
     }
     if ("relay_meter" in body) {
-      if (body.relay_meter) await del("relay_meter");   // 預設就是開
+      if (body.relay_meter)
+        await del("relay_meter"); // 預設就是開
       else await put("relay_meter", "0");
     }
 
     // 稽核：記「帶了哪些鍵、改成什麼」（站名與開關不是秘密，可直接記值）
-    const changed = ALL_KEYS.filter(function (k) { return k in body; })
-      .map(function (k) { return k + "=" + String(body[k]).slice(0, 60); }).join(", ");
-    audit(env, function (p) { context.waitUntil(p); }, request, "settings.put", "", changed);
+    const changed = ALL_KEYS.filter(function (k) {
+      return k in body;
+    })
+      .map(function (k) {
+        return k + "=" + String(body[k]).slice(0, 60);
+      })
+      .join(", ");
+    audit(
+      env,
+      function (p) {
+        context.waitUntil(p);
+      },
+      request,
+      "settings.put",
+      "",
+      changed
+    );
 
     // 回傳改完的現況（settings 沒鍵時顯示內建預設）
     const res = await env.DB.prepare(
       "SELECT k,v FROM settings WHERE k IN ('brand','contact_url','quota_relay_day','quota_pg_day','rl_per_min','relay_meter')"
     ).all();
     const st = {};
-    (res.results || []).forEach(function (r) { st[r.k] = r.v; });
+    (res.results || []).forEach(function (r) {
+      st[r.k] = r.v;
+    });
     return json({
       ok: true,
       brand: st.brand || siteBrand(env, request),
@@ -93,6 +132,6 @@ export async function onRequestPut(context) {
       relay_meter: st.relay_meter !== "0"
     });
   } catch (e) {
-    return json({ error: "save-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "save-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

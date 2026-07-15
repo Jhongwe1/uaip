@@ -9,7 +9,10 @@ import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
 const CID = "test-client-id.apps.googleusercontent.com";
 const GOOGLE = "https://oauth2.googleapis.com";
 
-beforeAll(() => { fetchMock.activate(); fetchMock.disableNetConnect(); });
+beforeAll(() => {
+  fetchMock.activate();
+  fetchMock.disableNetConnect();
+});
 afterEach(() => fetchMock.assertNoPendingInterceptors());
 
 // 造一顆假 id_token（header.payload.signature）— 伺服器只 base64url 解 payload、核對 aud，不驗簽章。
@@ -24,8 +27,12 @@ function idToken(claims) {
   return b64({ alg: "RS256" }) + "." + b64(claims) + ".sig";
 }
 function mockToken(idTok, status) {
-  fetchMock.get(GOOGLE).intercept({ path: "/token", method: "POST" })
-    .reply(status || 200, JSON.stringify({ id_token: idTok }), { headers: { "content-type": "application/json" } });
+  fetchMock
+    .get(GOOGLE)
+    .intercept({ path: "/token", method: "POST" })
+    .reply(status || 200, JSON.stringify({ id_token: idTok }), {
+      headers: { "content-type": "application/json" }
+    });
 }
 // state|next 存在 ipua_oauth cookie；callback 讀 ?code & ?state 與它核對
 function cbCtx(code, state, cookieVal, over) {
@@ -39,7 +46,16 @@ function cbCtx(code, state, cookieVal, over) {
 describe("OAuth callback 全流程", () => {
   it("新帳號：state 對＋token 換成功 → 建 pending 會員、種 session、302 跳 next", async () => {
     const sub = "g-" + Math.random().toString(36).slice(2);
-    mockToken(idToken({ sub, aud: CID, email: "New@Example.com", email_verified: true, name: "新人", picture: "https://x/y.png" }));
+    mockToken(
+      idToken({
+        sub,
+        aud: CID,
+        email: "New@Example.com",
+        email_verified: true,
+        name: "新人",
+        picture: "https://x/y.png"
+      })
+    );
     const ctx = cbCtx("authcode", "st1", "st1|/vpn");
     const r = await callback(ctx);
     await drainWaits(ctx);
@@ -47,10 +63,10 @@ describe("OAuth callback 全流程", () => {
     expect(r.headers.get("location")).toBe("/vpn");
     const setCookies = r.headers.getSetCookie().join("\n");
     expect(setCookies).toContain("ipua_sess=");
-    expect(setCookies).toContain("ipua_oauth=;");                 // 用過即清掉
+    expect(setCookies).toContain("ipua_oauth=;"); // 用過即清掉
     const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first();
-    expect(row.email).toBe("new@example.com");                    // 信箱小寫化
-    expect(row.status).toBe("pending");                           // 一般人預設待批准
+    expect(row.email).toBe("new@example.com"); // 信箱小寫化
+    expect(row.status).toBe("pending"); // 一般人預設待批准
     expect(row.is_admin).toBe(0);
     expect(row.vpn_token).toMatch(/^uvt[a-z2-7]{20}$/);
   });
@@ -72,19 +88,36 @@ describe("OAuth callback 全流程", () => {
     const now = new Date().toISOString();
     await env.DB.prepare(
       "INSERT INTO users (google_sub,email,name,picture,status,is_admin,vpn_token,created_at,last_login) " +
-      "VALUES (?1,?2,'舊名','',?3,0,'uvtoldtoken1234567890',?4,?4)"
-    ).bind(sub, "old@example.com", "approved", now).run();
-    mockToken(idToken({ sub, aud: CID, email: "old@example.com", email_verified: true, name: "新名", picture: "https://x/p.png" }));
+        "VALUES (?1,?2,'舊名','',?3,0,'uvtoldtoken1234567890',?4,?4)"
+    )
+      .bind(sub, "old@example.com", "approved", now)
+      .run();
+    mockToken(
+      idToken({
+        sub,
+        aud: CID,
+        email: "old@example.com",
+        email_verified: true,
+        name: "新名",
+        picture: "https://x/p.png"
+      })
+    );
     const ctx = cbCtx("c", "s", "s|/news");
     const r = await callback(ctx);
     await drainWaits(ctx);
     expect(r.headers.get("location")).toBe("/news");
     const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first();
     expect(row.name).toBe("新名");
-    expect(row.status).toBe("approved");                          // 不被登入洗回 pending
+    expect(row.status).toBe("approved"); // 不被登入洗回 pending
     // 種下的 cookie 真的能換回這個 user
-    const sid = r.headers.getSetCookie().join("\n").match(/ipua_sess=([^;]+)/)[1];
-    const back = await getSessionUser(new Request(ORIGIN + "/", { headers: { cookie: "ipua_sess=" + sid } }), env);
+    const sid = r.headers
+      .getSetCookie()
+      .join("\n")
+      .match(/ipua_sess=([^;]+)/)[1];
+    const back = await getSessionUser(
+      new Request(ORIGIN + "/", { headers: { cookie: "ipua_sess=" + sid } }),
+      env
+    );
     expect(back.google_sub).toBe(sub);
   });
 
@@ -113,8 +146,12 @@ describe("OAuth callback 全流程", () => {
   });
 
   it("Google 拒絕 token 交換（HTTP 400）→ 400 並提示 redirect_uri", async () => {
-    fetchMock.get(GOOGLE).intercept({ path: "/token", method: "POST" })
-      .reply(400, JSON.stringify({ error: "invalid_grant" }), { headers: { "content-type": "application/json" } });
+    fetchMock
+      .get(GOOGLE)
+      .intercept({ path: "/token", method: "POST" })
+      .reply(400, JSON.stringify({ error: "invalid_grant" }), {
+        headers: { "content-type": "application/json" }
+      });
     const ctx = cbCtx("badcode", "s", "s|/");
     const r = await callback(ctx);
     await drainWaits(ctx);

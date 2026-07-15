@@ -27,6 +27,8 @@ export async function onRequestGet(context) {
       "x-content-type-options": "nosniff"
     }
   });
-  try { context.waitUntil(cache.put(request, resp.clone())); } catch (e) {}
+  try {
+    context.waitUntil(cache.put(request, resp.clone()));
+  } catch (e) {}
   return resp;
 }

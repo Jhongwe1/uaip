@@ -16,14 +16,19 @@ export async function onRequestGet({ request, env }) {
   try {
     const where = src ? " WHERE src=?1" : "";
     const stmts = [
-      env.DB.prepare("SELECT * FROM errlog" + where + " ORDER BY id DESC LIMIT " + limit + " OFFSET " + offset),
+      env.DB.prepare(
+        "SELECT * FROM errlog" + where + " ORDER BY id DESC LIMIT " + limit + " OFFSET " + offset
+      ),
       env.DB.prepare("SELECT COUNT(*) AS c FROM errlog" + where)
     ];
-    if (src) { stmts[0] = stmts[0].bind(src); stmts[1] = stmts[1].bind(src); }
+    if (src) {
+      stmts[0] = stmts[0].bind(src);
+      stmts[1] = stmts[1].bind(src);
+    }
     const res = await env.DB.batch(stmts);
     return json({ rows: res[0].results || [], total: (res[1].results[0] || {}).c || 0 });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }
 
@@ -35,6 +40,6 @@ export async function onRequestDelete({ request, env }) {
     await env.DB.prepare("DELETE FROM errlog").run();
     return json({ ok: true });
   } catch (e) {
-    return json({ error: "delete-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "delete-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

@@ -42,18 +42,28 @@ describe("/api/admin/errors", () => {
     const j = await (await errsGet(ctx)).json();
     expect(j.total).toBe(2);
     expect(j.rows.length).toBe(1);
-    expect(j.rows[0].msg).toBe("第二筆");        // 新的在前
+    expect(j.rows[0].msg).toBe("第二筆"); // 新的在前
 
-    const del = makeCtx({ url: ORIGIN + "/api/admin/errors", init: { method: "DELETE", headers: AUTH }, env: E() });
+    const del = makeCtx({
+      url: ORIGIN + "/api/admin/errors",
+      init: { method: "DELETE", headers: AUTH },
+      env: E()
+    });
     expect((await errsDel(del)).status).toBe(200);
-    const after = await (await errsGet(makeCtx({ url: ORIGIN + "/api/admin/errors", init: { headers: AUTH }, env: E() }))).json();
+    const after = await (
+      await errsGet(makeCtx({ url: ORIGIN + "/api/admin/errors", init: { headers: AUTH }, env: E() }))
+    ).json();
     expect(after.total).toBe(0);
   });
 
   it("src 過濾", async () => {
     await reportErrorNow(env, "relay.upstream", "a");
     await reportErrorNow(env, "pg.stream", "b");
-    const ctx = makeCtx({ url: ORIGIN + "/api/admin/errors?src=pg.stream", init: { headers: AUTH }, env: E() });
+    const ctx = makeCtx({
+      url: ORIGIN + "/api/admin/errors?src=pg.stream",
+      init: { headers: AUTH },
+      env: E()
+    });
     const j = await (await errsGet(ctx)).json();
     expect(j.total).toBe(1);
     expect(j.rows[0].src).toBe("pg.stream");
@@ -63,9 +73,28 @@ describe("/api/admin/errors", () => {
 describe("/api/admin/stats", () => {
   it("彙總每日／渠道×模型＋原始 durs", async () => {
     const u = await seedUser({ status: "approved" });
-    await logReq(env, { user_id: u.id, svc: "relay", channel: "c1", model: "m1", status: 200, dur_ms: 100, ttfb_ms: 40, tokens_in: 10, tokens_out: 20 });
+    await logReq(env, {
+      user_id: u.id,
+      svc: "relay",
+      channel: "c1",
+      model: "m1",
+      status: 200,
+      dur_ms: 100,
+      ttfb_ms: 40,
+      tokens_in: 10,
+      tokens_out: 20
+    });
     await logReq(env, { user_id: u.id, svc: "relay", channel: "c1", model: "m1", status: 502, dur_ms: 300 });
-    await logReq(env, { user_id: u.id, svc: "pg", channel: "c2", model: "m2", status: 200, dur_ms: 200, tokens_in: 5, tokens_out: 6 });
+    await logReq(env, {
+      user_id: u.id,
+      svc: "pg",
+      channel: "c2",
+      model: "m2",
+      status: 200,
+      dur_ms: 200,
+      tokens_in: 5,
+      tokens_out: 6
+    });
     const ctx = makeCtx({ url: ORIGIN + "/api/admin/stats?days=7", init: { headers: AUTH }, env: E() });
     const j = await (await statsGet(ctx)).json();
     expect(j.days).toBe(7);
@@ -87,16 +116,26 @@ describe("/api/admin/stats", () => {
 describe("/api/csp-report", () => {
   it("永遠 204；取樣寫入 errlog（Math.random stub 保證取樣命中）", async () => {
     const orig = Math.random;
-    Math.random = () => 0.05;   // < 0.1 → 必取樣
+    Math.random = () => 0.05; // < 0.1 → 必取樣
     try {
-      const body = JSON.stringify({ "csp-report": { "violated-directive": "script-src", "document-uri": "https://uaip.cc.cd/x", "blocked-uri": "https://evil.com/a.js" } });
+      const body = JSON.stringify({
+        "csp-report": {
+          "violated-directive": "script-src",
+          "document-uri": "https://uaip.cc.cd/x",
+          "blocked-uri": "https://evil.com/a.js"
+        }
+      });
       const ctx = makeCtx({ url: ORIGIN + "/api/csp-report", init: { method: "POST", body } });
       const r = await cspPost(ctx);
       expect(r.status).toBe(204);
-      const row = await env.DB.prepare("SELECT * FROM errlog WHERE src='csp' ORDER BY id DESC LIMIT 1").first();
+      const row = await env.DB.prepare(
+        "SELECT * FROM errlog WHERE src='csp' ORDER BY id DESC LIMIT 1"
+      ).first();
       expect(row.msg).toContain("script-src");
       expect(row.msg).toContain("evil.com");
-    } finally { Math.random = orig; }
+    } finally {
+      Math.random = orig;
+    }
   });
   it("沒被取樣時什麼都不寫、照樣 204", async () => {
     const orig = Math.random;
@@ -106,7 +145,9 @@ describe("/api/csp-report", () => {
       expect((await cspPost(ctx)).status).toBe(204);
       const n = await env.DB.prepare("SELECT COUNT(*) c FROM errlog").first();
       expect(n.c).toBe(0);
-    } finally { Math.random = orig; }
+    } finally {
+      Math.random = orig;
+    }
   });
 });
 
@@ -115,7 +156,10 @@ describe("埋點：relay 上游故障進 errlog", () => {
     const u = await seedUser({ status: "approved", services: "relay" });
     const key = await giveKey(u);
     await seedChannel({ slug: "ob1" });
-    fetchMock.get("https://api.example.com").intercept({ path: "/v1/models" }).replyWithError(new Error("boom"));
+    fetchMock
+      .get("https://api.example.com")
+      .intercept({ path: "/v1/models" })
+      .replyWithError(new Error("boom"));
     const ctx = makeCtx({
       url: ORIGIN + "/relay/ob1/v1/models",
       init: { headers: { authorization: "Bearer " + key } },
@@ -124,7 +168,9 @@ describe("埋點：relay 上游故障進 errlog", () => {
     const r = await relayHandler(ctx);
     expect(r.status).toBe(502);
     await drainWaits(ctx);
-    const row = await env.DB.prepare("SELECT * FROM errlog WHERE src='relay.upstream' ORDER BY id DESC LIMIT 1").first();
+    const row = await env.DB.prepare(
+      "SELECT * FROM errlog WHERE src='relay.upstream' ORDER BY id DESC LIMIT 1"
+    ).first();
     expect(row).toBeTruthy();
     expect(row.user_id).toBe(u.id);
     expect(row.path).toBe("/relay/ob1");
@@ -141,10 +187,12 @@ describe("埋點：relay 上游故障進 errlog", () => {
       params: { path: ["ob2", "v1", "models"] }
     });
     const r = await relayHandler(ctx);
-    expect(r.status).toBe(503);          // 會員照樣拿到上游原話
+    expect(r.status).toBe(503); // 會員照樣拿到上游原話
     await r.text();
     await drainWaits(ctx);
-    const row = await env.DB.prepare("SELECT * FROM errlog WHERE src='relay.upstream' ORDER BY id DESC LIMIT 1").first();
+    const row = await env.DB.prepare(
+      "SELECT * FROM errlog WHERE src='relay.upstream' ORDER BY id DESC LIMIT 1"
+    ).first();
     expect(row.msg).toContain("503");
   });
 });

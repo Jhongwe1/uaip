@@ -5,12 +5,10 @@ import { json, DEFAULT_MENU } from "../../lib/site.js";
 export async function onRequestGet({ env }) {
   let rows = [];
   try {
-    const res = await env.DB.prepare(
-      "SELECT kind,label,label_en,url FROM menu ORDER BY pos, id"
-    ).all();
+    const res = await env.DB.prepare("SELECT kind,label,label_en,url FROM menu ORDER BY pos, id").all();
     rows = res.results || [];
-  } catch (e) { /* 表未建立 → 預設 */ }
-  return rows.length
-    ? json({ items: rows, custom: true })
-    : json({ items: DEFAULT_MENU, custom: false });
+  } catch (e) {
+    /* 表未建立 → 預設 */
+  }
+  return rows.length ? json({ items: rows, custom: true }) : json({ items: DEFAULT_MENU, custom: false });
 }

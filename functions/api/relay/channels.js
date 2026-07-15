@@ -17,6 +17,6 @@ export async function onRequestGet({ request, env }) {
     });
     return json({ rows: rows, approved: hasService(user, env, "relay") });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

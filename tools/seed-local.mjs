@@ -18,8 +18,11 @@ INSERT OR IGNORE INTO menu (pos,kind,label,label_en,url) VALUES (999,'link','（
 const tmp = new URL("./.seed.tmp.sql", import.meta.url);
 writeFileSync(tmp, sql);
 try {
-  execFileSync("npx", ["wrangler", "d1", "execute", "ipua-logs", "--local", "--file", "tools/.seed.tmp.sql"],
-    { stdio: "inherit", shell: process.platform === "win32" });
+  execFileSync(
+    "npx",
+    ["wrangler", "d1", "execute", "ipua-logs", "--local", "--file", "tools/.seed.tmp.sql"],
+    { stdio: "inherit", shell: process.platform === "win32" }
+  );
 } finally {
   rmSync(tmp, { force: true });
 }

@@ -5,9 +5,10 @@ import { createSession, getSessionUser, deleteSession, sha256hex } from "../../l
 import { seedUser, ORIGIN } from "../helpers.js";
 
 const URL_ = new URL(ORIGIN + "/");
-const reqWith = (sid) => new Request(ORIGIN + "/api/me", {
-  headers: sid ? { cookie: "ipua_sess=" + sid } : {}
-});
+const reqWith = (sid) =>
+  new Request(ORIGIN + "/api/me", {
+    headers: sid ? { cookie: "ipua_sess=" + sid } : {}
+  });
 
 describe("session 生命週期", () => {
   it("createSession → getSessionUser 往返", async () => {
@@ -27,16 +28,17 @@ describe("session 生命週期", () => {
     const plain = await env.DB.prepare("SELECT sid FROM sessions WHERE sid=?1").bind(sess.sid).first();
     expect(plain).toBeNull();
     const hashed = await env.DB.prepare("SELECT sid FROM sessions WHERE sid=?1")
-      .bind(await sha256hex(sess.sid)).first();
+      .bind(await sha256hex(sess.sid))
+      .first();
     expect(hashed).toBeTruthy();
   });
 
   it("過期 session 取不回", async () => {
     const u = await seedUser();
     const sid = "b".repeat(32);
-    await env.DB.prepare(
-      "INSERT INTO sessions (sid,user_id,created_at,expires_at) VALUES (?1,?2,?3,?4)"
-    ).bind(await sha256hex(sid), u.id, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z").run();
+    await env.DB.prepare("INSERT INTO sessions (sid,user_id,created_at,expires_at) VALUES (?1,?2,?3,?4)")
+      .bind(await sha256hex(sid), u.id, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z")
+      .run();
     expect(await getSessionUser(reqWith(sid), env)).toBeNull();
   });
 
@@ -44,7 +46,9 @@ describe("session 生命週期", () => {
     const u = await seedUser();
     await env.DB.prepare(
       "INSERT INTO sessions (sid,user_id,created_at,expires_at) VALUES ('deadhash',?1,'2026-01-01T00:00:00Z','2026-01-02T00:00:00Z')"
-    ).bind(u.id).run();
+    )
+      .bind(u.id)
+      .run();
     await createSession(env, u, URL_);
     const dead = await env.DB.prepare("SELECT sid FROM sessions WHERE sid='deadhash'").first();
     expect(dead).toBeNull();

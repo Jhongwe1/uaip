@@ -13,11 +13,15 @@ export async function onRequestGet({ request, env }) {
       "SELECT slug,name,models FROM relay_channels WHERE enabled=1 ORDER BY id"
     ).all();
     // 不回 kind：kind 等於標示真實提供商（openai/anthropic/gemini），Playground 前端也用不到
-    const rows = (res.results || []).map(function (r) {
-      return { slug: r.slug, name: r.name, models: chModels(r) };
-    }).filter(function (r) { return r.models.length; });
+    const rows = (res.results || [])
+      .map(function (r) {
+        return { slug: r.slug, name: r.name, models: chModels(r) };
+      })
+      .filter(function (r) {
+        return r.models.length;
+      });
     return json({ rows: rows });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

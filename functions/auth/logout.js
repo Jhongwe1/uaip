@@ -7,7 +7,9 @@ export async function onRequestPost({ request, env }) {
   if (!goodOrigin(request, url, env)) return json({ error: "bad-origin" }, 403);
   await deleteSession(request, env);
   const headers = new Headers({ Location: "/", "cache-control": "no-store" });
-  clearSessionCookies(url).forEach(function (c) { headers.append("Set-Cookie", c); });
+  clearSessionCookies(url).forEach(function (c) {
+    headers.append("Set-Cookie", c);
+  });
   return new Response(null, { status: 303, headers: headers });
 }
 

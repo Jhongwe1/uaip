@@ -1,7 +1,13 @@
 // lib/auth.js 純函式的行為快照 — 這些是全站安全邊界的地基。
 import { describe, it, expect } from "vitest";
 import {
-  randToken, sha256hex, keyHint, safeNext, goodOrigin, userServices, memberKeyFrom
+  randToken,
+  sha256hex,
+  keyHint,
+  safeNext,
+  goodOrigin,
+  userServices,
+  memberKeyFrom
 } from "../../lib/auth.js";
 
 describe("randToken", () => {
@@ -20,12 +26,10 @@ describe("randToken", () => {
 
 describe("sha256hex", () => {
   it("已知向量：sha256('abc')", async () => {
-    expect(await sha256hex("abc"))
-      .toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    expect(await sha256hex("abc")).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
   });
   it("空字串也有定義", async () => {
-    expect(await sha256hex(""))
-      .toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    expect(await sha256hex("")).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
   });
 });
 
@@ -62,9 +66,10 @@ describe("safeNext（登入後跳轉只收站內路徑）", () => {
 
 describe("goodOrigin（CSRF 防線）矩陣", () => {
   const url = new URL("https://uaip.cc.cd/api/x");
-  const req = (origin) => new Request("https://uaip.cc.cd/api/x", {
-    headers: origin == null ? {} : { origin }
-  });
+  const req = (origin) =>
+    new Request("https://uaip.cc.cd/api/x", {
+      headers: origin == null ? {} : { origin }
+    });
   it("沒有 Origin（curl、同站導覽）放行", () => {
     expect(goodOrigin(req(null), url)).toBe(true);
   });
@@ -78,7 +83,7 @@ describe("goodOrigin（CSRF 防線）矩陣", () => {
     const u2 = new URL("https://uaip.pages.dev/api/x");
     const r2 = new Request("https://uaip.pages.dev/api/x", { headers: { origin: "https://uaip.cc.cd" } });
     expect(goodOrigin(r2, u2, { SITE_ORIGIN: "https://uaip.cc.cd" })).toBe(true);
-    expect(goodOrigin(r2, u2, {})).toBe(false);   // 沒設 SITE_ORIGIN 就不放行
+    expect(goodOrigin(r2, u2, {})).toBe(false); // 沒設 SITE_ORIGIN 就不放行
   });
   it("localhost 開發放行", () => {
     expect(goodOrigin(req("http://localhost:8788"), url)).toBe(true);
@@ -97,21 +102,28 @@ describe("userServices（分服務批准）矩陣", () => {
     expect(userServices({ status: "blocked", is_admin: 1, services: "relay" }, env)).toEqual([]);
   });
   it("站長（is_admin=1）→ 全部服務，不看 services 欄", () => {
-    expect(userServices({ status: "approved", is_admin: 1, services: "" }, env))
-      .toEqual(["relay", "vpn", "playground"]);
+    expect(userServices({ status: "approved", is_admin: 1, services: "" }, env)).toEqual([
+      "relay",
+      "vpn",
+      "playground"
+    ]);
   });
   it("ADMIN_EMAILS 名單內的信箱（未設 is_admin）也算站長", () => {
-    expect(userServices({ status: "approved", is_admin: 0, email: "admin@example.com", services: "" }, env))
-      .toEqual(["relay", "vpn", "playground"]);
+    expect(
+      userServices({ status: "approved", is_admin: 0, email: "admin@example.com", services: "" }, env)
+    ).toEqual(["relay", "vpn", "playground"]);
   });
   it("pending → 空清單（就算 services 有值）", () => {
     expect(userServices({ status: "pending", is_admin: 0, services: "relay,vpn" }, env)).toEqual([]);
   });
   it("approved → 只回被批准的合法服務（含去雜、保持標準順序）", () => {
-    expect(userServices({ status: "approved", is_admin: 0, services: "vpn , relay" }, env))
-      .toEqual(["relay", "vpn"]);
-    expect(userServices({ status: "approved", is_admin: 0, services: "bogus,relay" }, env))
-      .toEqual(["relay"]);
+    expect(userServices({ status: "approved", is_admin: 0, services: "vpn , relay" }, env)).toEqual([
+      "relay",
+      "vpn"
+    ]);
+    expect(userServices({ status: "approved", is_admin: 0, services: "bogus,relay" }, env)).toEqual([
+      "relay"
+    ]);
     expect(userServices({ status: "approved", is_admin: 0, services: "" }, env)).toEqual([]);
   });
 });

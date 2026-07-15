@@ -33,8 +33,8 @@ describe("/api/account/key", () => {
     const j = await r.json();
     expect(j.key).toMatch(/^uak-[a-z2-7]{26}$/);
     const row = await env.DB.prepare("SELECT api_key_hash FROM users WHERE id=?1").bind(u.id).first();
-    expect(row.api_key_hash).toBe(await sha256hex(j.key));      // 庫內只有雜湊
-    expect((await userFromKey(env, j.key)).id).toBe(u.id);      // 明文能換回本人
+    expect(row.api_key_hash).toBe(await sha256hex(j.key)); // 庫內只有雜湊
+    expect((await userFromKey(env, j.key)).id).toBe(u.id); // 明文能換回本人
   });
 
   it("POST 再產生：舊金鑰立即失效", async () => {
@@ -42,7 +42,7 @@ describe("/api/account/key", () => {
     const k1 = (await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()).key;
     const k2 = (await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()).key;
     expect(k2).not.toBe(k1);
-    expect(await userFromKey(env, k1)).toBeNull();              // 舊的死了
+    expect(await userFromKey(env, k1)).toBeNull(); // 舊的死了
     expect((await userFromKey(env, k2)).id).toBe(u.id);
   });
 
@@ -65,7 +65,13 @@ describe("/api/account/key", () => {
   });
 
   it("未登入 → 401；跨站 Origin → 403", async () => {
-    expect((await keyPost(makeCtx({ url: ORIGIN + "/api/account/key", init: { method: "POST", headers: { origin: ORIGIN } } }))).status).toBe(401);
+    expect(
+      (
+        await keyPost(
+          makeCtx({ url: ORIGIN + "/api/account/key", init: { method: "POST", headers: { origin: ORIGIN } } })
+        )
+      ).status
+    ).toBe(401);
     const u = await seedUser({ status: "approved" });
     expect((await keyPost(await crossOrigin(u, "/api/account/key", "POST"))).status).toBe(403);
   });
@@ -86,7 +92,16 @@ describe("/api/account/vpn-token", () => {
   it("封鎖 → 403；未登入 → 401；跨站 → 403", async () => {
     const blk = await seedUser({ status: "blocked" });
     expect((await vpnPost(await authed(blk, "/api/account/vpn-token", "POST"))).status).toBe(403);
-    expect((await vpnPost(makeCtx({ url: ORIGIN + "/api/account/vpn-token", init: { method: "POST", headers: { origin: ORIGIN } } }))).status).toBe(401);
+    expect(
+      (
+        await vpnPost(
+          makeCtx({
+            url: ORIGIN + "/api/account/vpn-token",
+            init: { method: "POST", headers: { origin: ORIGIN } }
+          })
+        )
+      ).status
+    ).toBe(401);
     const u = await seedUser({ status: "approved" });
     expect((await vpnPost(await crossOrigin(u, "/api/account/vpn-token", "POST"))).status).toBe(403);
   });
@@ -97,18 +112,33 @@ describe("/api/account/logout-all", () => {
     const u = await seedUser({ status: "approved" });
     const s1 = await createSession(env, u, new URL(ORIGIN + "/"));
     const s2 = await createSession(env, u, new URL(ORIGIN + "/"));
-    const r = await logoutAll(makeCtx({
-      url: ORIGIN + "/api/account/logout-all",
-      init: { method: "POST", headers: { cookie: "ipua_sess=" + s1.sid, origin: ORIGIN } }
-    }));
+    const r = await logoutAll(
+      makeCtx({
+        url: ORIGIN + "/api/account/logout-all",
+        init: { method: "POST", headers: { cookie: "ipua_sess=" + s1.sid, origin: ORIGIN } }
+      })
+    );
     expect(r.status).toBe(200);
-    expect(r.headers.getSetCookie().join("\n")).toContain("ipua_sess=;");   // 清 cookie
-    expect(await getSessionUser(new Request(ORIGIN + "/", { headers: { cookie: "ipua_sess=" + s1.sid } }), env)).toBeNull();
-    expect(await getSessionUser(new Request(ORIGIN + "/", { headers: { cookie: "ipua_sess=" + s2.sid } }), env)).toBeNull();
+    expect(r.headers.getSetCookie().join("\n")).toContain("ipua_sess=;"); // 清 cookie
+    expect(
+      await getSessionUser(new Request(ORIGIN + "/", { headers: { cookie: "ipua_sess=" + s1.sid } }), env)
+    ).toBeNull();
+    expect(
+      await getSessionUser(new Request(ORIGIN + "/", { headers: { cookie: "ipua_sess=" + s2.sid } }), env)
+    ).toBeNull();
   });
 
   it("未登入 → 401；跨站 → 403", async () => {
-    expect((await logoutAll(makeCtx({ url: ORIGIN + "/api/account/logout-all", init: { method: "POST", headers: { origin: ORIGIN } } }))).status).toBe(401);
+    expect(
+      (
+        await logoutAll(
+          makeCtx({
+            url: ORIGIN + "/api/account/logout-all",
+            init: { method: "POST", headers: { origin: ORIGIN } }
+          })
+        )
+      ).status
+    ).toBe(401);
     const u = await seedUser({ status: "approved" });
     expect((await logoutAll(await crossOrigin(u, "/api/account/logout-all", "POST"))).status).toBe(403);
   });

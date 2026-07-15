@@ -12,9 +12,14 @@ export async function onRequestPost({ request, env }) {
   try {
     await env.DB.prepare("DELETE FROM sessions WHERE user_id=?1").bind(user.id).run();
   } catch (e) {
-    return json({ error: "save-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "save-failed", detail: String((e && e.message) || e) }, 500);
   }
-  const headers = new Headers({ "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-  clearSessionCookies(url).forEach(function (c) { headers.append("Set-Cookie", c); });
+  const headers = new Headers({
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store"
+  });
+  clearSessionCookies(url).forEach(function (c) {
+    headers.append("Set-Cookie", c);
+  });
   return new Response(JSON.stringify({ ok: true }), { headers: headers });
 }

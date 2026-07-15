@@ -19,7 +19,7 @@ export async function onRequestGet({ request, env, params }) {
     if (!row) return json({ error: "not-found" }, 404);
     return json({ row: row });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }
 
@@ -31,7 +31,9 @@ export async function onRequestPut(context) {
   if (!id || !env.DB) return json({ error: "bad-id" }, 400);
 
   let body = null;
-  try { body = await request.json(); } catch (e) {}
+  try {
+    body = await request.json();
+  } catch (e) {}
   const a = cleanArticle(body);
   if (!a) return json({ error: "bad-input", hint: "標題不能是空的" }, 400);
 
@@ -43,12 +45,22 @@ export async function onRequestPut(context) {
     const publishedAt = old.published_at || (a.status === "published" ? now : null);
     await env.DB.prepare(
       "UPDATE articles SET category=?1,title=?2,summary=?3,cover=?4,body_md=?5,status=?6,updated_at=?7,published_at=?8 WHERE id=?9"
-    ).bind(a.category, a.title, a.summary, a.cover, a.body_md, a.status, now, publishedAt, id).run();
-    audit(env, function (p) { context.waitUntil(p); }, request, "articles.update", id,
-      a.title.slice(0, 80) + " [" + a.category + "/" + a.status + "]");
+    )
+      .bind(a.category, a.title, a.summary, a.cover, a.body_md, a.status, now, publishedAt, id)
+      .run();
+    audit(
+      env,
+      function (p) {
+        context.waitUntil(p);
+      },
+      request,
+      "articles.update",
+      id,
+      a.title.slice(0, 80) + " [" + a.category + "/" + a.status + "]"
+    );
     return json({ id: id, status: a.status });
   } catch (e) {
-    return json({ error: "update-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "update-failed", detail: String((e && e.message) || e) }, 500);
   }
 }
 
@@ -61,10 +73,18 @@ export async function onRequestDelete(context) {
   try {
     const old = await env.DB.prepare("SELECT title FROM articles WHERE id=?1").bind(id).first();
     await env.DB.prepare("DELETE FROM articles WHERE id=?1").bind(id).run();
-    audit(env, function (p) { context.waitUntil(p); }, request, "articles.delete", id,
-      (old && old.title || "").slice(0, 80));
+    audit(
+      env,
+      function (p) {
+        context.waitUntil(p);
+      },
+      request,
+      "articles.delete",
+      id,
+      ((old && old.title) || "").slice(0, 80)
+    );
     return json({ ok: true });
   } catch (e) {
-    return json({ error: "delete-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "delete-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

@@ -23,9 +23,11 @@ describe("/api/account/logout-all（會員自助撤銷全部裝置）", () => {
     });
     const r = await logoutAll(ctx);
     expect(r.status).toBe(200);
-    expect(r.headers.get("set-cookie")).toContain("ipua_sess=;");   // 本裝置 cookie 清掉
+    expect(r.headers.get("set-cookie")).toContain("ipua_sess=;"); // 本裝置 cookie 清掉
     const mine = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1").bind(u.id).first();
-    const theirs = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1").bind(other.id).first();
+    const theirs = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1")
+      .bind(other.id)
+      .first();
     expect(mine.c).toBe(0);
     expect(theirs.c).toBe(1);
   });
@@ -63,10 +65,10 @@ describe("站長 revoke_sessions", () => {
     const n = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1").bind(u.id).first();
     expect(n.c).toBe(0);
     const row = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first();
-    expect(row.status).toBe("approved");                     // 狀態與服務不動
+    expect(row.status).toBe("approved"); // 狀態與服務不動
     const audit = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first();
     expect(audit.action).toBe("users.revoke_sessions");
-    expect(audit.actor).toBe("token");                       // 金鑰身分記 token
+    expect(audit.actor).toBe("token"); // 金鑰身分記 token
   });
 });
 
@@ -89,7 +91,7 @@ describe("audit_log 落庫", () => {
     await drainWaits(ctx);
     let row = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first();
     expect(row.action).toBe("users.set_services");
-    expect(row.actor).toBe(adm.email);                       // cookie 身分＝email
+    expect(row.actor).toBe(adm.email); // cookie 身分＝email
     expect(row.summary).toContain("relay");
 
     const ctx2 = makeCtx({

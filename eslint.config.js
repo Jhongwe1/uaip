@@ -22,9 +22,9 @@ export default [
     ignores: [
       "node_modules/**",
       ".wrangler/**",
-      "lib/vendor/**",       // 第三方 vendored（marked）— 不碰
-      "lib/apidoc.js",       // 由 API.md 產生的生成檔
-      "public/**"            // 前端資產手工調校＋index.html 的 CSP sha256 釘死，不 lint 不格式化
+      "lib/vendor/**", // 第三方 vendored（marked）— 不碰
+      "lib/apidoc.js", // 由 API.md 產生的生成檔
+      "public/**" // 前端資產手工調校＋index.html 的 CSP sha256 釘死，不 lint 不格式化
     ]
   },
   js.configs.recommended,
@@ -40,9 +40,9 @@ export default [
     rules: {
       // catch (e) {} 是全站慣用的「失敗就算了」— caughtErrors:none 不把它當未用變數
       "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }],
-      "no-empty": ["warn", { allowEmptyCatch: true }],   // 觀測性程式大量「失敗就算了」的空 catch
-      "no-control-regex": "off",                         // sanitize.js 的 URL 控制字元過濾是刻意的
-      "no-useless-escape": "off"                         // <\/script> 是 HTML-in-JS 的刻意防護（防提早關 script）
+      "no-empty": ["warn", { allowEmptyCatch: true }], // 觀測性程式大量「失敗就算了」的空 catch
+      "no-control-regex": "off", // sanitize.js 的 URL 控制字元過濾是刻意的
+      "no-useless-escape": "off" // <\/script> 是 HTML-in-JS 的刻意防護（防提早關 script）
     }
   },
 
@@ -55,8 +55,11 @@ export default [
     files: ["src/**/*.ts"],
     languageOptions: { globals: workerGlobals },
     rules: {
-      "@typescript-eslint/no-explicit-any": "off",       // 橋接寬鬆型別的 .js handler，過渡期允許
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }],
+      "@typescript-eslint/no-explicit-any": "off", // 橋接寬鬆型別的 .js handler，過渡期允許
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }
+      ],
       "no-empty": ["warn", { allowEmptyCatch: true }]
     }
   },
@@ -88,5 +91,5 @@ export default [
     }
   },
 
-  prettier   // 一定放最後：關掉所有與 Prettier 衝突的排版規則
+  prettier // 一定放最後：關掉所有與 Prettier 衝突的排版規則
 ];

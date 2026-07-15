@@ -14,7 +14,8 @@ import { checkQuota, logReq, scanUsage } from "../../lib/quota.js";
 import { reportError } from "../../lib/observe.js";
 
 // 不轉發給上游的標頭：連線層的、Cloudflare 加的、還有夾帶會員身分的
-const DROP = /^(host|cookie|authorization|x-api-key|x-goog-api-key|content-length|connection|keep-alive|transfer-encoding|upgrade|expect|te|accept-encoding|cf-.*|x-forwarded-.*|x-real-ip|true-client-ip|sec-fetch-.*|origin|referer)$/;
+const DROP =
+  /^(host|cookie|authorization|x-api-key|x-goog-api-key|content-length|connection|keep-alive|transfer-encoding|upgrade|expect|te|accept-encoding|cf-.*|x-forwarded-.*|x-real-ip|true-client-ip|sec-fetch-.*|origin|referer)$/;
 
 function cors(h) {
   h.set("access-control-allow-origin", "*");
@@ -28,15 +29,17 @@ export async function onRequest(context) {
 
   // 瀏覽器的 CORS 預檢：一律放行（真正的權限在下面驗會員金鑰）
   if (request.method === "OPTIONS") {
-    const h = cors(new Headers({
-      "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-      "access-control-allow-headers": request.headers.get("access-control-request-headers") || "*",
-      "access-control-max-age": "86400"
-    }));
+    const h = cors(
+      new Headers({
+        "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "access-control-allow-headers": request.headers.get("access-control-request-headers") || "*",
+        "access-control-max-age": "86400"
+      })
+    );
     return new Response(null, { status: 204, headers: h });
   }
 
-  const segs = Array.isArray(params.path) ? params.path : (params.path ? [params.path] : []);
+  const segs = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
   // 這個 catch-all 也接到「/relay」本身（零段落）— 那不是轉發，是會員操作頁。
   // （Pages 的 [[path]] 會蓋掉同層 index.js，所以頁面渲染改由這裡代理。）
   if (!segs.length) {
@@ -59,7 +62,8 @@ export async function onRequest(context) {
 
   // 2) 找管道（順便讀計量開關 relay_meter：settings 設 '0' ＝ 免部署退回純直通的保險）
   const slug = String(segs[0]).toLowerCase();
-  let ch = null, meter = true;
+  let ch = null,
+    meter = true;
   try {
     const res = await env.DB.batch([
       env.DB.prepare("SELECT * FROM relay_channels WHERE slug=?1 AND enabled=1").bind(slug),
@@ -75,7 +79,9 @@ export async function onRequest(context) {
   url.searchParams.delete("key");
   const qs = url.searchParams.toString();
   // 段落重新編碼（防注入），但保留 Gemini 路徑會用到的 : 與 @（例 models/gemini-2.5-flash:generateContent）
-  const enc = function (s) { return encodeURIComponent(s).replace(/%3A/gi, ":").replace(/%40/gi, "@"); };
+  const enc = function (s) {
+    return encodeURIComponent(s).replace(/%3A/gi, ":").replace(/%40/gi, "@");
+  };
   const upPath = segs.slice(1).map(enc).join("/");
   const target = ch.base_url + "/" + upPath + (qs ? "?" + qs : "");
 
@@ -88,12 +94,14 @@ export async function onRequest(context) {
   const openaiCompat = /(^|\/)openai(\/|$)/.test(upPath) || /chat\/completions$/.test(upPath);
 
   const fh = new Headers();
-  request.headers.forEach(function (v, k) { if (!DROP.test(k)) fh.set(k, v); });
+  request.headers.forEach(function (v, k) {
+    if (!DROP.test(k)) fh.set(k, v);
+  });
   if (ch.api_key) {
     if (openaiCompat) fh.set("authorization", "Bearer " + ch.api_key);
     else if (ch.kind === "anthropic") fh.set("x-api-key", ch.api_key);
     else if (ch.kind === "gemini") fh.set("x-goog-api-key", ch.api_key);
-    else fh.set("authorization", "Bearer " + ch.api_key);   // openai / custom（含本地 AI 的 OpenAI 相容介面）
+    else fh.set("authorization", "Bearer " + ch.api_key); // openai / custom（含本地 AI 的 OpenAI 相容介面）
   }
 
   const t0 = Date.now();
@@ -102,34 +110,63 @@ export async function onRequest(context) {
     resp = await fetch(target, {
       method: request.method,
       headers: fh,
-      body: (request.method === "GET" || request.method === "HEAD") ? undefined : request.body
+      body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body
     });
   } catch (e) {
     // 連不上上游也記一列（status:0）— 研究「上游到底多常掛」要靠這個
     try {
-      context.waitUntil(logReq(env, { user_id: user.id, svc: "relay", channel: slug, status: 0, dur_ms: Date.now() - t0 }));
-      reportError(env, function (p) { context.waitUntil(p); }, "relay.upstream", e, { user_id: user.id, path: "/relay/" + slug });
+      context.waitUntil(
+        logReq(env, { user_id: user.id, svc: "relay", channel: slug, status: 0, dur_ms: Date.now() - t0 })
+      );
+      reportError(
+        env,
+        function (p) {
+          context.waitUntil(p);
+        },
+        "relay.upstream",
+        e,
+        { user_id: user.id, path: "/relay/" + slug }
+      );
     } catch (e2) {}
-    return json({ error: "upstream-unreachable", hint: "連不上上游（" + ch.name + "）", detail: String(e && e.message || e) }, 502);
+    return json(
+      {
+        error: "upstream-unreachable",
+        hint: "連不上上游（" + ch.name + "）",
+        detail: String((e && e.message) || e)
+      },
+      502
+    );
   }
-  const ttfb = Date.now() - t0;   // 上游回應標頭到手的時間（首位元組延遲）
+  const ttfb = Date.now() - t0; // 上游回應標頭到手的時間（首位元組延遲）
   if (resp.status >= 500) {
     // 上游 5xx：轉發照舊（會員自己看得到），但站內也留一筆（觀測上游品質）
-    reportError(env, function (p) { context.waitUntil(p); }, "relay.upstream",
-      "上游回應 HTTP " + resp.status, { user_id: user.id, path: "/relay/" + slug });
+    reportError(
+      env,
+      function (p) {
+        context.waitUntil(p);
+      },
+      "relay.upstream",
+      "上游回應 HTTP " + resp.status,
+      { user_id: user.id, path: "/relay/" + slug }
+    );
   }
 
   // 4) 記用量（背景執行，不拖慢回應；relay_calls 舊計數器保留）
   try {
     context.waitUntil(
-      env.DB.prepare("UPDATE users SET relay_calls = relay_calls + 1 WHERE id=?1").bind(user.id).run().catch(function () {})
+      env.DB.prepare("UPDATE users SET relay_calls = relay_calls + 1 WHERE id=?1")
+        .bind(user.id)
+        .run()
+        .catch(function () {})
     );
   } catch (e) {}
 
   // 5) 原樣回傳。fetch 已解壓縮，所以 content-encoding/length 不能照抄；
   //    上游的 set-cookie 也不該落到會員的瀏覽器。
   const oh = new Headers(resp.headers);
-  oh.delete("set-cookie"); oh.delete("content-encoding"); oh.delete("content-length");
+  oh.delete("set-cookie");
+  oh.delete("content-encoding");
+  oh.delete("content-length");
   oh.set("cache-control", "no-store");
   cors(oh);
 
@@ -144,27 +181,50 @@ export async function onRequest(context) {
       const writer = pump.writable.getWriter();
       const reader = resp.body.getReader();
       const status = resp.status;
-      context.waitUntil((async function () {
-        let tail = "";
-        const dec = new TextDecoder();
-        while (true) {
-          let step = null;
-          try { step = await reader.read(); } catch (e) { break; }
-          if (step.done) break;
-          try { await writer.write(step.value); }
-          catch (e) { try { reader.cancel(); } catch (e2) {} break; }   // 客戶端斷線 → 立刻停抓上游
-          tail += dec.decode(step.value, { stream: true });
-          if (tail.length > 65536) tail = tail.slice(-65536);
-        }
-        try { await writer.close(); } catch (e) {}
-        const u = scanUsage(tail);
-        await logReq(env, {
-          user_id: user.id, svc: "relay", channel: slug, model: u.model, status: status,
-          dur_ms: Date.now() - t0, ttfb_ms: ttfb, tokens_in: u.tokens_in, tokens_out: u.tokens_out
-        });
-      })());
+      context.waitUntil(
+        (async function () {
+          let tail = "";
+          const dec = new TextDecoder();
+          while (true) {
+            let step = null;
+            try {
+              step = await reader.read();
+            } catch (e) {
+              break;
+            }
+            if (step.done) break;
+            try {
+              await writer.write(step.value);
+            } catch (e) {
+              try {
+                reader.cancel();
+              } catch (e2) {}
+              break;
+            } // 客戶端斷線 → 立刻停抓上游
+            tail += dec.decode(step.value, { stream: true });
+            if (tail.length > 65536) tail = tail.slice(-65536);
+          }
+          try {
+            await writer.close();
+          } catch (e) {}
+          const u = scanUsage(tail);
+          await logReq(env, {
+            user_id: user.id,
+            svc: "relay",
+            channel: slug,
+            model: u.model,
+            status: status,
+            dur_ms: Date.now() - t0,
+            ttfb_ms: ttfb,
+            tokens_in: u.tokens_in,
+            tokens_out: u.tokens_out
+          });
+        })()
+      );
       return new Response(pump.readable, { status: resp.status, statusText: resp.statusText, headers: oh });
-    } catch (e) { /* pump 建立失敗 → 退回純直通 */ }
+    } catch (e) {
+      /* pump 建立失敗 → 退回純直通 */
+    }
   }
   return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers: oh });
 }

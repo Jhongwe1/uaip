@@ -22,14 +22,18 @@ describe("scanUsage（relay 回應掃描：SSE 或 JSON 原文）", () => {
     expect(scanUsage(sse)).toEqual({ model: "claude-y", tokens_in: 55, tokens_out: 77 });
   });
   it("Gemini：usageMetadata（promptTokenCount/candidatesTokenCount）", () => {
-    const body = '{"candidates":[],"usageMetadata":{"promptTokenCount":9,"candidatesTokenCount":21},"modelVersion":"x"}';
+    const body =
+      '{"candidates":[],"usageMetadata":{"promptTokenCount":9,"candidatesTokenCount":21},"modelVersion":"x"}';
     const u = scanUsage(body);
     expect(u.tokens_in).toBe(9);
     expect(u.tokens_out).toBe(21);
   });
   it("整包 JSON（非串流）也掃得到；掃不到＝null", () => {
-    expect(scanUsage('{"model":"m1","usage":{"prompt_tokens":1,"completion_tokens":2}}'))
-      .toEqual({ model: "m1", tokens_in: 1, tokens_out: 2 });
+    expect(scanUsage('{"model":"m1","usage":{"prompt_tokens":1,"completion_tokens":2}}')).toEqual({
+      model: "m1",
+      tokens_in: 1,
+      tokens_out: 2
+    });
     expect(scanUsage("data: [DONE]\n\n")).toEqual({ model: "", tokens_in: null, tokens_out: null });
   });
 });
@@ -37,7 +41,11 @@ describe("scanUsage（relay 回應掃描：SSE 或 JSON 原文）", () => {
 describe("extractUsage（playground 逐筆累積）", () => {
   it("anthropic：message_start 進 input、message_delta 覆寫 output", () => {
     const acc = { tokens_in: null, tokens_out: null };
-    extractUsage("anthropic", { type: "message_start", message: { usage: { input_tokens: 10, output_tokens: 1 } } }, acc);
+    extractUsage(
+      "anthropic",
+      { type: "message_start", message: { usage: { input_tokens: 10, output_tokens: 1 } } },
+      acc
+    );
     extractUsage("anthropic", { type: "message_delta", usage: { output_tokens: 42 } }, acc);
     expect(acc).toEqual({ tokens_in: 10, tokens_out: 42 });
   });
@@ -89,7 +97,7 @@ describe("checkQuota 三層優先序＋豁免", () => {
   it("沒設定就用內建預設（用量 0 → 放行）；兩服務日窗分開算", async () => {
     const u = await seedUser({ status: "approved", services: "relay,playground" });
     await logReq(env, { user_id: u.id, svc: "pg", status: 200 });
-    expect((await checkQuota(env, u, "relay")).ok).toBe(true);   // pg 的量不吃 relay 日配額
+    expect((await checkQuota(env, u, "relay")).ok).toBe(true); // pg 的量不吃 relay 日配額
     expect(QUOTA_DEFAULTS.quota_relay_day).toBe(500);
   });
   it("utcDayStart 是今天 UTC 0 點", () => {

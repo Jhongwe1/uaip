@@ -30,9 +30,9 @@ describe("adminOk × LOGS_TOKEN 已設定", () => {
   it("站長 cookie＋跨站 Origin → 擋（CSRF）", async () => {
     const adm = await seedAdmin();
     const sa = await createSession(env, adm, URL_);
-    expect(await adminOk(
-      req({ cookie: "ipua_sess=" + sa.sid, origin: "https://evil.com" }), e(), URL_
-    )).toBe(false);
+    expect(await adminOk(req({ cookie: "ipua_sess=" + sa.sid, origin: "https://evil.com" }), e(), URL_)).toBe(
+      false
+    );
   });
 });
 

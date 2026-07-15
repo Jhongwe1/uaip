@@ -20,8 +20,12 @@ export async function onRequestGet({ request, env }) {
   try {
     const res = await env.DB.batch([
       env.DB.prepare(
-        "SELECT id,category,title,summary,cover,views,published_at FROM articles " + where +
-        " ORDER BY published_at DESC, id DESC LIMIT " + per + " OFFSET " + (p - 1) * per
+        "SELECT id,category,title,summary,cover,views,published_at FROM articles " +
+          where +
+          " ORDER BY published_at DESC, id DESC LIMIT " +
+          per +
+          " OFFSET " +
+          (p - 1) * per
       ).bind(...binds),
       env.DB.prepare("SELECT COUNT(*) AS c FROM articles " + where).bind(...binds)
     ]);
@@ -34,6 +38,6 @@ export async function onRequestGet({ request, env }) {
       pages: Math.max(1, Math.ceil(total / per))
     });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

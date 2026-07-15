@@ -19,15 +19,15 @@ export async function onRequestGet({ request, env }) {
     const res = await env.DB.batch([
       env.DB.prepare(
         "SELECT substr(ts,1,10) AS d, svc, COUNT(*) AS n, ROUND(AVG(dur_ms)) AS avg_dur, " +
-        "ROUND(AVG(ttfb_ms)) AS avg_ttfb, SUM(tokens_in) AS tokens_in, SUM(tokens_out) AS tokens_out, " +
-        "SUM(CASE WHEN status>=400 OR status=0 THEN 1 ELSE 0 END) AS errs " +
-        "FROM req_log WHERE ts>=?1 GROUP BY d, svc ORDER BY d DESC, svc"
+          "ROUND(AVG(ttfb_ms)) AS avg_ttfb, SUM(tokens_in) AS tokens_in, SUM(tokens_out) AS tokens_out, " +
+          "SUM(CASE WHEN status>=400 OR status=0 THEN 1 ELSE 0 END) AS errs " +
+          "FROM req_log WHERE ts>=?1 GROUP BY d, svc ORDER BY d DESC, svc"
       ).bind(since),
       env.DB.prepare(
         "SELECT svc, channel, model, COUNT(*) AS n, ROUND(AVG(dur_ms)) AS avg_dur, " +
-        "ROUND(AVG(ttfb_ms)) AS avg_ttfb, SUM(tokens_in) AS tokens_in, SUM(tokens_out) AS tokens_out, " +
-        "SUM(CASE WHEN status>=400 OR status=0 THEN 1 ELSE 0 END) AS errs " +
-        "FROM req_log WHERE ts>=?1 GROUP BY svc, channel, model ORDER BY n DESC"
+          "ROUND(AVG(ttfb_ms)) AS avg_ttfb, SUM(tokens_in) AS tokens_in, SUM(tokens_out) AS tokens_out, " +
+          "SUM(CASE WHEN status>=400 OR status=0 THEN 1 ELSE 0 END) AS errs " +
+          "FROM req_log WHERE ts>=?1 GROUP BY svc, channel, model ORDER BY n DESC"
       ).bind(since),
       env.DB.prepare(
         "SELECT svc, dur_ms, ttfb_ms FROM req_log WHERE ts>=?1 AND dur_ms IS NOT NULL ORDER BY id DESC LIMIT 2000"
@@ -41,6 +41,6 @@ export async function onRequestGet({ request, env }) {
       durs: res[2].results || []
     });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

@@ -23,7 +23,11 @@ describe("/api/me", () => {
   });
 
   it("已批准會員：身分欄位齊全、金鑰只給提示不給明文", async () => {
-    const u = await seedUser({ status: "approved", services: "relay,playground", vpn_token: "uvt" + "c".repeat(20) });
+    const u = await seedUser({
+      status: "approved",
+      services: "relay,playground",
+      vpn_token: "uvt" + "c".repeat(20)
+    });
     const key = await giveKey(u);
     const j = await (await onRequestGet(await meCtx(u))).json();
     expect(j.user.email).toBe(u.email);
@@ -32,7 +36,7 @@ describe("/api/me", () => {
     expect(j.user.services).toEqual(["relay", "playground"]);
     expect(j.user.has_key).toBe(true);
     expect(j.user.key_hint).toContain("…");
-    expect(JSON.stringify(j)).not.toContain(key);        // 金鑰明文絕不回傳
+    expect(JSON.stringify(j)).not.toContain(key); // 金鑰明文絕不回傳
   });
 
   it("pending 會員：approved=false、services 空", async () => {
@@ -61,7 +65,7 @@ describe("/api/me", () => {
     await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
     await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
     const j = await (await onRequestGet(await meCtx(u))).json();
-    expect(j.user.usage).toEqual({ relay_today: 2, relay_limit: 9 });   // 沒 pg 權限 → pg 鍵省略
+    expect(j.user.usage).toEqual({ relay_today: 2, relay_limit: 9 }); // 沒 pg 權限 → pg 鍵省略
   });
 
   it("usage：站長 limit=null（無上限）；兩服務都沒權限 → 整塊省略", async () => {

@@ -6,13 +6,20 @@ import { json, siteBrand } from "../../lib/site.js";
 import { pgOpenAll } from "../../lib/auth.js";
 
 export async function onRequestGet({ request, env }) {
-  let brand = siteBrand(env, request), custom = false, contact = "";
+  let brand = siteBrand(env, request),
+    custom = false,
+    contact = "";
   try {
     const res = await env.DB.prepare("SELECT k,v FROM settings WHERE k IN ('brand','contact_url')").all();
     (res.results || []).forEach(function (r) {
-      if (r.k === "brand" && r.v) { brand = r.v; custom = true; }
+      if (r.k === "brand" && r.v) {
+        brand = r.v;
+        custom = true;
+      }
       if (r.k === "contact_url" && r.v) contact = r.v;
     });
-  } catch (e) { /* 表未建立 → 預設 */ }
+  } catch (e) {
+    /* 表未建立 → 預設 */
+  }
   return json({ brand: brand, custom: custom, pg_open: await pgOpenAll(env), contact_url: contact });
 }

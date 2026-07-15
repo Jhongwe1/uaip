@@ -16,7 +16,9 @@ md = md.replace(/^(?:>[^\n]*\n)+\n?/, "");
 const out =
   "// lib/apidoc.js — ⚠ 自動產生，不要手改！原稿是專案根目錄 API.md。\n" +
   "// 改文件流程：編輯 API.md → node tools/build-apidoc.mjs → npx wrangler pages deploy\n" +
-  "export const APIDOC = " + JSON.stringify(md) + ";\n";
+  "export const APIDOC = " +
+  JSON.stringify(md) +
+  ";\n";
 
 writeFileSync(outUrl, out);
 console.log("已產生 lib/apidoc.js（" + out.length + " 字元），原稿 API.md（" + md.length + " 字元）");

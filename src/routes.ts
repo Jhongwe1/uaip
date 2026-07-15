@@ -54,7 +54,9 @@ import { onRequestGet as apiPgModels } from "../functions/api/playground/models.
 import { onRequestPost as apiPgChat } from "../functions/api/playground/chat.js";
 import { onRequestGet as apiPgConvList } from "../functions/api/playground/conversations/index.js";
 import {
-  onRequestGet as apiPgConvGet, onRequestPut as apiPgConvPut, onRequestDelete as apiPgConvDel
+  onRequestGet as apiPgConvGet,
+  onRequestPut as apiPgConvPut,
+  onRequestDelete as apiPgConvDel
 } from "../functions/api/playground/conversations/[id].js";
 
 // —— 會員自助 API ——
@@ -64,32 +66,52 @@ import { onRequestPost as acctLogoutAll } from "../functions/api/account/logout-
 
 // —— 站長 API ——
 import { onRequestGet as admApidoc } from "../functions/api/admin/apidoc.js";
-import { onRequestGet as admErrorsGet, onRequestDelete as admErrorsDel } from "../functions/api/admin/errors.js";
+import {
+  onRequestGet as admErrorsGet,
+  onRequestDelete as admErrorsDel
+} from "../functions/api/admin/errors.js";
 import { onRequestPost as admMedia } from "../functions/api/admin/media.js";
 import { onRequestPut as admMenu } from "../functions/api/admin/menu.js";
 import { onRequestPut as admSettings } from "../functions/api/admin/settings.js";
 import { onRequestGet as admStats } from "../functions/api/admin/stats.js";
-import { onRequestGet as admArtList, onRequestPost as admArtCreate } from "../functions/api/admin/articles/index.js";
 import {
-  onRequestGet as admArtGet, onRequestPut as admArtPut, onRequestDelete as admArtDel
+  onRequestGet as admArtList,
+  onRequestPost as admArtCreate
+} from "../functions/api/admin/articles/index.js";
+import {
+  onRequestGet as admArtGet,
+  onRequestPut as admArtPut,
+  onRequestDelete as admArtDel
 } from "../functions/api/admin/articles/[id].js";
-import { onRequestGet as admPagesList, onRequestPost as admPagesCreate } from "../functions/api/admin/pages/index.js";
 import {
-  onRequestGet as admPageGet, onRequestPut as admPagePut, onRequestDelete as admPageDel
+  onRequestGet as admPagesList,
+  onRequestPost as admPagesCreate
+} from "../functions/api/admin/pages/index.js";
+import {
+  onRequestGet as admPageGet,
+  onRequestPut as admPagePut,
+  onRequestDelete as admPageDel
 } from "../functions/api/admin/pages/[key].js";
 import { onRequestGet as admUsersList } from "../functions/api/admin/users/index.js";
-import { onRequestPut as admUserPut, onRequestDelete as admUserDel } from "../functions/api/admin/users/[id].js";
 import {
-  onRequestGet as admRelayChList, onRequestPost as admRelayChCreate
+  onRequestPut as admUserPut,
+  onRequestDelete as admUserDel
+} from "../functions/api/admin/users/[id].js";
+import {
+  onRequestGet as admRelayChList,
+  onRequestPost as admRelayChCreate
 } from "../functions/api/admin/relay/channels/index.js";
 import {
-  onRequestPut as admRelayChPut, onRequestDelete as admRelayChDel
+  onRequestPut as admRelayChPut,
+  onRequestDelete as admRelayChDel
 } from "../functions/api/admin/relay/channels/[id].js";
 import {
-  onRequestGet as admVpnChList, onRequestPost as admVpnChCreate
+  onRequestGet as admVpnChList,
+  onRequestPost as admVpnChCreate
 } from "../functions/api/admin/vpn/channels/index.js";
 import {
-  onRequestPut as admVpnChPut, onRequestDelete as admVpnChDel
+  onRequestPut as admVpnChPut,
+  onRequestDelete as admVpnChDel
 } from "../functions/api/admin/vpn/channels/[id].js";
 
 // handler 們的型別在 .js 端是寬鬆的；這裡統一當成 MethodMap 的值。
@@ -136,7 +158,10 @@ export const ROUTES: Array<[string, MethodMap]> = [
   ["/api/playground/models", G(apiPgModels)],
   ["/api/playground/chat", { POST: apiPgChat as H }],
   ["/api/playground/conversations", G(apiPgConvList)],
-  ["/api/playground/conversations/:id", { GET: apiPgConvGet as H, PUT: apiPgConvPut as H, DELETE: apiPgConvDel as H }],
+  [
+    "/api/playground/conversations/:id",
+    { GET: apiPgConvGet as H, PUT: apiPgConvPut as H, DELETE: apiPgConvDel as H }
+  ],
 
   // auth
   ["/auth/login", { GET: loginGet as H, POST: loginPost as H }],

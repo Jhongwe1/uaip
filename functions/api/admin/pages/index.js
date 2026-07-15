@@ -9,15 +9,21 @@ import { audit } from "../../../../lib/observe.js";
 // 欄位整理與上限（slug、title 必填；status 只收白名單值）。不合規回 null／錯誤字串。
 export function cleanPage(b) {
   if (!b || typeof b !== "object") return { err: "需要 JSON 本體" };
-  const slug = String(b.slug == null ? "" : b.slug).trim().toLowerCase();
+  const slug = String(b.slug == null ? "" : b.slug)
+    .trim()
+    .toLowerCase();
   if (!SLUG_RE.test(slug)) return { err: "slug 只能用小寫英數與連字號（頭尾不能是連字號），最長 64 字" };
-  const title = String(b.title == null ? "" : b.title).trim().slice(0, 200);
+  const title = String(b.title == null ? "" : b.title)
+    .trim()
+    .slice(0, 200);
   if (!title) return { err: "標題不能是空的" };
   return {
     page: {
       slug: slug,
       title: title,
-      summary: String(b.summary == null ? "" : b.summary).trim().slice(0, 500),
+      summary: String(b.summary == null ? "" : b.summary)
+        .trim()
+        .slice(0, 500),
       body_md: String(b.body_md == null ? "" : b.body_md).slice(0, 200000),
       status: b.status === "published" ? "published" : "draft"
     }
@@ -34,7 +40,7 @@ export async function onRequestGet({ request, env }) {
     ).all();
     return json({ rows: res.results || [] });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }
 
@@ -45,7 +51,9 @@ export async function onRequestPost(context) {
   if (!env.DB) return json({ error: "no-db" }, 500);
 
   let body = null;
-  try { body = await request.json(); } catch (e) {}
+  try {
+    body = await request.json();
+  } catch (e) {}
   const c = cleanPage(body);
   if (c.err) return json({ error: "bad-input", hint: c.err }, 400);
   const p = c.page;
@@ -54,12 +62,22 @@ export async function onRequestPost(context) {
   try {
     const r = await env.DB.prepare(
       "INSERT INTO pages (slug,title,summary,body_md,status,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?6)"
-    ).bind(p.slug, p.title, p.summary, p.body_md, p.status, now).run();
-    audit(env, function (pr) { context.waitUntil(pr); }, request, "pages.create", p.slug,
-      p.title.slice(0, 80) + " [" + p.status + "]");
+    )
+      .bind(p.slug, p.title, p.summary, p.body_md, p.status, now)
+      .run();
+    audit(
+      env,
+      function (pr) {
+        context.waitUntil(pr);
+      },
+      request,
+      "pages.create",
+      p.slug,
+      p.title.slice(0, 80) + " [" + p.status + "]"
+    );
     return json({ id: r.meta.last_row_id, slug: p.slug, status: p.status, url: "/p/" + p.slug });
   } catch (e) {
-    const msg = String(e && e.message || e);
+    const msg = String((e && e.message) || e);
     if (msg.indexOf("UNIQUE") >= 0) {
       return json({ error: "slug-taken", hint: "slug「" + p.slug + "」已經有頁面在用了" }, 409);
     }

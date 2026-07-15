@@ -10,57 +10,82 @@ const MD_OPTS = { gfm: true, breaks: true, async: false };
 
 export async function onRequestGet({ request, env, params }) {
   const slug = String(params.slug || "").toLowerCase();
-  const chromeP = getChromeFor(env, request);   // 選單依身分過濾（VPN 隱形），與頁面查詢並行
+  const chromeP = getChromeFor(env, request); // 選單依身分過濾（VPN 隱形），與頁面查詢並行
 
   let row = null;
   if (SLUG_RE.test(slug) && env.DB) {
     try {
-      row = await env.DB.prepare(
-        "SELECT * FROM pages WHERE slug=?1 AND status='published'"
-      ).bind(slug).first();
-    } catch (e) { /* 資料表尚未建立 → 當作找不到 */ }
+      row = await env.DB.prepare("SELECT * FROM pages WHERE slug=?1 AND status='published'")
+        .bind(slug)
+        .first();
+    } catch (e) {
+      /* 資料表尚未建立 → 當作找不到 */
+    }
   }
   const chrome = (await chromeP).chrome;
   if (!row) return notFound(chrome);
 
   const canonical = siteOrigin(env, request) + "/p/" + row.slug;
   // Markdown → HTML 後過白名單消毒（與文章頁同規則）；內文圖片 lazy 載入
-  const bodyHtml = sanitizeHtml(marked.parse(row.body_md || "", MD_OPTS)).replace(/<img /g, '<img loading="lazy" ');
+  const bodyHtml = sanitizeHtml(marked.parse(row.body_md || "", MD_OPTS)).replace(
+    /<img /g,
+    '<img loading="lazy" '
+  );
 
   const headExtra =
     '<meta property="og:type" content="website">' +
-    '<meta property="og:site_name" content="' + esc(chrome.brand) + '">' +
-    '<meta property="og:title" content="' + esc(row.title) + '">' +
-    '<meta property="og:description" content="' + esc(row.summary || "") + '">' +
-    '<meta property="og:url" content="' + esc(canonical) + '">\n';
+    '<meta property="og:site_name" content="' +
+    esc(chrome.brand) +
+    '">' +
+    '<meta property="og:title" content="' +
+    esc(row.title) +
+    '">' +
+    '<meta property="og:description" content="' +
+    esc(row.summary || "") +
+    '">' +
+    '<meta property="og:url" content="' +
+    esc(canonical) +
+    '">\n';
 
   const body =
     '<article class="art">\n' +
-    '<h1 class="t">' + esc(row.title) + "</h1>\n" +
-    '<div class="ameta">' + timeAgo(row.updated_at) + "</div>\n" +
-    '<div class="prose">\n' + bodyHtml + "\n</div>\n" +
+    '<h1 class="t">' +
+    esc(row.title) +
+    "</h1>\n" +
+    '<div class="ameta">' +
+    timeAgo(row.updated_at) +
+    "</div>\n" +
+    '<div class="prose">\n' +
+    bodyHtml +
+    "\n</div>\n" +
     "</article>";
 
-  return html(pageShell({
-    title: row.title,
-    desc: row.summary || row.title,
-    canonical: canonical,
-    activePath: "/p/" + row.slug,   // 若選單有掛這頁的連結會標成 active
-    chrome: chrome,
-    h1: '<a href="/">' + esc(chrome.brand) + "</a>",
-    headExtra: headExtra,
-    body: body
-  }));
+  return html(
+    pageShell({
+      title: row.title,
+      desc: row.summary || row.title,
+      canonical: canonical,
+      activePath: "/p/" + row.slug, // 若選單有掛這頁的連結會標成 active
+      chrome: chrome,
+      h1: '<a href="/">' + esc(chrome.brand) + "</a>",
+      headExtra: headExtra,
+      body: body
+    })
+  );
 }
 
 function notFound(chrome) {
-  return html(pageShell({
-    title: "找不到頁面",
-    desc: "這個頁面不存在或已下架。",
-    chrome: chrome,
-    h1: '<a href="/">' + esc(chrome.brand) + "</a>",
-    noindex: true,
-    body: '<div class="empty" data-i18n="empty.404">找不到這篇內容 — 可能已下架或網址有誤。</div>' +
-      '<div class="backrow" style="text-align:center"><a class="ctrl" href="/">← 回首頁</a></div>'
-  }), 404);
+  return html(
+    pageShell({
+      title: "找不到頁面",
+      desc: "這個頁面不存在或已下架。",
+      chrome: chrome,
+      h1: '<a href="/">' + esc(chrome.brand) + "</a>",
+      noindex: true,
+      body:
+        '<div class="empty" data-i18n="empty.404">找不到這篇內容 — 可能已下架或網址有誤。</div>' +
+        '<div class="backrow" style="text-align:center"><a class="ctrl" href="/">← 回首頁</a></div>'
+    }),
+    404
+  );
 }

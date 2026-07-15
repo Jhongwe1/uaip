@@ -14,6 +14,6 @@ export async function onRequestPost({ request, env }) {
     await env.DB.prepare("UPDATE users SET vpn_token=?1 WHERE id=?2").bind(token, user.id).run();
     return json({ vpn_token: token, note: "舊的訂閱網址已失效，記得更新你 App 裡的訂閱。" });
   } catch (e) {
-    return json({ error: "save-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "save-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

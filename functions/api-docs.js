@@ -52,26 +52,32 @@ const GATE_JS = `
 `;
 
 export async function onRequestGet({ request, env }) {
-  const { chrome } = await getChromeFor(env, request);   // 選單依身分過濾（VPN 隱形）
+  const { chrome } = await getChromeFor(env, request); // 選單依身分過濾（VPN 隱形）
   const body =
-    '<style>' + GATE_CSS + '</style>\n' +
+    "<style>" +
+    GATE_CSS +
+    "</style>\n" +
     '<div id="docGate" class="gatecard" hidden>\n' +
     '  <p>API 文件只開放站長閱讀。用站長 Google 帳號 <a href="/auth/login?next=/api-docs">登入</a>，或輸入管理金鑰（與 /logs、/admin 同一把）；金鑰只存在這台裝置的瀏覽器裡。</p>\n' +
     '  <form id="docForm"><input id="docToken" type="password" autocomplete="off" placeholder="管理金鑰"><button type="submit">進入</button></form>\n' +
     '  <div id="docErr" class="gateerr" hidden>⚠ 金鑰不正確，請再試一次。</div>\n' +
-    '</div>\n' +
+    "</div>\n" +
     '<div id="docState" class="docstate">讀取中…</div>\n' +
     '<article class="art"><div id="docBody" class="prose" hidden></div></article>\n' +
     '<script data-nonce src="/assets/marked.js"><\/script>\n' +
-    '<script data-nonce>' + GATE_JS + '<\/script>';
+    "<script data-nonce>" +
+    GATE_JS +
+    "<\/script>";
 
-  return html(pageShell({
-    title: "API 文件",
-    desc: "站長專用的 API 使用說明。",
-    noindex: true,
-    chrome: chrome,
-    activePath: "/api-docs",
-    h1: "API 文件",
-    body: body
-  }));
+  return html(
+    pageShell({
+      title: "API 文件",
+      desc: "站長專用的 API 使用說明。",
+      noindex: true,
+      chrome: chrome,
+      activePath: "/api-docs",
+      h1: "API 文件",
+      body: body
+    })
+  );
 }

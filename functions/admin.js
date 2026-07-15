@@ -127,15 +127,17 @@ const BODY = `
 <script data-nonce src="/assets/admin.js"><\/script>`;
 
 export async function onRequestGet({ request, env }) {
-  const { chrome } = await getChromeFor(env, request);   // 選單依身分過濾（VPN 隱形）
-  return html(pageShell({
-    title: "文章管理",
-    desc: "站長專用的文章管理後台。",
-    noindex: true,
-    chrome: chrome,
-    activePath: "/admin",
-    h1: "文章管理",
-    headExtra: "<style>" + ADMIN_CSS + PAGE_CSS + "</style>\n",
-    body: BODY
-  }));
+  const { chrome } = await getChromeFor(env, request); // 選單依身分過濾（VPN 隱形）
+  return html(
+    pageShell({
+      title: "文章管理",
+      desc: "站長專用的文章管理後台。",
+      noindex: true,
+      chrome: chrome,
+      activePath: "/admin",
+      h1: "文章管理",
+      headExtra: "<style>" + ADMIN_CSS + PAGE_CSS + "</style>\n",
+      body: BODY
+    })
+  );
 }

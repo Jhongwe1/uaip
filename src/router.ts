@@ -34,9 +34,9 @@ export interface RouteCtx {
 }
 
 interface CompiledRoute {
-  segs: string[];       // ["api","articles",":id"]
-  restName: string | null;   // *path 的名字（null＝非 catch-all）
-  handlers: MethodMap;  // { GET, POST, … } 或 { ALL }（onRequest）
+  segs: string[]; // ["api","articles",":id"]
+  restName: string | null; // *path 的名字（null＝非 catch-all）
+  handlers: MethodMap; // { GET, POST, … } 或 { ALL }（onRequest）
 }
 
 // 把 "/api/articles/:id" 或 "/relay/*path" 編成 CompiledRoute
@@ -46,7 +46,10 @@ export function compile(pattern: string, handlers: MethodMap): CompiledRoute {
   const segs: string[] = [];
   for (let i = 0; i < raw.length; i++) {
     const s = raw[i];
-    if (s.charAt(0) === "*") { restName = s.slice(1) || "path"; break; }  // 餘段一定是最後一段
+    if (s.charAt(0) === "*") {
+      restName = s.slice(1) || "path";
+      break;
+    } // 餘段一定是最後一段
     segs.push(s);
   }
   return { segs, restName, handlers };
@@ -70,7 +73,11 @@ function match(route: CompiledRoute, parts: string[]): Record<string, string | s
 }
 
 function safeDecode(s: string): string {
-  try { return decodeURIComponent(s); } catch (e) { return s; }
+  try {
+    return decodeURIComponent(s);
+  } catch (e) {
+    return s;
+  }
 }
 
 const COMPILED: CompiledRoute[] = ROUTES.map((r) => compile(r[0], r[1]));
@@ -84,7 +91,10 @@ function json(obj: unknown, status: number): Response {
 
 export async function handle(request: Request, env: Env, exec: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
-  const parts = url.pathname.split("/").filter(Boolean).map((p) => p);   // 保留原始編碼，match 時才解
+  const parts = url.pathname
+    .split("/")
+    .filter(Boolean)
+    .map((p) => p); // 保留原始編碼，match 時才解
   const method = request.method === "HEAD" ? "GET" : request.method;
 
   const ctx: RouteCtx = {
@@ -92,13 +102,25 @@ export async function handle(request: Request, env: Env, exec: ExecutionContext)
     env,
     params: {},
     data: {},
-    waitUntil: (p) => { try { exec.waitUntil(Promise.resolve(p)); } catch (e) { /* 測試環境可能無 exec */ } },
-    passThroughOnException: () => { try { exec.passThroughOnException(); } catch (e) {} },
+    waitUntil: (p) => {
+      try {
+        exec.waitUntil(Promise.resolve(p));
+      } catch (e) {
+        /* 測試環境可能無 exec */
+      }
+    },
+    passThroughOnException: () => {
+      try {
+        exec.passThroughOnException();
+      } catch (e) {}
+    },
     next: () => env.ASSETS.fetch(request)
   };
 
   // 1) 頁面瀏覽紀錄（背景、永不影響回應）——與 Pages _middleware 同一支
-  visitLog(ctx as unknown as { request: Request; env: { DB?: D1Database }; waitUntil: (p: Promise<unknown>) => void });
+  visitLog(
+    ctx as unknown as { request: Request; env: { DB?: D1Database }; waitUntil: (p: Promise<unknown>) => void }
+  );
 
   // 2) 線性掃描路由表（註冊順序即優先序）
   for (let i = 0; i < COMPILED.length; i++) {
@@ -111,11 +133,14 @@ export async function handle(request: Request, env: Env, exec: ExecutionContext)
     try {
       const resp = await fn(ctx);
       // HEAD：拿 GET 的結果去掉 body（狀態碼與標頭保留）
-      if (request.method === "HEAD") return new Response(null, { status: resp.status, headers: resp.headers });
+      if (request.method === "HEAD")
+        return new Response(null, { status: resp.status, headers: resp.headers });
       return resp;
     } catch (err) {
       // 3) 全域錯誤邊界：未捕捉例外進 errlog，對外只吐通用 500（不外洩堆疊）
-      try { exec.waitUntil(reportErrorNow(env, "router", err, { path: url.pathname })); } catch (e) {}
+      try {
+        exec.waitUntil(reportErrorNow(env, "router", err, { path: url.pathname }));
+      } catch (e) {}
       return json({ error: "internal-error" }, 500);
     }
   }

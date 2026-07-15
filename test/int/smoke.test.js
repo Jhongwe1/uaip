@@ -19,11 +19,18 @@ describe("工具鏈冒煙", () => {
   });
 
   it("migrations 已套用：核心表都在", async () => {
-    const r = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    ).all();
+    const r = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
     const names = (r.results || []).map((x) => x.name);
-    for (const t of ["visits", "articles", "users", "sessions", "relay_channels", "vpn_channels", "pg_conversations", "settings"]) {
+    for (const t of [
+      "visits",
+      "articles",
+      "users",
+      "sessions",
+      "relay_channels",
+      "vpn_channels",
+      "pg_conversations",
+      "settings"
+    ]) {
       expect(names).toContain(t);
     }
   });

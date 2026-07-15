@@ -10,6 +10,6 @@ export async function onRequestGet({ env }) {
     ).all();
     return json({ rows: res.results || [] });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

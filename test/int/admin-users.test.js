@@ -1,13 +1,24 @@
 // /api/admin/users/<id> — 分服務批准語意、狀態耦合、自我保護與 root 站長護欄。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestPut as rawPut, onRequestDelete as rawDelete } from "../../functions/api/admin/users/[id].js";
+import {
+  onRequestPut as rawPut,
+  onRequestDelete as rawDelete
+} from "../../functions/api/admin/users/[id].js";
 import { createSession } from "../../lib/auth.js";
 import { makeCtx, drainWaits, seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
 
 // 每次變更都會掛 audit 的背景寫入（waitUntil）— 包一層自動排水，測試結束前收乾淨
-const onRequestPut = async (ctx) => { const r = await rawPut(ctx); await drainWaits(ctx); return r; };
-const onRequestDelete = async (ctx) => { const r = await rawDelete(ctx); await drainWaits(ctx); return r; };
+const onRequestPut = async (ctx) => {
+  const r = await rawPut(ctx);
+  await drainWaits(ctx);
+  return r;
+};
+const onRequestDelete = async (ctx) => {
+  const r = await rawDelete(ctx);
+  await drainWaits(ctx);
+  return r;
+};
 
 const TOK = "admintok";
 const E = () => envWith({ LOGS_TOKEN: TOK });
@@ -17,7 +28,10 @@ function putCtx(id, body, extra) {
     url: ORIGIN + "/api/admin/users/" + id,
     init: {
       method: "PUT",
-      headers: Object.assign({ authorization: "Bearer " + TOK, "content-type": "application/json" }, (extra || {}).headers),
+      headers: Object.assign(
+        { authorization: "Bearer " + TOK, "content-type": "application/json" },
+        (extra || {}).headers
+      ),
       body: JSON.stringify(body)
     },
     params: { id: String(id) },
@@ -29,7 +43,9 @@ const getUser = (id) => env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(i
 describe("set_services（分服務批准）", () => {
   it("白名單過濾：亂七八糟的服務名被丟掉", async () => {
     const u = await seedUser({ status: "approved", services: "relay" });
-    const r = await onRequestPut(putCtx(u.id, { action: "set_services", services: ["relay", "bogus", "vpn"] }));
+    const r = await onRequestPut(
+      putCtx(u.id, { action: "set_services", services: ["relay", "bogus", "vpn"] })
+    );
     expect(r.status).toBe(200);
     expect((await getUser(u.id)).services).toBe("relay,vpn");
   });
@@ -106,12 +122,12 @@ describe("set_quota（個人配額覆寫）", () => {
     let row = await getUser(u.id);
     expect(row.quota_relay_day).toBe(5);
     expect(row.rl_per_min).toBe(2);
-    expect(row.quota_pg_day).toBeNull();          // 沒帶的鍵不動
+    expect(row.quota_pg_day).toBeNull(); // 沒帶的鍵不動
     r = await onRequestPut(putCtx(u.id, { action: "set_quota", quota_relay_day: null }));
     expect(r.status).toBe(200);
     row = await getUser(u.id);
-    expect(row.quota_relay_day).toBeNull();       // 清掉覆寫
-    expect(row.rl_per_min).toBe(2);               // 其他鍵不動
+    expect(row.quota_relay_day).toBeNull(); // 清掉覆寫
+    expect(row.rl_per_min).toBe(2); // 其他鍵不動
   });
   it("0 是合法值（＝直接關掉該服務）；負數／小數／亂字串 → 400；一鍵都沒帶 → 400", async () => {
     const u = await seedUser();
@@ -126,7 +142,7 @@ describe("set_quota（個人配額覆寫）", () => {
 
 describe("護欄", () => {
   it("root 站長（ADMIN_EMAILS 內建信箱）不能被封鎖／降級／刪除", async () => {
-    const root = await seedAdmin();   // admin@example.com＝測試注入的 ADMIN_EMAILS 信箱
+    const root = await seedAdmin(); // admin@example.com＝測試注入的 ADMIN_EMAILS 信箱
     for (const action of ["block", "drop_admin"]) {
       const r = await onRequestPut(putCtx(root.id, { action }));
       expect(r.status).toBe(403);
@@ -139,16 +155,17 @@ describe("護欄", () => {
   it("站長用 cookie 身分時不能封鎖／刪除自己", async () => {
     const admin = await seedUser({ email: "second-admin@example.com", status: "approved", is_admin: 1 });
     const sess = await createSession(env, admin, new URL(ORIGIN + "/"));
-    const selfCtx = (method) => makeCtx({
-      url: ORIGIN + "/api/admin/users/" + admin.id,
-      init: {
-        method,
-        headers: { cookie: "ipua_sess=" + sess.sid, origin: ORIGIN, "content-type": "application/json" },
-        body: JSON.stringify({ action: "block" })
-      },
-      params: { id: String(admin.id) },
-      env: envWith({})   // 無 LOGS_TOKEN → 走 cookie 身分
-    });
+    const selfCtx = (method) =>
+      makeCtx({
+        url: ORIGIN + "/api/admin/users/" + admin.id,
+        init: {
+          method,
+          headers: { cookie: "ipua_sess=" + sess.sid, origin: ORIGIN, "content-type": "application/json" },
+          body: JSON.stringify({ action: "block" })
+        },
+        params: { id: String(admin.id) },
+        env: envWith({}) // 無 LOGS_TOKEN → 走 cookie 身分
+      });
     const r = await onRequestPut(selfCtx("PUT"));
     expect(r.status).toBe(400);
     expect((await r.json()).error).toBe("self");

@@ -5,7 +5,11 @@ import { onRequestPut as rawPut } from "../../functions/api/admin/settings.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
 
 // settings PUT 會掛 audit 背景寫入 — 包一層自動排水
-const onRequestPut = async (ctx) => { const r = await rawPut(ctx); await drainWaits(ctx); return r; };
+const onRequestPut = async (ctx) => {
+  const r = await rawPut(ctx);
+  await drainWaits(ctx);
+  return r;
+};
 
 const TOK = "admintok";
 function ctx(body) {
@@ -28,7 +32,7 @@ describe("settings 帶哪鍵改哪鍵", () => {
     expect(r.status).toBe(200);
     const j = await r.json();
     expect(j.brand).toBe("新站名");
-    expect(j.pg_open).toBe(true);                       // 沒帶的鍵原封不動
+    expect(j.pg_open).toBe(true); // 沒帶的鍵原封不動
     expect((await getKey("brand")).v).toBe("新站名");
   });
 
@@ -59,12 +63,12 @@ describe("settings 帶哪鍵改哪鍵", () => {
     let j = await (await onRequestPut(ctx({ quota_relay_day: 100, rl_per_min: 5 }))).json();
     expect(j.quota_relay_day).toBe(100);
     expect(j.rl_per_min).toBe(5);
-    expect(j.quota_pg_day).toBe(200);                    // 沒帶＝內建預設
+    expect(j.quota_pg_day).toBe(200); // 沒帶＝內建預設
     expect((await getKey("quota_relay_day")).v).toBe("100");
     j = await (await onRequestPut(ctx({ quota_relay_day: null }))).json();
-    expect(j.quota_relay_day).toBe(500);                 // 刪鍵回內建
+    expect(j.quota_relay_day).toBe(500); // 刪鍵回內建
     expect(await getKey("quota_relay_day")).toBeNull();
-    expect((await onRequestPut(ctx({ quota_pg_day: 0 }))).status).toBe(400);     // 全域不收 0（會鎖死大家）
+    expect((await onRequestPut(ctx({ quota_pg_day: 0 }))).status).toBe(400); // 全域不收 0（會鎖死大家）
     expect((await onRequestPut(ctx({ rl_per_min: "abc" }))).status).toBe(400);
   });
 

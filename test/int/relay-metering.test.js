@@ -14,7 +14,7 @@ beforeAll(() => {
 afterEach(() => fetchMock.assertNoPendingInterceptors());
 
 function ctxFor(key, path, init) {
-  const segs = path.split("/").filter(Boolean).slice(1);   // 去掉 "relay"
+  const segs = path.split("/").filter(Boolean).slice(1); // 去掉 "relay"
   return makeCtx({
     url: ORIGIN + path,
     init: Object.assign({ headers: { authorization: "Bearer " + key } }, init || {}),
@@ -29,7 +29,7 @@ describe("relay 配額", () => {
     const u = await seedUser({ status: "approved", services: "relay", quota_relay_day: 1, rl_per_min: 99 });
     const key = await giveKey(u);
     await seedChannel({ slug: "m1" });
-    await logReq(env, { user_id: u.id, svc: "relay", status: 200 });   // 今天已用 1 次
+    await logReq(env, { user_id: u.id, svc: "relay", status: 200 }); // 今天已用 1 次
     const ctx = ctxFor(key, "/relay/m1/v1/models");
     const r = await onRequest(ctx);
     expect(r.status).toBe(429);
@@ -64,11 +64,13 @@ describe("relay 計量 pump", () => {
       'data: {"model":"gpt-z","choices":[{"delta":{"content":"你好"}}]}\n\n' +
       'data: {"model":"gpt-z","choices":[],"usage":{"prompt_tokens":7,"completion_tokens":19}}\n\n' +
       "data: [DONE]\n\n";
-    fetchMock.get(UP).intercept({ path: "/v1/chat/completions", method: "POST" })
+    fetchMock
+      .get(UP)
+      .intercept({ path: "/v1/chat/completions", method: "POST" })
       .reply(200, sse, { headers: { "content-type": "text/event-stream" } });
     const ctx = ctxFor(key, "/relay/mm/v1/chat/completions", { method: "POST", body: "{}" });
     const r = await onRequest(ctx);
-    expect(await r.text()).toBe(sse);          // pump 不改一個位元組
+    expect(await r.text()).toBe(sse); // pump 不改一個位元組
     await drainWaits(ctx);
     const log = await lastLog();
     expect(log.user_id).toBe(u.id);
@@ -87,9 +89,12 @@ describe("relay 計量 pump", () => {
 
   it("整包 JSON 回應也掃得到 usage", async () => {
     const { key } = await member({ slug: "mj" });
-    fetchMock.get(UP).intercept({ path: "/v1/chat/completions", method: "POST" })
-      .reply(200, '{"model":"m-json","usage":{"prompt_tokens":2,"completion_tokens":3},"choices":[]}',
-        { headers: { "content-type": "application/json" } });
+    fetchMock
+      .get(UP)
+      .intercept({ path: "/v1/chat/completions", method: "POST" })
+      .reply(200, '{"model":"m-json","usage":{"prompt_tokens":2,"completion_tokens":3},"choices":[]}', {
+        headers: { "content-type": "application/json" }
+      });
     const ctx = ctxFor(key, "/relay/mj/v1/chat/completions", { method: "POST", body: "{}" });
     await (await onRequest(ctx)).text();
     await drainWaits(ctx);
@@ -125,12 +130,14 @@ describe("relay 計量 pump", () => {
 
   it("客戶端中斷（取消回應串流）→ 上游被 cancel、req_log 照寫", async () => {
     const { key } = await member({ slug: "mc" });
-    fetchMock.get(UP).intercept({ path: "/v1/chat/completions", method: "POST" })
+    fetchMock
+      .get(UP)
+      .intercept({ path: "/v1/chat/completions", method: "POST" })
       .reply(200, 'data: {"model":"m-abort"}\n\n', { headers: { "content-type": "text/event-stream" } });
     const ctx = ctxFor(key, "/relay/mc/v1/chat/completions", { method: "POST", body: "{}" });
     const r = await onRequest(ctx);
-    await r.body.cancel();          // 模擬會員關掉連線
-    await drainWaits(ctx);          // pump 應正常收尾（cancel 上游、寫 log），不會卡住
+    await r.body.cancel(); // 模擬會員關掉連線
+    await drainWaits(ctx); // pump 應正常收尾（cancel 上游、寫 log），不會卡住
     const log = await lastLog();
     expect(log.svc).toBe("relay");
     expect(log.channel).toBe("mc");

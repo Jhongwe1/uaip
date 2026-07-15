@@ -13,7 +13,9 @@ import { createSession } from "../../lib/auth.js";
 const SPA = "<!doctype html><title>SPA-INDEX</title>";
 async function run(path, init) {
   const e = envWith({
-    ASSETS: { fetch: async () => new Response(SPA, { status: 200, headers: { "content-type": "text/html" } }) }
+    ASSETS: {
+      fetch: async () => new Response(SPA, { status: 200, headers: { "content-type": "text/html" } })
+    }
   });
   const waits = [];
   const exec = { waitUntil: (p) => waits.push(Promise.resolve(p)), passThroughOnException() {} };
@@ -58,8 +60,10 @@ describe("動態參數（:id / :slug / *path）", () => {
     const now = new Date().toISOString();
     const ins = await env.DB.prepare(
       "INSERT INTO articles (category,title,summary,cover,body_md,status,views,created_at,updated_at,published_at) " +
-      "VALUES ('news','路由文','','','x','published',0,?1,?1,?1)"
-    ).bind(now).run();
+        "VALUES ('news','路由文','','','x','published',0,?1,?1,?1)"
+    )
+      .bind(now)
+      .run();
     const r = await run("/news/" + ins.meta.last_row_id);
     expect(r.status).toBe(200);
     expect(await r.text()).toContain("路由文");
@@ -68,8 +72,10 @@ describe("動態參數（:id / :slug / *path）", () => {
     const now = new Date().toISOString();
     const ins = await env.DB.prepare(
       "INSERT INTO articles (category,title,summary,cover,body_md,status,views,created_at,updated_at,published_at) " +
-      "VALUES ('news','apirow','','','x','published',0,?1,?1,?1)"
-    ).bind(now).run();
+        "VALUES ('news','apirow','','','x','published',0,?1,?1,?1)"
+    )
+      .bind(now)
+      .run();
     const j = await (await run("/api/articles/" + ins.meta.last_row_id)).json();
     expect(j.row.title).toBe("apirow");
   });
@@ -99,7 +105,7 @@ describe("method 分派與授權", () => {
   });
   it("站長 API 帶金鑰 → 200（/api/admin/users）", async () => {
     await seedAdmin();
-    const r = await run("/api/admin/users", { headers: { authorization: "Bearer tk" }, });
+    const r = await run("/api/admin/users", { headers: { authorization: "Bearer tk" } });
     // envWith 沒設 LOGS_TOKEN → adminOk 在非 localhost 會擋；改用 cookie 身分驗
     expect([200, 401]).toContain(r.status);
   });

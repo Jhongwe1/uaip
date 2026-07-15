@@ -11,9 +11,12 @@ export async function onRequestPost({ request, env }) {
       try {
         const j = JSON.parse(raw);
         const r = j["csp-report"] || j;
-        brief = (r["violated-directive"] || r.violatedDirective || "?") + " @ " +
-                (r["document-uri"] || r.documentURI || "?") + " ← " +
-                (r["blocked-uri"] || r.blockedURI || "?");
+        brief =
+          (r["violated-directive"] || r.violatedDirective || "?") +
+          " @ " +
+          (r["document-uri"] || r.documentURI || "?") +
+          " ← " +
+          (r["blocked-uri"] || r.blockedURI || "?");
       } catch (e) {}
       await reportErrorNow(env, "csp", brief.slice(0, 500), { detail: raw });
     }

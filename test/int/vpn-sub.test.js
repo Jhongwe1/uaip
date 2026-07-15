@@ -27,8 +27,16 @@ async function vpnUser(over) {
 async function addChannel(o) {
   await env.DB.prepare(
     "INSERT INTO vpn_channels (name,kind,url,nodes,enabled,created_at) VALUES (?1,?2,?3,?4,?5,?6)"
-  ).bind(o.name || "ch", o.kind || "sub", o.url || "", o.nodes || "", o.enabled == null ? 1 : o.enabled,
-         new Date().toISOString()).run();
+  )
+    .bind(
+      o.name || "ch",
+      o.kind || "sub",
+      o.url || "",
+      o.nodes || "",
+      o.enabled == null ? 1 : o.enabled,
+      new Date().toISOString()
+    )
+    .run();
 }
 
 const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
@@ -71,17 +79,24 @@ describe("vpn sub 合併規則", () => {
     await vpnUser();
     await addChannel({ kind: "sub", url: "https://airport.example.com/sub" });
     let seenUA = null;
-    fetchMock.get("https://airport.example.com")
-      .intercept({ path: "/sub", headers: (h) => { for (const k of Object.keys(h)) if (k.toLowerCase() === "user-agent") seenUA = h[k]; return true; } })
+    fetchMock
+      .get("https://airport.example.com")
+      .intercept({
+        path: "/sub",
+        headers: (h) => {
+          for (const k of Object.keys(h)) if (k.toLowerCase() === "user-agent") seenUA = h[k];
+          return true;
+        }
+      })
       .reply(200, "raw-yaml-content:\n- node", {
         headers: { "subscription-userinfo": "upload=1; download=2; total=99", "content-type": "text/yaml" }
       });
     const ctx = subCtx(TOKEN, "clash-verge/1.0");
     const r = await onRequestGet(ctx);
     expect(r.status).toBe(200);
-    expect(await r.text()).toBe("raw-yaml-content:\n- node");        // 原樣轉發
+    expect(await r.text()).toBe("raw-yaml-content:\n- node"); // 原樣轉發
     expect(r.headers.get("subscription-userinfo")).toBe("upload=1; download=2; total=99");
-    expect(seenUA).toBe("clash-verge/1.0");                           // 會員 App 的 UA 透傳
+    expect(seenUA).toBe("clash-verge/1.0"); // 會員 App 的 UA 透傳
     await drainWaits(ctx);
   });
 
@@ -90,15 +105,23 @@ describe("vpn sub 合併規則", () => {
     await addChannel({ kind: "sub", url: "https://a1.example.com/sub" });
     await addChannel({ kind: "sub", url: "https://a2.example.com/sub" });
     await addChannel({ kind: "nodes", nodes: "trojan://manual" });
-    fetchMock.get("https://a1.example.com").intercept({ path: "/sub" })
+    fetchMock
+      .get("https://a1.example.com")
+      .intercept({ path: "/sub" })
       .reply(200, b64("vless://n1\nvmess://n2"));
-    fetchMock.get("https://a2.example.com").intercept({ path: "/sub" })
+    fetchMock
+      .get("https://a2.example.com")
+      .intercept({ path: "/sub" })
       .reply(200, b64("vmess://n2\nss://n3"));
     const ctx = subCtx(TOKEN);
     const r = await onRequestGet(ctx);
     expect(r.status).toBe(200);
-    expect(unb64((await r.text()).trim()).split("\n"))
-      .toEqual(["vless://n1", "vmess://n2", "ss://n3", "trojan://manual"]);
+    expect(unb64((await r.text()).trim()).split("\n")).toEqual([
+      "vless://n1",
+      "vmess://n2",
+      "ss://n3",
+      "trojan://manual"
+    ]);
     await drainWaits(ctx);
   });
 

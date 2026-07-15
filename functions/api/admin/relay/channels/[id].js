@@ -19,7 +19,9 @@ export async function onRequestPut(context) {
   if (!id || !env.DB) return json({ error: "bad-id" }, 400);
 
   let body = null;
-  try { body = await request.json(); } catch (e) {}
+  try {
+    body = await request.json();
+  } catch (e) {}
   const c = cleanChannel(body);
   if (c.err) return json({ error: "bad-input", hint: c.err }, 400);
 
@@ -27,19 +29,30 @@ export async function onRequestPut(context) {
     const old = await env.DB.prepare("SELECT * FROM relay_channels WHERE id=?1").bind(id).first();
     if (!old) return json({ error: "not-found" }, 404);
     const key = c.ch.api_key === undefined ? old.api_key : c.ch.api_key;
-    const slug = c.ch.slug || old.slug;   // 沒帶 slug＝沿用舊代稱（會員的 /relay 網址不變）
+    const slug = c.ch.slug || old.slug; // 沒帶 slug＝沿用舊代稱（會員的 /relay 網址不變）
     await env.DB.prepare(
       "UPDATE relay_channels SET slug=?1,name=?2,kind=?3,base_url=?4,api_key=?5,models=?6,enabled=?7 WHERE id=?8"
-    ).bind(slug, c.ch.name, c.ch.kind, c.ch.base_url, key, c.ch.models, c.ch.enabled, id).run();
+    )
+      .bind(slug, c.ch.name, c.ch.kind, c.ch.base_url, key, c.ch.models, c.ch.enabled, id)
+      .run();
     const row = await env.DB.prepare("SELECT * FROM relay_channels WHERE id=?1").bind(id).first();
     // 稽核不落金鑰本體，只記這次動作有沒有動到金鑰
-    const keyNote = c.ch.api_key === undefined ? "保留" : (c.ch.api_key ? "更新" : "清除");
-    audit(env, function (p) { context.waitUntil(p); }, request, "relay.channel.update", slug,
-      c.ch.name + " enabled=" + c.ch.enabled + " 金鑰:" + keyNote);
+    const keyNote = c.ch.api_key === undefined ? "保留" : c.ch.api_key ? "更新" : "清除";
+    audit(
+      env,
+      function (p) {
+        context.waitUntil(p);
+      },
+      request,
+      "relay.channel.update",
+      slug,
+      c.ch.name + " enabled=" + c.ch.enabled + " 金鑰:" + keyNote
+    );
     return json({ row: maskRow(row) });
   } catch (e) {
-    const msg = String(e && e.message || e);
-    if (msg.indexOf("UNIQUE") >= 0) return json({ error: "slug-taken", hint: "slug「" + c.ch.slug + "」已有管道在用" }, 409);
+    const msg = String((e && e.message) || e);
+    if (msg.indexOf("UNIQUE") >= 0)
+      return json({ error: "slug-taken", hint: "slug「" + c.ch.slug + "」已有管道在用" }, 409);
     return json({ error: "update-failed", detail: msg }, 500);
   }
 }
@@ -53,10 +66,18 @@ export async function onRequestDelete(context) {
   try {
     const old = await env.DB.prepare("SELECT slug,name FROM relay_channels WHERE id=?1").bind(id).first();
     await env.DB.prepare("DELETE FROM relay_channels WHERE id=?1").bind(id).run();
-    audit(env, function (p) { context.waitUntil(p); }, request, "relay.channel.delete",
-      (old && old.slug) || id, (old && old.name) || "");
+    audit(
+      env,
+      function (p) {
+        context.waitUntil(p);
+      },
+      request,
+      "relay.channel.delete",
+      (old && old.slug) || id,
+      (old && old.name) || ""
+    );
     return json({ ok: true });
   } catch (e) {
-    return json({ error: "delete-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "delete-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

@@ -23,7 +23,7 @@ describe("filterMenu（純函式）", () => {
     { kind: "link", label: "VPN", url: "/vpn" },
     { kind: "link", label: "VPN 教學", url: "/vpn/howto" },
     { kind: "link", label: "中轉", url: "/relay" },
-    { kind: "link", label: "特價 vpn 文章", url: "/articles/9" }   // 標籤含 vpn 但網址不是 → 不濾
+    { kind: "link", label: "特價 vpn 文章", url: "/articles/9" } // 標籤含 vpn 但網址不是 → 不濾
   ];
   it("showVpn=false：/vpn 與 /vpn/ 開頭的項目消失，其餘原樣", () => {
     const out = filterMenu(menu, false);
@@ -54,9 +54,13 @@ describe("getChromeFor 四種身分", () => {
   });
   it("approved 但沒 vpn 服務：無 VPN 項；有 vpn 服務：看得到", async () => {
     const noVpn = await seedUser({ status: "approved", services: "relay,playground" });
-    expect((await getChromeFor(env, await reqAs(noVpn))).chrome.menu.some((i) => i.url === "/vpn")).toBe(false);
+    expect((await getChromeFor(env, await reqAs(noVpn))).chrome.menu.some((i) => i.url === "/vpn")).toBe(
+      false
+    );
     const withVpn = await seedUser({ status: "approved", services: "vpn" });
-    expect((await getChromeFor(env, await reqAs(withVpn))).chrome.menu.some((i) => i.url === "/vpn")).toBe(true);
+    expect((await getChromeFor(env, await reqAs(withVpn))).chrome.menu.some((i) => i.url === "/vpn")).toBe(
+      true
+    );
   });
   it("站長：看得到（不看 services 欄）", async () => {
     const adm = await seedAdmin();
@@ -67,9 +71,13 @@ describe("getChromeFor 四種身分", () => {
 
 describe("/vpn 頁隱形（stub env.ASSETS）", () => {
   const SPA = "<!doctype html><title>SPA</title>假裝是 index.html";
-  const envAssets = () => envWith({
-    ASSETS: { fetch: async () => new Response(SPA, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }) }
-  });
+  const envAssets = () =>
+    envWith({
+      ASSETS: {
+        fetch: async () =>
+          new Response(SPA, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } })
+      }
+    });
 
   async function hit(user) {
     const headers = {};
@@ -81,11 +89,14 @@ describe("/vpn 頁隱形（stub env.ASSETS）", () => {
   }
 
   it("匿名／pending／沒 vpn 服務 → 200 靜態 SPA（與不存在的路徑無異）", async () => {
-    for (const user of [null, await seedUser({ status: "pending" }),
-                        await seedUser({ status: "approved", services: "relay" })]) {
+    for (const user of [
+      null,
+      await seedUser({ status: "pending" }),
+      await seedUser({ status: "approved", services: "relay" })
+    ]) {
       const r = await hit(user);
       expect(r.status).toBe(200);
-      expect(await r.text()).toBe(SPA);                     // 拿到的是 SPA 殼，不是 VPN 頁
+      expect(await r.text()).toBe(SPA); // 拿到的是 SPA 殼，不是 VPN 頁
     }
   });
   it("有 vpn 服務的會員與站長 → 真的 VPN 頁", async () => {
@@ -95,7 +106,7 @@ describe("/vpn 頁隱形（stub env.ASSETS）", () => {
       const text = await r.text();
       expect(text).toContain("VPN");
       expect(text).not.toBe(SPA);
-      expect(r.headers.get("content-security-policy")).toContain("nonce-");   // 走 html() 出口
+      expect(r.headers.get("content-security-policy")).toContain("nonce-"); // 走 html() 出口
     }
   });
 });

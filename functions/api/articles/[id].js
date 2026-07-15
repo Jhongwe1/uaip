@@ -15,8 +15,10 @@ export async function onRequestGet({ request, env, params }) {
   try {
     const row = await env.DB.prepare(
       "SELECT id,category,title,summary,cover,body_md,views,created_at,updated_at,published_at " +
-      "FROM articles WHERE id=?1 AND status='published'"
-    ).bind(id).first();
+        "FROM articles WHERE id=?1 AND status='published'"
+    )
+      .bind(id)
+      .first();
     if (!row) return json({ error: "not-found" }, 404);
 
     const url = new URL(request.url);
@@ -25,6 +27,6 @@ export async function onRequestGet({ request, env, params }) {
     }
     return json({ row: row });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

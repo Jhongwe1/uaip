@@ -34,22 +34,28 @@ const PAGE_CSS = `
 `;
 
 export async function onRequestGet({ request, env }) {
-  const { chrome } = await getChromeFor(env, request);   // 選單依身分過濾（VPN 隱形）
+  const { chrome } = await getChromeFor(env, request); // 選單依身分過濾（VPN 隱形）
   const body =
     '<div id="root"><div class="gate"><div class="spin"></div></div></div>\n' +
-    '<script data-nonce>' + MEMBER_JS + '</script>\n' +
-    '<script data-nonce>' + MEMBERS_JS + '</script>';
-  return html(pageShell({
-    title: "成員管理",
-    tkey: "page.members",
-    desc: "站長專用的成員管理頁。",
-    noindex: true,
-    chrome: chrome,
-    activePath: "/members",
-    h1: '<a href="/" data-zh="成員管理" data-en="Members">成員管理</a>',
-    headExtra: "<style>" + MEMBER_CSS + PAGE_CSS + "</style>\n",
-    body: body
-  }));
+    "<script data-nonce>" +
+    MEMBER_JS +
+    "</script>\n" +
+    "<script data-nonce>" +
+    MEMBERS_JS +
+    "</script>";
+  return html(
+    pageShell({
+      title: "成員管理",
+      tkey: "page.members",
+      desc: "站長專用的成員管理頁。",
+      noindex: true,
+      chrome: chrome,
+      activePath: "/members",
+      h1: '<a href="/" data-zh="成員管理" data-en="Members">成員管理</a>',
+      headExtra: "<style>" + MEMBER_CSS + PAGE_CSS + "</style>\n",
+      body: body
+    })
+  );
 }
 
 const MEMBERS_JS = `

@@ -39,25 +39,31 @@ export async function onRequestGet({ request, env }) {
     try {
       return await env.ASSETS.fetch(new Request(new URL("/", request.url), { headers: request.headers }));
     } catch (e) {
-      return new Response("Not Found", { status: 404 });   // ASSETS 意外不可用 → 退 404（同樣不洩漏）
+      return new Response("Not Found", { status: 404 }); // ASSETS 意外不可用 → 退 404（同樣不洩漏）
     }
   }
 
   const body =
     '<div id="root"><div class="gate"><div class="spin"></div></div></div>\n' +
-    '<script data-nonce>' + MEMBER_JS + '</script>\n' +
-    '<script data-nonce>' + VPN_JS + '</script>';
-  return html(pageShell({
-    title: "VPN",
-    tkey: "page.vpn",
-    desc: "會員專用的 VPN 訂閱 — 一個網址匯入所有節點，自動更新。",
-    noindex: true,
-    chrome: chrome,
-    activePath: "/vpn",
-    h1: '<a href="/" data-zh="VPN" data-en="VPN">VPN</a>',
-    headExtra: "<style>" + MEMBER_CSS + PAGE_CSS + "</style>\n",
-    body: body
-  }));
+    "<script data-nonce>" +
+    MEMBER_JS +
+    "</script>\n" +
+    "<script data-nonce>" +
+    VPN_JS +
+    "</script>";
+  return html(
+    pageShell({
+      title: "VPN",
+      tkey: "page.vpn",
+      desc: "會員專用的 VPN 訂閱 — 一個網址匯入所有節點，自動更新。",
+      noindex: true,
+      chrome: chrome,
+      activePath: "/vpn",
+      h1: '<a href="/" data-zh="VPN" data-en="VPN">VPN</a>',
+      headExtra: "<style>" + MEMBER_CSS + PAGE_CSS + "</style>\n",
+      body: body
+    })
+  );
 }
 
 const VPN_JS = `

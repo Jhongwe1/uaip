@@ -36,7 +36,7 @@ describe("公開內容頁", () => {
   it("/news 列表：200＋nonce＋帶 canonical", async () => {
     const text = await expectPage(await newsList(makeCtx({ url: ORIGIN + "/news" })));
     expect(text).toContain('rel="canonical"');
-    expect(text).toContain("https://uaip.cc.cd/news");           // 用 SITE_ORIGIN
+    expect(text).toContain("https://uaip.cc.cd/news"); // 用 SITE_ORIGIN
   });
   it("/articles 列表：200＋nonce", async () => {
     await expectPage(await articlesList(makeCtx({ url: ORIGIN + "/articles" })));
@@ -49,10 +49,14 @@ describe("公開內容頁", () => {
     const now = new Date().toISOString();
     const ins = await env.DB.prepare(
       "INSERT INTO articles (category,title,summary,cover,body_md,status,views,created_at,updated_at,published_at) " +
-      "VALUES ('news','冒煙標題','摘要','','內文','published',0,?1,?1,?1)"
-    ).bind(now).run();
+        "VALUES ('news','冒煙標題','摘要','','內文','published',0,?1,?1,?1)"
+    )
+      .bind(now)
+      .run();
     const id = ins.meta.last_row_id;
-    const text = await expectPage(await newsItem(makeCtx({ url: ORIGIN + "/news/" + id, params: { id: String(id) } })));
+    const text = await expectPage(
+      await newsItem(makeCtx({ url: ORIGIN + "/news/" + id, params: { id: String(id) } }))
+    );
     expect(text).toContain("冒煙標題");
     expect(text).toContain('property="og:title"');
     expect(text).toContain("application/ld+json");
@@ -71,24 +75,34 @@ describe("公開內容頁", () => {
     const now = new Date().toISOString();
     await env.DB.prepare(
       "INSERT INTO pages (slug,title,summary,body_md,status,created_at,updated_at) " +
-      "VALUES ('smoke','冒煙頁','','頁面內文','published',?1,?1)"
-    ).bind(now).run();
-    const text = await expectPage(await customPage(makeCtx({ url: ORIGIN + "/p/smoke", params: { slug: "smoke" } })));
+        "VALUES ('smoke','冒煙頁','','頁面內文','published',?1,?1)"
+    )
+      .bind(now)
+      .run();
+    const text = await expectPage(
+      await customPage(makeCtx({ url: ORIGIN + "/p/smoke", params: { slug: "smoke" } }))
+    );
     expect(text).toContain("冒煙頁");
   });
 });
 
 describe("站長／會員頁（noindex）", () => {
   it("/admin：200＋noindex＋nonce", async () => {
-    const text = await expectPage(await adminPage(makeCtx({ url: ORIGIN + "/admin", init: { headers: await adminHeaders() } })));
+    const text = await expectPage(
+      await adminPage(makeCtx({ url: ORIGIN + "/admin", init: { headers: await adminHeaders() } }))
+    );
     expect(text).toContain("noindex");
   });
   it("/logs：200＋noindex", async () => {
-    const text = await expectPage(await logsPage(makeCtx({ url: ORIGIN + "/logs", init: { headers: await adminHeaders() } })));
+    const text = await expectPage(
+      await logsPage(makeCtx({ url: ORIGIN + "/logs", init: { headers: await adminHeaders() } }))
+    );
     expect(text).toContain("noindex");
   });
   it("/members：200＋noindex", async () => {
-    const text = await expectPage(await membersPage(makeCtx({ url: ORIGIN + "/members", init: { headers: await adminHeaders() } })));
+    const text = await expectPage(
+      await membersPage(makeCtx({ url: ORIGIN + "/members", init: { headers: await adminHeaders() } }))
+    );
     expect(text).toContain("noindex");
   });
   it("/relay：匿名也 200（catch-all 零段落＝操作頁，頁內自帶登入閘門）＋nonce", async () => {

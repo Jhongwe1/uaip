@@ -14,7 +14,9 @@ export async function onRequestGet({ request, env, params }) {
   try {
     const row = await env.DB.prepare(
       "SELECT id,slug,title,summary,body_md,created_at,updated_at FROM pages WHERE slug=?1 AND status='published'"
-    ).bind(slug).first();
+    )
+      .bind(slug)
+      .first();
     if (!row) return json({ error: "not-found" }, 404);
 
     const url = new URL(request.url);
@@ -23,6 +25,6 @@ export async function onRequestGet({ request, env, params }) {
     }
     return json({ row: row });
   } catch (e) {
-    return json({ error: "query-failed", detail: String(e && e.message || e) }, 500);
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
   }
 }

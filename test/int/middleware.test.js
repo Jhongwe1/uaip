@@ -9,7 +9,12 @@ import { ORIGIN } from "../helpers.js";
 function recordingEnv() {
   const state = { inserts: 0 };
   const stmt = (sql) => ({
-    bind: () => ({ run: async () => { if (/INSERT INTO visits/i.test(sql)) state.inserts++; return { success: true }; } }),
+    bind: () => ({
+      run: async () => {
+        if (/INSERT INTO visits/i.test(sql)) state.inserts++;
+        return { success: true };
+      }
+    }),
     first: async () => null,
     all: async () => ({ results: [] })
   });
@@ -52,8 +57,17 @@ describe("shouldLog：會記錄的頁面瀏覽", () => {
 
 describe("shouldLog：不記錄的請求", () => {
   it("API／管理頁／圖片／登入／中轉／VPN 抓取一律不記", async () => {
-    for (const p of ["/api/me", "/api/health", "/logs", "/admin", "/img/5",
-                     "/auth/login", "/auth/callback", "/relay/openai/v1/models", "/vpn/sub/uvtabc"]) {
+    for (const p of [
+      "/api/me",
+      "/api/health",
+      "/logs",
+      "/admin",
+      "/img/5",
+      "/auth/login",
+      "/auth/callback",
+      "/relay/openai/v1/models",
+      "/vpn/sub/uvtabc"
+    ]) {
       expect((await run(p, { headers: HTML })).logged).toBe(false);
     }
   });
@@ -65,7 +79,9 @@ describe("shouldLog：不記錄的請求", () => {
     expect((await run("/", { method: "HEAD", headers: HTML })).logged).toBe(true);
   });
   it("預先抓取（sec-purpose: prefetch）不記", async () => {
-    expect((await run("/news", { headers: { accept: "text/html", "sec-purpose": "prefetch" } })).logged).toBe(false);
+    expect((await run("/news", { headers: { accept: "text/html", "sec-purpose": "prefetch" } })).logged).toBe(
+      false
+    );
     expect((await run("/", { headers: { accept: "text/html", purpose: "prefetch" } })).logged).toBe(false);
   });
   it("非頁面路徑且沒帶 text/html Accept（多為靜態資產請求）不記", async () => {
