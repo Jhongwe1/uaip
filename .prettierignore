@@ -1,0 +1,8 @@
+# 生成檔／第三方／不碰的手工資產
+node_modules
+.wrangler
+lib/vendor
+lib/apidoc.js
+public
+package-lock.json
+*.md

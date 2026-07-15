@@ -1,5 +1,5 @@
 # CI — 只跑檢查與測試（站長拍板：部署照舊在本機跑 npm run deploy，CI 不碰部署）。
-# 綠燈 ＝ typecheck 過、全部測試過、lib/apidoc.js 與 API.md 沒有漂移。
+# 綠燈 ＝ lint 過、Prettier 無漂移、typecheck 過、全部測試過、apidoc 與 CSP hash 沒漂移、無外洩秘密。
 name: CI
 
 on:
@@ -8,6 +8,20 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier 無漂移
+        run: npm run format:check
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -27,3 +41,15 @@ jobs:
       # 靜態 CSP hash：index.html 的 inline script 改了、_headers 忘了跟上 → 紅燈
       - name: CSP hash 防漂移
         run: node tools/check-csp.mjs
+
+  # 秘密外洩掃描（gitleaks）：擋住把金鑰／token commit 進 repo。
+  # 公開前的硬性防線之一（另有 Phase O 的 filter-repo 洗歷史＋GitHub push protection）。
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
