@@ -1,0 +1,6 @@
+# git blame 要忽略的「純格式化」提交（不代表邏輯變更）。
+# 本機啟用一次：git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub 網頁版的 blame 會自動讀這個檔。
+
+# v2.0.0 Phase E：全 repo 一次 Prettier 格式化
+758db6c15a1e7afee9b61c8505581366cd00b62c
