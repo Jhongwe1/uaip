@@ -63,7 +63,7 @@ describe("extractUsage（playground 逐筆累積）", () => {
 });
 
 describe("checkQuota 三層優先序＋豁免", () => {
-  it("站長永遠放行（就算個人配額是 0）", async () => {
+  it("管理員永遠放行（就算個人配額是 0）", async () => {
     const adm = await seedAdmin({ quota_relay_day: 0, rl_per_min: 0 });
     expect((await checkQuota(env, adm, "relay")).ok).toBe(true);
   });

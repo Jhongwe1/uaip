@@ -1,7 +1,7 @@
-// /api/admin/pages — 站長專用：自訂頁面（公開網址 /p/<slug>）。
+// /api/admin/pages — 管理員專用：自訂頁面（公開網址 /p/<slug>）。
 //   GET  列出全部頁面（含草稿）
 //   POST 新增頁面（slug 與 title 必填；slug 重複回 409）
-// 驗證與其他站長 API 相同：Authorization: Bearer <LOGS_TOKEN>；localhost 開發免驗證。
+// 驗證與其他管理員 API 相同：Authorization: Bearer <LOGS_TOKEN>；localhost 開發免驗證。
 import { json, SLUG_RE } from "../../../../lib/site.js";
 import { adminOk } from "../../../../lib/auth.js";
 import { audit } from "../../../../lib/observe.js";

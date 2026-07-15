@@ -103,13 +103,13 @@ describe("method 分派與授權", () => {
     expect((await run("/api/account/key", { method: "GET" })).status).toBe(405);
     expect((await run("/api/account/key", { method: "POST", headers: { origin: ORIGIN } })).status).toBe(401);
   });
-  it("站長 API 帶金鑰 → 200（/api/admin/users）", async () => {
+  it("管理員 API 帶金鑰 → 200（/api/admin/users）", async () => {
     await seedAdmin();
     const r = await run("/api/admin/users", { headers: { authorization: "Bearer tk" } });
     // envWith 沒設 LOGS_TOKEN → adminOk 在非 localhost 會擋；改用 cookie 身分驗
     expect([200, 401]).toContain(r.status);
   });
-  it("站長 cookie 身分 → /api/admin/stats 200", async () => {
+  it("管理員 cookie 身分 → /api/admin/stats 200", async () => {
     const adm = await seedAdmin();
     const s = await createSession(env, adm, new URL(ORIGIN + "/"));
     const r = await run("/api/admin/stats", { headers: { cookie: "ipua_sess=" + s.sid } });

@@ -1,4 +1,4 @@
-// /api/admin/articles — 站長專用（給 /admin 後台呼叫）：
+// /api/admin/articles — 管理員專用（給 /admin 後台呼叫）：
 //   GET  列出全部文章（含草稿），供後台列表
 //   POST 新增文章
 // 驗證與 /api/logs 相同：Authorization: Bearer <LOGS_TOKEN>；localhost 開發免驗證。

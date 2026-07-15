@@ -18,12 +18,12 @@
 **三種身分**：
 
 1. **公開**：免驗證（whoami、已發佈內容、選單、站名）。
-2. **站長**：路徑含 `/admin` 的、以及 `/api/logs`。兩種通過方式（擇一）：
+2. **管理員**：路徑含 `/admin` 的、以及 `/api/logs`。兩種通過方式（擇一）：
    - 請求標頭 `Authorization: Bearer <管理金鑰>`（curl／排程／AI agent 用）。管理金鑰＝Cloudflare Pages 環境變數 **LOGS_TOKEN**，跟 /logs、/admin 網頁登入同一把；值記在 ADMIN.md（不會上網）。
-   - 站長 Google 帳號的登入 cookie（瀏覽器用）：站長信箱登入後，管理頁與站長 API 免金鑰。站長信箱＝環境變數 **ADMIN_EMAILS**（逗號分隔，例 `admin@example.com`；沒設定＝沒有信箱直升站長，只認資料庫 users.is_admin）。
+   - 管理員 Google 帳號的登入 cookie（瀏覽器用）：管理員信箱登入後，管理頁與管理員 API 免金鑰。管理員信箱＝環境變數 **ADMIN_EMAILS**（逗號分隔，例 `admin@example.com`；沒設定＝沒有信箱直升管理員，只認資料庫 users.is_admin）。
    - **本機開發（localhost）免金鑰**；正式站沒帶或帶錯一律回 401。用 cookie 身分時，跨網站送出的請求會被 Origin 檢查擋掉（防 CSRF）。
    - 換金鑰：`printf '新金鑰' | npx wrangler pages secret put LOGS_TOKEN --project-name uaip`，跑完要重新部署才生效。
-3. **會員**：任何人用 Google 登入即為會員（見 `/auth/login`）。會員功能（API 中轉、VPN 訂閱）要**站長核准**（status=approved）後才生效。
+3. **會員**：任何人用 Google 登入即為會員（見 `/auth/login`）。會員功能（API 中轉、VPN 訂閱）要**管理員核准**（status=approved）後才生效。
    - 網頁操作靠登入 cookie；**API 中轉**另用會員自己的金鑰 `uak-…`（在 /relay 頁產生，帶法同各家 AI API）。
 
 ### 30 秒上手：發一篇新聞
@@ -64,7 +64,7 @@ curl -X POST https://uaip.cc.cd/api/admin/articles ^
 
 | 方法與路徑 | 用途 |
 |---|---|
-| `GET /api/me` | 我是誰（登入狀態、被批准的服務清單 `services`、是否站長；未登入回 `{user:null}`） |
+| `GET /api/me` | 我是誰（登入狀態、被批准的服務清單 `services`、是否管理員；未登入回 `{user:null}`） |
 | `POST /api/account/key` | 產生／重生自己的中轉金鑰 `uak-…`（明文只回一次） |
 | `DELETE /api/account/key` | 撤銷自己的中轉金鑰 |
 | `POST /api/account/vpn-token` | 重生自己的 VPN 訂閱代碼（舊訂閱網址立即失效） |
@@ -83,7 +83,7 @@ curl -X POST https://uaip.cc.cd/api/admin/articles ^
 | `GET /auth/login?next=…` | — | 導向 Google 登入（localhost 提供測試登入表單） |
 | `POST /auth/logout` | 登入 cookie | 登出 |
 
-### 站長（要金鑰）
+### 管理員（要金鑰）
 
 | 方法與路徑 | 用途 |
 |---|---|
@@ -166,9 +166,9 @@ curl -X POST https://uaip.cc.cd/api/admin/articles ^
 
 ### GET /api/settings — 網站公開設定
 
-回 `{ brand, custom, pg_open, contact_url }`。brand＝站名（用在分頁標題、og:site_name、JSON-LD、RSS 頻道名）；`custom:false` 表示用內建預設（＝正式網址主機名）。`pg_open`＝Playground 是否對所有登入會員開放（見 §5 的網站設定）。`contact_url`＝站長聯絡連結（會員頁登入閘門的「聯絡我」鈕；空字串＝沒設定、前端不顯示該鈕）。
+回 `{ brand, custom, pg_open, contact_url }`。brand＝站名（用在分頁標題、og:site_name、JSON-LD、RSS 頻道名）；`custom:false` 表示用內建預設（＝正式網址主機名）。`pg_open`＝Playground 是否對所有登入會員開放（見 §5 的網站設定）。`contact_url`＝管理員聯絡連結（會員頁登入閘門的「聯絡我」鈕；空字串＝沒設定、前端不顯示該鈕）。
 
-## 5. 站長 API 詳細
+## 5. 管理員 API 詳細
 
 ### 文章：/api/admin/articles
 
@@ -238,7 +238,7 @@ curl -X POST "https://uaip.cc.cd/api/admin/media?w=1400&h=788" ^
 - 每項規則：`label` 必填最長 60 字；`label_en` 選填最長 60 字；link 的 `url` 必填最長 300 字，**必須以 `/` 或 `http://` 或 `https://` 開頭**；最多 60 項。
 - 傳 **`{ "items": [] }`（空陣列）＝清掉自訂選單＝還原內建預設**。
 - 回 `{ ok, count, custom }`。
-- 側邊欄的「站長區」（文章管理、訪客紀錄、API 文件）不在選單資料裡 — 那是登入過的裝置由前端動態長出來的，改不到也不用管。
+- 側邊欄的「管理員區」（文章管理、訪客紀錄、API 文件）不在選單資料裡 — 那是登入過的裝置由前端動態長出來的，改不到也不用管。
 
 標準流程（先拿現況、改完整包放回）：
 
@@ -258,9 +258,9 @@ curl -X PUT https://uaip.cc.cd/api/admin/menu ^
 | 鍵 | 說明 |
 |---|---|
 | `brand` | 站名，最長 60 字；**傳空字串＝還原內建預設**（＝正式網址主機名）。改完立即生效（分頁標題、og:site_name、JSON-LD、RSS 頻道名；主站首頁的「IP·UA 查詢」標題不受影響） |
-| `contact_url` | 站長對外聯絡連結（`http(s)://` 開頭，最長 300 字）；顯示在會員頁登入閘門的「聯絡我」鈕。**空字串＝移除＝不顯示聯絡鈕** |
+| `contact_url` | 管理員對外聯絡連結（`http(s)://` 開頭，最長 300 字）；顯示在會員頁登入閘門的「聯絡我」鈕。**空字串＝移除＝不顯示聯絡鈕** |
 | `pg_open` | `true`／`false` — **Playground 開放給所有登入會員**：開啟後任何登入會員不用逐一批准就能用 LLM Playground（被封鎖的帳號照樣擋；只影響 playground，relay 與 vpn 照舊看個人批准）。`false`＝回到逐人批准。網頁上在 /members 頁最上方也有這顆開關 |
-| `quota_relay_day` | 中轉每日請求數的**全域預設**（正整數）；`null` ＝ 回到內建預設 500。個人覆寫（§5c 的 `set_quota`）優先於這個值；**站長完全不吃配額** |
+| `quota_relay_day` | 中轉每日請求數的**全域預設**（正整數）；`null` ＝ 回到內建預設 500。個人覆寫（§5c 的 `set_quota`）優先於這個值；**管理員完全不吃配額** |
 | `quota_pg_day` | Playground 每日訊息數的全域預設；`null` ＝ 內建預設 200 |
 | `rl_per_min` | 每分鐘請求數上限（滾動 60 秒、中轉＋Playground 合併計）；`null` ＝ 內建預設 30 |
 | `relay_meter` | `false` ＝ 中轉退回**純直通**（不掃 usage、不寫 req_log）— 計量出怪問題時的免部署保險；`true` ＝ 恢復計量（預設）。平常不要動 |
@@ -289,7 +289,7 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 
 ## 5b. 會員與帳號 API
 
-- `GET /api/me` → `{ user }`（未登入 `{ user:null }`）。user 含 `email`、`name`、`picture`、`status`（pending/approved/blocked）、`is_admin`、`approved`、`services`（被批准的服務陣列，如 `["relay","vpn","playground"]`；站長固定是全部）、`has_key`、`key_hint`、`key_at`、`relay_calls`、`usage`（2026-07-14 起：今日用量 `{ relay_today, relay_limit, pg_today, pg_limit }` — 只含有權限的服務、站長 limit 是 `null`＝無上限、兩服務都沒權限時整塊省略；UTC 午夜重置）。**`vpn_token`／`vpn_pulls` 只有「站長或被批准 vpn 服務」的人才有**（VPN 隱形：無權限者連鍵都不出現，`/vpn` 頁對他們也回 SPA、選單也不渲染）。
+- `GET /api/me` → `{ user }`（未登入 `{ user:null }`）。user 含 `email`、`name`、`picture`、`status`（pending/approved/blocked）、`is_admin`、`approved`、`services`（被批准的服務陣列，如 `["relay","vpn","playground"]`；管理員固定是全部）、`has_key`、`key_hint`、`key_at`、`relay_calls`、`usage`（2026-07-14 起：今日用量 `{ relay_today, relay_limit, pg_today, pg_limit }` — 只含有權限的服務、管理員 limit 是 `null`＝無上限、兩服務都沒權限時整塊省略；UTC 午夜重置）。**`vpn_token`／`vpn_pulls` 只有「管理員或被批准 vpn 服務」的人才有**（VPN 隱形：無權限者連鍵都不出現，`/vpn` 頁對他們也回 SPA、選單也不渲染）。
 - `POST /api/account/key` → `{ key, key_hint, key_at }`。**key 明文只在這次回應出現**，資料庫只存 SHA-256；重生會讓舊金鑰立即失效。`DELETE` 撤銷。
 - `POST /api/account/vpn-token` → `{ vpn_token }`。重生訂閱代碼（舊 `/vpn/sub/<舊token>` 立即失效）。
 - `POST /api/account/logout-all`（2026-07-14）→ `{ ok }`。**登出所有裝置**：刪光自己全部 session（含這一把）並清本機 cookie。手機不見／公用電腦忘了登出時用；頭像下拉選單也有這個鈕。
@@ -297,7 +297,7 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 
 ## 5c. 成員管理：/api/admin/users（分服務批准）
 
-2026-07-13 起改**分服務批准**：三個服務 `relay`（API 中轉站）、`vpn`、`playground`（LLM Playground）可以分別開關，存在 `users.services`（逗號分隔）。站長帳號不看清單、全部服務都能用。
+2026-07-13 起改**分服務批准**：三個服務 `relay`（API 中轉站）、`vpn`、`playground`（LLM Playground）可以分別開關，存在 `users.services`（逗號分隔）。管理員帳號不看清單、全部服務都能用。
 
 > `playground` 另有**全站開關**（`PUT /api/admin/settings` 的 `pg_open`，見 §5）：開啟時所有登入會員都能用 Playground、不看個人批准（`/api/me` 的 `services` 也會多出 playground）；關閉才回到這裡的逐人批准。relay 與 vpn 沒有全站開關。
 
@@ -305,15 +305,15 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 - `PUT /api/admin/users/{id}` 本體三選一：
   - `{ "action": "approve" | "block" | "unblock" | "make_admin" | "drop_admin" }` — `approve` 是快速鍵＝**一次批准全部服務**；`unblock` 恢復原本的服務清單（清單是空的就退回 pending）。封鎖會同時把該會員踢下線（刪其 session）。
   - `{ "action": "set_services", "services": ["relay","vpn"] }` — **整包覆蓋**服務清單（只收合法服務名）。給了任何服務＝status 變 approved；全部收回＝退回 pending；封鎖中的帳號只改清單、狀態不動。
-  - `{ "action": "set_quota", "quota_relay_day": 100, "quota_pg_day": null, "rl_per_min": 10 }` — **個人配額覆寫**（2026-07-14）：帶哪鍵改哪鍵；值收 0 以上整數（0＝直接關掉該服務的額度）或 `null`＝清掉覆寫、回到全域預設（§5 的網站設定）。站長帳號不吃配額，設了也沒作用。網頁上在 /members 每個會員的「配額」鈕（有自訂會多顯示 `*`）
+  - `{ "action": "set_quota", "quota_relay_day": 100, "quota_pg_day": null, "rl_per_min": 10 }` — **個人配額覆寫**（2026-07-14）：帶哪鍵改哪鍵；值收 0 以上整數（0＝直接關掉該服務的額度）或 `null`＝清掉覆寫、回到全域預設（§5 的網站設定）。管理員帳號不吃配額，設了也沒作用。網頁上在 /members 每個會員的「配額」鈕（有自訂會多顯示 `*`）
   - `{ "action": "revoke_sessions" }` —（2026-07-14）撤銷該會員**所有裝置**的登入狀態（session 全刪；帳號狀態與服務不動）。懷疑帳號被冒用時先用這個。
 - 所有變更（users／settings／channels／menu／articles／pages／media）都會寫 **audit_log**（誰、何時、對誰、做了什麼；summary 絕不含金鑰或上游網址本體）。
 - `DELETE /api/admin/users/{id}` 刪除帳號。
-- **護欄**：不能封鎖／降級／刪除自己；也不能動到 ADMIN_EMAILS 指定的站長帳號（回 403 protected — 要改就改環境變數）。
+- **護欄**：不能封鎖／降級／刪除自己；也不能動到 ADMIN_EMAILS 指定的管理員帳號（回 403 protected — 要改就改環境變數）。
 
 ## 5d. API 中轉站
 
-**站長設管道**（存 `relay_channels` 表）：`POST /api/admin/relay/channels`，本體：
+**管理員設管道**（存 `relay_channels` 表）：`POST /api/admin/relay/channels`，本體：
 
 | 欄位 | 規則 |
 |---|---|
@@ -321,7 +321,7 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 | `name` | **必填** 顯示名稱 |
 | `kind` | `openai`（含所有 OpenAI 相容服務與本地 AI）／`anthropic`／`gemini`／`custom`；決定金鑰帶給上游的方式 |
 | `base_url` | **必填** 上游根網址，例 `https://api.openai.com` |
-| `api_key` | 上游金鑰（只有站長 API 摸得到，回讀一律遮罩） |
+| `api_key` | 上游金鑰（只有管理員 API 摸得到，回讀一律遮罩） |
 | `models` | **必填** 這個管道可用的模型名稱（陣列，或逗號／換行分隔的字串；限英數與 `. _ / : -`、上限 40 個）。會員頁與 LLM Playground 都靠這份清單 |
 | `enabled` | 預設 true |
 
@@ -346,24 +346,24 @@ curl -X PUT https://uaip.cc.cd/api/admin/settings ^
 ```
 POST https://uaip.cc.cd/relay/openai/v1/chat/completions
 Authorization: Bearer uak-你的金鑰
-→ 伺服器驗身分＋核准狀態 → 換成站長存的上游金鑰 → 轉發到 https://api.openai.com/v1/chat/completions
+→ 伺服器驗身分＋核准狀態 → 換成管理員存的上游金鑰 → 轉發到 https://api.openai.com/v1/chat/completions
 ```
 
 - 金鑰放哪都收：`Authorization: Bearer`、`x-api-key`、`x-goog-api-key`、`?key=`（配合各家 SDK）。
 - 路徑照上游原本的填（中轉只換金鑰不改路徑）；回應串流直通。`model` 參數也原樣轉發 — 填管道 `models` 清單裡的名稱即可。
 - 未帶金鑰 401、金鑰無效 401、帳號未被批准 relay 服務 403、管道不存在或停用 404、上游連不上 502。
-- **配額（2026-07-14）**：超過每日額度回 `429 { error:"quota-exceeded", hint, used, limit, reset }`、請求太快回 `429 { error:"rate-limited", … }`，都帶 `Retry-After` 標頭（秒）。額度＝個人覆寫 → 全域設定 → 內建預設（中轉 500/日、每分鐘 30）；**站長完全豁免**。今日用量顯示在 /relay 頁與 `GET /api/me` 的 `usage`。
+- **配額（2026-07-14）**：超過每日額度回 `429 { error:"quota-exceeded", hint, used, limit, reset }`、請求太快回 `429 { error:"rate-limited", … }`，都帶 `Retry-After` 標頭（秒）。額度＝個人覆寫 → 全域設定 → 內建預設（中轉 500/日、每分鐘 30）；**管理員完全豁免**。今日用量顯示在 /relay 頁與 `GET /api/me` 的 `usage`。
 - **計量**：伺服器順流掃「回應」尾端的 `usage`／`model` 記進 req_log（延遲、token 數；研究數據用）— 只看上游回應、絕不緩衝或解析你送出的內容；會員中斷連線時上游立即取消。
 
 ## 5e. VPN 訂閱（多渠道）
 
-跟中轉站同一個模式：站長到處找便宜機場／自架節點，**每找到一個就加一個渠道**；會員永遠只有一條訂閱網址，伺服器把所有「啟用中」渠道的節點合併給他，**會員看不到渠道存在，也看不到上游網址**。
+跟中轉站同一個模式：管理員到處找便宜機場／自架節點，**每找到一個就加一個渠道**；會員永遠只有一條訂閱網址，伺服器把所有「啟用中」渠道的節點合併給他，**會員看不到渠道存在，也看不到上游網址**。
 
-**站長設渠道**（存 `vpn_channels` 表）：`POST /api/admin/vpn/channels`，本體：
+**管理員設渠道**（存 `vpn_channels` 表）：`POST /api/admin/vpn/channels`，本體：
 
 | 欄位 | 規則 |
 |---|---|
-| `name` | **必填** 顯示名稱（只有站長看得到，例「某機場 月付3元」） |
+| `name` | **必填** 顯示名稱（只有管理員看得到，例「某機場 月付3元」） |
 | `kind` | `sub`（機場給的訂閱網址，預設）或 `nodes`（自己貼的節點連結） |
 | `url` | `kind=sub` **必填**：上游訂閱網址（回讀一律遮罩） |
 | `nodes` | `kind=nodes` **必填**：一行一條 `vmess://`／`vless://`／`trojan://`… |
@@ -388,7 +388,7 @@ Authorization: Bearer uak-你的金鑰
 
 會員在網頁上直接試用中轉渠道裡的模型（2026-07-13 上線）。可選的模型＝各中轉管道的 `models` 清單；
 上游金鑰全程留在伺服器，會員只帶登入 cookie。對話存 D1、綁帳號、跨裝置同步。
-驗證：登入 cookie（要有 `playground` 服務，**或**站長開了 `pg_open` 全員開放，見 §5）**或** `Authorization: Bearer <管理金鑰>`（以站長帳號的身分操作，方便 curl／agent 測試）。
+驗證：登入 cookie（要有 `playground` 服務，**或**管理員開了 `pg_open` 全員開放，見 §5）**或** `Authorization: Bearer <管理金鑰>`（以管理員帳號的身分操作，方便 curl／agent 測試）。
 
 - `GET /api/playground/models` → `{ rows:[{ slug, name, models }] }`（只列啟用中且有設模型的渠道；**不含 `kind`** — 那等於標示真實提供商）。
 - `GET /api/playground/conversations` → `{ rows:[{ id, title, channel, model, created_at, updated_at }] }`（自己的，新→舊，最多 100 筆）。
@@ -407,7 +407,7 @@ Authorization: Bearer uak-你的金鑰
   - 回應是 SSE（`text/event-stream`），每筆 `data:` 都是 JSON：`{conv,title?}` →（多筆）`{d:"增量文字"}` → `{done:true}`；中途出錯是 `{error,hint}`（已生成的部分照存）。上游一開始就失敗則直接回 JSON 錯誤（會帶 `conv`）。
   - 中斷連線（前端按「停止」）＝停止生成，已生成的內容照樣存進對話。
   - 伺服器依渠道 kind 自動轉換請求／串流格式：openai、custom → `/v1/chat/completions`；anthropic → `/v1/messages`；gemini → `/v1beta/models/{model}:streamGenerateContent?alt=sse`。
-  - **錯誤訊息對會員做了消毒**（2026-07-14）：上游的原始錯誤內容（錯誤格式、文件連結、專案編號）會洩漏真實提供商身分，所以會員只看得到安全分類字（401/403→「渠道憑證可能失效」、429→「上游流量限制」、5xx→「上游暫時故障」…），`detail` 原文**只有站長**（is_admin 或管理金鑰）看得到。
+  - **錯誤訊息對會員做了消毒**（2026-07-14）：上游的原始錯誤內容（錯誤格式、文件連結、專案編號）會洩漏真實提供商身分，所以會員只看得到安全分類字（401/403→「渠道憑證可能失效」、429→「上游流量限制」、5xx→「上游暫時故障」…），`detail` 原文**只有管理員**（is_admin 或管理金鑰）看得到。
 
 ## 6. 常用流程速查
 
@@ -428,7 +428,7 @@ Authorization: Bearer uak-你的金鑰
 | 暫停某渠道 | GET /api/admin/vpn/channels 找 id → PUT `{ name, kind, enabled:false }`（會員訂閱立刻少掉那些節點） |
 
 轉貼別站新聞的原則：**用自己的話改寫＋文末附資料來源連結**，不要整篇照抄。
-這些操作在網頁上也都能做：文章後台 /admin、☰ 側邊欄「站長」區（改選單、改站名、成員管理）、訪客紀錄 /logs、中轉站 /relay、VPN /vpn（自訂頁面目前只有 API）。
+這些操作在網頁上也都能做：文章後台 /admin、☰ 側邊欄「管理員」區（改選單、改站名、成員管理）、訪客紀錄 /logs、中轉站 /relay、VPN /vpn（自訂頁面目前只有 API）。
 
 ## 7. 錯誤回應
 
@@ -438,10 +438,10 @@ Authorization: Bearer uak-你的金鑰
 |---|---|---|
 | 400 | bad-input / bad-id / bad-slug / bad-url / too-many / empty / bad-action / self / bad-model | 參數或本體不合規則（看 hint）；bad-model＝模型不在渠道清單裡 |
 | 401 | unauthorized / no-key / bad-key / no-admin-user | 金鑰沒帶或不對（中轉：會員金鑰無效） |
-| 403 | bad-origin / not-approved / blocked / protected | 跨站被擋／該服務未被批准或帳號被封鎖／受保護的站長帳號 |
+| 403 | bad-origin / not-approved / blocked / protected | 跨站被擋／該服務未被批准或帳號被封鎖／受保護的管理員帳號 |
 | 404 | not-found / unknown-channel | 內容不存在（或公開 API 查到的是草稿）／中轉管道不存在 |
 | 409 | slug-taken | 自訂頁面或管道的 slug 已被使用 |
-| 429 | quota-exceeded / rate-limited | 超過每日額度／請求太快（中轉與 Playground；帶 `Retry-After` 標頭與 `used`/`limit`/`reset` 欄位；站長豁免） |
+| 429 | quota-exceeded / rate-limited | 超過每日額度／請求太快（中轉與 Playground；帶 `Retry-After` 標頭與 `used`/`limit`/`reset` 欄位；管理員豁免） |
 | 502 | upstream-unreachable / upstream-error / no-upstream-key | 中轉／VPN／Playground 上游連不上或回錯；渠道沒設上游金鑰 |
 | 413 | too-large | 圖片超過 1.8MB |
 | 415 | bad-type | 圖片格式不是 webp / jpeg / png / gif |

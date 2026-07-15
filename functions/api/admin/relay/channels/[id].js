@@ -1,4 +1,4 @@
-// /api/admin/relay/channels/<編號> — 站長專用：PUT 更新管道、DELETE 刪除管道。
+// /api/admin/relay/channels/<編號> — 管理員專用：PUT 更新管道、DELETE 刪除管道。
 // PUT 整包覆蓋，唯一例外：本體「沒帶 api_key 欄位」＝上游金鑰保留舊值
 //（帶空字串 ""＝清掉金鑰）。這樣改名／換網址不用重貼金鑰。
 import { json } from "../../../../../lib/site.js";

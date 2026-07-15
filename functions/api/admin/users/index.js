@@ -1,4 +1,4 @@
-// GET /api/admin/users — 站長專用：列出所有會員（給 /members 頁）。
+// GET /api/admin/users — 管理員專用：列出所有會員（給 /members 頁）。
 // 不回任何金鑰明文；只回狀態、用量、最後登入這些管理需要的欄位。
 // 2026-07-14 起加配額欄（個人覆寫，NULL＝用全域）＋今日用量（req_log 子查詢，UTC 日窗）。
 import { json } from "../../../../lib/site.js";

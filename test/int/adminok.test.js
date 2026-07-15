@@ -1,5 +1,5 @@
-// adminOk（站長驗證，兩種身分都收）矩陣：
-// Bearer 對/錯/缺 × LOGS_TOKEN 有/無、站長 cookie、跨站 Origin 拒斥。
+// adminOk（管理員驗證，兩種身分都收）矩陣：
+// Bearer 對/錯/缺 × LOGS_TOKEN 有/無、管理員 cookie、跨站 Origin 拒斥。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
 import { adminOk, createSession } from "../../lib/auth.js";
@@ -18,7 +18,7 @@ describe("adminOk × LOGS_TOKEN 已設定", () => {
     expect(await adminOk(req({ authorization: "Bearer wrong" }), e(), URL_)).toBe(false);
     expect(await adminOk(req(), e(), URL_)).toBe(false);
   });
-  it("站長 cookie → 放行；一般會員 cookie → 擋", async () => {
+  it("管理員 cookie → 放行；一般會員 cookie → 擋", async () => {
     const adm = await seedAdmin();
     const sa = await createSession(env, adm, URL_);
     expect(await adminOk(req({ cookie: "ipua_sess=" + sa.sid }), e(), URL_)).toBe(true);
@@ -27,7 +27,7 @@ describe("adminOk × LOGS_TOKEN 已設定", () => {
     const sm = await createSession(env, mem, URL_);
     expect(await adminOk(req({ cookie: "ipua_sess=" + sm.sid }), e(), URL_)).toBe(false);
   });
-  it("站長 cookie＋跨站 Origin → 擋（CSRF）", async () => {
+  it("管理員 cookie＋跨站 Origin → 擋（CSRF）", async () => {
     const adm = await seedAdmin();
     const sa = await createSession(env, adm, URL_);
     expect(await adminOk(req({ cookie: "ipua_sess=" + sa.sid, origin: "https://evil.com" }), e(), URL_)).toBe(
@@ -44,7 +44,7 @@ describe("adminOk × LOGS_TOKEN 未設定", () => {
   it("正式站沒 token 沒 session → 擋", async () => {
     expect(await adminOk(req(), envWith({}), URL_)).toBe(false);
   });
-  it("正式站沒 token 但站長 cookie 還是能用", async () => {
+  it("正式站沒 token 但管理員 cookie 還是能用", async () => {
     const adm = await seedAdmin();
     const sa = await createSession(env, adm, URL_);
     expect(await adminOk(req({ cookie: "ipua_sess=" + sa.sid }), envWith({}), URL_)).toBe(true);

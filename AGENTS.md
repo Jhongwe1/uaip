@@ -1,7 +1,7 @@
 # AGENTS.md — 給 AI agent 的網站操作指南
 
 這份文件給接手操作 **uaip.cc.cd** 的 AI agent（Claude Code、其他 agent 皆可）看。
-人類站長的維護筆記在 [ADMIN.md](./ADMIN.md)；完整的逐端點 API 文件在 [API.md](./API.md)。
+人類管理員的維護筆記在 [ADMIN.md](./ADMIN.md)；完整的逐端點 API 文件在 [API.md](./API.md)。
 
 ## 你要知道的第一件事
 
@@ -22,20 +22,20 @@
 | 加／改 VPN 渠道 | `POST/PUT/DELETE /api/admin/vpn/channels…` |
 | 測 LLM Playground | `POST /api/playground/chat`（管理金鑰可直接測，SSE 串流） |
 
-> **v1.0.0（2026-07-14）新增**：中轉／Playground 有**每人每日配額＋每分鐘限流**（站長豁免；超額 429＋Retry-After），
-> 用量記在 req_log、看得到 token 與延遲；所有站長變更寫**稽核日誌**；VPN 對未授權者**隱形**
+> **v1.0.0（2026-07-14）新增**：中轉／Playground 有**每人每日配額＋每分鐘限流**（管理員豁免；超額 429＋Retry-After），
+> 用量記在 req_log、看得到 token 與延遲；所有管理員變更寫**稽核日誌**；VPN 對未授權者**隱形**
 > （選單／頁面／API 欄位全隱藏）；SSR 頁面有 **per-request nonce CSP**。這些對「內容操作」多半透明，
-> 但若你用管理金鑰大量打 relay 測試而撞到 429，那是配額（站長帳號不會，見 §5d）。
+> 但若你用管理金鑰大量打 relay 測試而撞到 429，那是配額（管理員帳號不會，見 §5d）。
 
 只有「改程式或版型」才需要動這個 repo 並部署（見文末）。
 
-**2026-07-11 起新增會員系統**（Google 登入）；**2026-07-13 起改分服務批准**：三個服務 `relay`（API 中轉站 /relay）、`vpn`（VPN 訂閱 /vpn）、`playground`（LLM Playground /playground）由站長分別批准（`set_services` 整包覆蓋；`approve`＝一次全給）。**2026-07-14 起 playground 另有全站開關 `pg_open`**（設定後所有登入會員免逐一批准；relay/vpn 不受影響），開關在 /members 頁最上方或 `PUT /api/admin/settings`。站長身分＝ADMIN_EMAILS 指定的信箱或 is_admin 帳號。逐端點細節見 [API.md](./API.md) 的 §5b–§5f。用管理金鑰（LOGS_TOKEN）就能操作全部站長 API，不需登入。
+**2026-07-11 起新增會員系統**（Google 登入）；**2026-07-13 起改分服務批准**：三個服務 `relay`（API 中轉站 /relay）、`vpn`（VPN 訂閱 /vpn）、`playground`（LLM Playground /playground）由管理員分別批准（`set_services` 整包覆蓋；`approve`＝一次全給）。**2026-07-14 起 playground 另有全站開關 `pg_open`**（設定後所有登入會員免逐一批准；relay/vpn 不受影響），開關在 /members 頁最上方或 `PUT /api/admin/settings`。管理員身分＝ADMIN_EMAILS 指定的信箱或 is_admin 帳號。逐端點細節見 [API.md](./API.md) 的 §5b–§5f。用管理金鑰（LOGS_TOKEN）就能操作全部管理員 API，不需登入。
 
 ## 連線與驗證
 
 - 正式站：`https://uaip.cc.cd`（等同 `https://uaip.pages.dev`）
 - 本機開發：`http://localhost:8788`（`npx wrangler pages dev`；**localhost 免金鑰**，想先試就在本機試）
-- 站長 API（路徑含 `/admin` 的與 `/api/logs`）要帶標頭：`Authorization: Bearer <管理金鑰>`
+- 管理員 API（路徑含 `/admin` 的與 `/api/logs`）要帶標頭：`Authorization: Bearer <管理金鑰>`
 - **管理金鑰**：讀本機 `ADMIN.local.md`（gitignored；2026-07-14 起 ADMIN.md 不再放明文）
 
 ## 三條鐵則（違反會出事）

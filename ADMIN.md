@@ -1,4 +1,4 @@
-# 站長筆記（此檔在 public/ 之外，不會被部署上網）
+# 管理員筆記（此檔在 public/ 之外，不會被部署上網）
 
 ## 網站結構（2026-07-06 新聞／文章系統上線後）
 
@@ -18,7 +18,7 @@ ipua/
 ├─ docs/                  ← ADR、威脅模型（THREAT-MODEL）、對照（COMPARISON）、報告骨架
 ├─ package.json / tsconfig.json / vitest.config.mjs ← 工具鏈（執行期零依賴，只有 devDeps）
 ├─ lib/                   ← Functions 共用程式（部署時自動打包，不會上網）
-│  ├─ site.js             ← 頁面外殼（pageShell）、管理頁共用樣式（ADMIN_CSS）、站長驗證、共用工具；
+│  ├─ site.js             ← 頁面外殼（pageShell）、管理頁共用樣式（ADMIN_CSS）、管理員驗證、共用工具；
 │  │                         DEFAULT_MENU 預設選單、getChrome 讀選單/站名、SLUG_RE 頁面代稱規則
 │  ├─ pages.js            ← 新聞/文章「列表頁與文章頁」的實際內容（antutu 式排版、SEO 標籤）
 │  ├─ apidoc.js           ← ⚠ 自動產生（node tools/build-apidoc.mjs），不要手改；原稿是 API.md
@@ -34,15 +34,15 @@ ipua/
 │  ├─ img/[id].js         ← GET /img/5 從 D1 讀圖（邊緣快取）
 │  ├─ feed.js             ← GET /feed RSS 訂閱源
 │  ├─ sitemap.js          ← GET /sitemap 給搜尋引擎的網址清單（含文章與自訂頁面）
-│  ├─ api-docs.js         ← GET /api-docs API 文件頁（金鑰閘門，站長才看得到內容）
+│  ├─ api-docs.js         ← GET /api-docs API 文件頁（金鑰閘門，管理員才看得到內容）
 │  └─ api/
 │     ├─ whoami.js        ← GET /api/whoami（回報訪客自己的資訊）
-│     ├─ logs.js          ← GET /api/logs（站長查紀錄，要金鑰）
+│     ├─ logs.js          ← GET /api/logs（管理員查紀錄，要金鑰）
 │     ├─ menu.js          ← GET /api/menu（公開：側邊欄選單；表空回預設）
 │     ├─ settings.js      ← GET /api/settings（公開：站名＋Playground 全員開放與否）
 │     ├─ articles/        ← GET /api/articles、/api/articles/12（公開：只回已發佈）
 │     ├─ pages/           ← GET /api/pages、/api/pages/about（公開：只回已發佈）
-│     └─ admin/           ← 站長 API（都要金鑰）：articles、pages 增刪改查、media 上傳、
+│     └─ admin/           ← 管理員 API（都要金鑰）：articles、pages 增刪改查、media 上傳、
 │                            menu 覆蓋選單、settings 改站名/Playground 全員開關、apidoc 取 API 文件
 └─ public/                ← 真正上網的檔案（只有這個資料夾會部署）
    ├─ index.html          ← 主站（☰ 側邊欄；選單由 /api/menu 動態載入）
@@ -138,7 +138,7 @@ DELETE FROM visits WHERE ts < datetime('now', '-180 days');
 
 - 選單與站名存在 D1（`menu`、`settings` 表）；**兩張表是空的時候自動用內建預設**（lib/site.js 的 DEFAULT_MENU／BRAND），所以「還原預設」＝清空資料表。
 - 選單連結網址限「/開頭」或「http(s)://」；分類（section）是不能點的小標題，用來分組。
-- 主站的 IP 查詢/UA 查詢連結（/ip、/ua）保持前端切換不重新載入；側邊欄「站長區」不在選單資料裡，是 adminbar 動態長的，編輯器裡看不到也不用管。
+- 主站的 IP 查詢/UA 查詢連結（/ip、/ua）保持前端切換不重新載入；側邊欄「管理員區」不在選單資料裡，是 adminbar 動態長的，編輯器裡看不到也不用管。
 
 ## 自訂頁面（/p/網址代稱）— 2026-07-09 上線
 
@@ -158,7 +158,7 @@ DELETE FROM visits WHERE ts < datetime('now', '-180 days');
 **完整 API 文件＝專案根目錄的 [API.md](./API.md)**（GitHub 直接可讀）。線上版
 <https://uaip.cc.cd/api-docs>（要管理金鑰）顯示的就是同一份 — 改 API.md 後跑
 `node tools/build-apidoc.mjs` 重新產生 `lib/apidoc.js` 再部署（apidoc.js 是自動產生的，別手改）。
-涵蓋：公開 API（whoami、已發佈文章/頁面列表與單篇、選單、站名）＋站長 API（文章與自訂頁面
+涵蓋：公開 API（whoami、已發佈文章/頁面列表與單篇、選單、站名）＋管理員 API（文章與自訂頁面
 增刪改查、圖片上傳、選單覆蓋、站名、訪客紀錄）。
 
 **要交給 AI agent 操作時**：請 agent 讀根目錄 **[AGENTS.md](./AGENTS.md)**（操作指南＋鐵則＋
@@ -212,7 +212,7 @@ npx wrangler d1 export ipua-logs --remote --output backup.sql
 ```
 npm ci                  # 第一次裝工具鏈（vitest/wrangler/tsc；執行期仍零依賴）
 npm run migrate:local   # 建本機表（套用 migrations/ 全部；db/schema.sql 已退役）
-npm run seed            # （選用）塞站長＋會員＋示範渠道
+npm run seed            # （選用）塞管理員＋會員＋示範渠道
 npm run dev             # http://localhost:8788
 npm run checks          # 改程式後：typecheck＋全部測試
 ```
@@ -238,15 +238,15 @@ npm run checks          # 改程式後：typecheck＋全部測試
 menu 表空＝用內建預設（lib/site.js 的 DEFAULT_MENU；index.html 也留了一份靜態預設當載入前的底）。
 
 **「訪客紀錄」入口一般訪客看不到**：選單 HTML 裡沒有這個連結，
-只有「這台裝置成功登入過 /logs」（瀏覽器 localStorage 存有金鑰）才會動態長出「站長 → 訪客紀錄」。
-所以站長的進入方式＝直接在網址列打 `uaip.cc.cd/logs` 輸入金鑰；登入過一次，之後選單就有捷徑。
+只有「這台裝置成功登入過 /logs」（瀏覽器 localStorage 存有金鑰）才會動態長出「管理員 → 訪客紀錄」。
+所以管理員的進入方式＝直接在網址列打 `uaip.cc.cd/logs` 輸入金鑰；登入過一次，之後選單就有捷徑。
 在 /logs 按「清除金鑰」捷徑就會消失。就算有人翻原始碼猜到 /logs，沒金鑰 API 一律回 401。
 
 ## Google 登入 ＋ 會員系統（2026-07-11 上線）
 
-任何人都能用 Google 登入成為「會員」；會員功能（**API 中轉站** /relay、**VPN 訂閱** /vpn）要**站長核准**後才生效。站長信箱登入後自動是管理員，管理頁與站長 API 免金鑰（金鑰仍可用，給 curl／agent）。右上角是「帳號」鈕（登入／頭像下拉）；站長的編輯工具從舊的右上角 ✎ **搬進 ☰ 側邊欄「站長」區**了。
+任何人都能用 Google 登入成為「會員」；會員功能（**API 中轉站** /relay、**VPN 訂閱** /vpn）要**管理員核准**後才生效。管理員信箱登入後自動是管理員，管理頁與管理員 API 免金鑰（金鑰仍可用，給 curl／agent）。右上角是「帳號」鈕（登入／頭像下拉）；管理員的編輯工具從舊的右上角 ✎ **搬進 ☰ 側邊欄「管理員」區**了。
 
-**VPN 隱形（2026-07-14 v1.0.0）**：非站長且未被批准 vpn 服務的人**完全看不到 VPN 的存在** —
+**VPN 隱形（2026-07-14 v1.0.0）**：非管理員且未被批准 vpn 服務的人**完全看不到 VPN 的存在** —
 側邊欄選單不渲染、`/vpn` 回靜態 SPA（跟打不存在的路徑一樣）、`/api/me` 不吐 vpn 欄位、
 頭像下拉也沒有 VPN 項。**必然代價**：已被批准但「還沒登入」的會員打 /vpn 一樣看到 SPA —
 請他先登入、再從頭像選單進 VPN。`/vpn/sub/<token>` 訂閱端點不受影響（token 即驗證）。
@@ -259,8 +259,8 @@ menu 表空＝用內建預設（lib/site.js 的 DEFAULT_MENU；index.html 也留
 
 ### 要設的環境變數（secrets）
 ```
-# 1) 站長信箱（逗號分隔，可多個）。沒設＝沒有信箱直升站長，只認資料庫 users.is_admin。
-printf '你的站長信箱' | npx wrangler pages secret put ADMIN_EMAILS --project-name uaip
+# 1) 管理員信箱（逗號分隔，可多個）。沒設＝沒有信箱直升管理員，只認資料庫 users.is_admin。
+printf '你的管理員信箱' | npx wrangler pages secret put ADMIN_EMAILS --project-name uaip
 
 # 2) Google OAuth 憑證（申請步驟見下）：
 printf '你的CLIENT_ID' | npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name uaip
@@ -278,22 +278,22 @@ printf '你的CLIENT_SECRET' | npx wrangler pages secret put GOOGLE_CLIENT_SECRE
    - `https://uaip.pages.dev/auth/callback`（備用網域，可省）
    - 本機測試不用登記（localhost 走測試表單）。
 5. 建好後把 **Client ID** 與 **Client secret** 用上面的指令設進 Cloudflare。
-- 之後要多開放誰：把對方信箱加進 OAuth consent screen 的 Test users（或已 Publish 就不用）；要升成站長就在 /members 頁按「設為站長」，或把信箱加進 ADMIN_EMAILS。
+- 之後要多開放誰：把對方信箱加進 OAuth consent screen 的 Test users（或已 Publish 就不用）；要升成管理員就在 /members 頁按「設為管理員」，或把信箱加進 ADMIN_EMAILS。
 
 ### 日常操作
-- **核准會員**：/members 頁（站長）→ 待核准清單按「核准」。或 API：`PUT /api/admin/users/{id} {"action":"approve"}`。
-- **加中轉管道**：/relay 頁（站長）「管道管理」→ 新增。**選類型（OpenAI／Anthropic／Gemini）會自動帶入官方 Base URL**，用便宜的第三方渠道就把網址改成他家的、金鑰填他給的（你手打過的網址不會被自動蓋掉）。之後會員用自己的 `uak-` 金鑰 + Base URL `https://uaip.cc.cd/relay/<slug>` 就能打。**每找到一個渠道就加一個**，暫時不想用就按「停用」（留著不刪）。
+- **核准會員**：/members 頁（管理員）→ 待核准清單按「核准」。或 API：`PUT /api/admin/users/{id} {"action":"approve"}`。
+- **加中轉管道**：/relay 頁（管理員）「管道管理」→ 新增。**選類型（OpenAI／Anthropic／Gemini）會自動帶入官方 Base URL**，用便宜的第三方渠道就把網址改成他家的、金鑰填他給的（你手打過的網址不會被自動蓋掉）。之後會員用自己的 `uak-` 金鑰 + Base URL `https://uaip.cc.cd/relay/<slug>` 就能打。**每找到一個渠道就加一個**，暫時不想用就按「停用」（留著不刪）。
   - ✅ **2026-07-12 已上線 Gemini 官方渠道**（slug `gemini`），正式站實測會員視角可用：Gemini SDK（`x-goog-api-key`）、OpenAI SDK（`/relay/gemini/v1beta/openai` + `Authorization: Bearer`）、串流三種都通。
-- **加 VPN 渠道**：/vpn 頁（站長）「渠道管理」→ 新增，貼機場訂閱網址（kind=sub）或自己的節點連結（kind=nodes）。**會員的訂閱網址永遠是同一條**，伺服器自動把所有啟用中渠道的節點合併給他們。
-- 護欄：站長不能在網頁上封鎖／刪除自己，也動不了 ADMIN_EMAILS 指定的帳號（要改就改環境變數）。
+- **加 VPN 渠道**：/vpn 頁（管理員）「渠道管理」→ 新增，貼機場訂閱網址（kind=sub）或自己的節點連結（kind=nodes）。**會員的訂閱網址永遠是同一條**，伺服器自動把所有啟用中渠道的節點合併給他們。
+- 護欄：管理員不能在網頁上封鎖／刪除自己，也動不了 ADMIN_EMAILS 指定的帳號（要改就改環境變數）。
 
 ### 兩個「中轉」的運作方式（2026-07-12 完成）
 
-核心概念一樣：**站長保管真正的上游（網址＋金鑰），會員只拿到一把我方發的憑證**，所有流量經 Cloudflare 轉一手，會員看不到也偷不走上游。
+核心概念一樣：**管理員保管真正的上游（網址＋金鑰），會員只拿到一把我方發的憑證**，所有流量經 Cloudflare 轉一手，會員看不到也偷不走上游。
 
 | | API 中轉站 /relay | VPN /vpn |
 |---|---|---|
-| 站長新增的東西 | 管道：base_url ＋ 該平台 API Key ＋ slug | 渠道：機場訂閱網址，或手動節點清單 |
+| 管理員新增的東西 | 管道：base_url ＋ 該平台 API Key ＋ slug | 渠道：機場訂閱網址，或手動節點清單 |
 | 會員拿到的憑證 | 自己的 `uak-` 金鑰（在 /relay 按「產生」） | 自己的 `/vpn/sub/<token>` 訂閱網址 |
 | 會員怎麼用 | Base URL 換成 `https://uaip.cc.cd/relay/<slug>`、API Key 填 `uak-…` | 訂閱網址貼進 Clash／v2rayN／Shadowrocket |
 | 會員看得到什麼 | 管道的**名稱**與類型（挑要用哪個），看不到 base_url 與上游金鑰 | 只有節點，**完全看不到渠道與上游網址** |
@@ -303,7 +303,7 @@ printf '你的CLIENT_SECRET' | npx wrangler pages secret put GOOGLE_CLIENT_SECRE
 - **VPN 多渠道的格式眉角**：只啟用「一個」訂閱渠道時＝原樣轉發（機場的 Clash YAML、流量／到期資訊都保留）；啟用「兩個以上」時，伺服器改抓 base64 節點清單合併（Clash YAML 沒法安全合併會被略過，流量資訊也無法合併）。想保留流量顯示就只開那一個機場。
 - **中轉的驗證頭眉角（2026-07-12 實測踩到）**：金鑰要放哪個標頭是**看路徑**、不是只看 kind。各家的「OpenAI 相容層」（路徑含 `/openai/` 或結尾 `chat/completions`）一律收 `Authorization: Bearer`；原生介面才用自家標頭（Anthropic `x-api-key`、Gemini `x-goog-api-key`）。**Gemini 原生端點多送一個 `Authorization` 就會 401**（Google 當成 OAuth token），所以只能二選一。
 - 會員的用量（`relay_calls` 中轉次數、`vpn_pulls` 訂閱抓取次數）在 /members 頁看得到。
-- 上游金鑰／訂閱網址在站長 API 回讀時一律**遮罩**（只回開頭…結尾），要換就直接重填；編輯時該欄留空＝保留舊值。
+- 上游金鑰／訂閱網址在管理員 API 回讀時一律**遮罩**（只回開頭…結尾），要換就直接重填；編輯時該欄留空＝保留舊值。
 
 ## 廣告計畫
 

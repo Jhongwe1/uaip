@@ -1,4 +1,4 @@
-// /api/admin/vpn/channels — 站長專用：VPN 訂閱的上游渠道管理（2026-07-12 多渠道化）。
+// /api/admin/vpn/channels — 管理員專用：VPN 訂閱的上游渠道管理（2026-07-12 多渠道化）。
 //   GET  列出全部渠道（訂閱網址一律遮罩，只回 has_url 與提示；手動節點原文回傳供編輯）
 //   POST 新增渠道 { name, kind, url?, nodes?, enabled? }
 // kind：sub（機場／自建的上游訂閱網址）或 nodes（手動貼的節點清單，一行一條 vmess:// vless:// …）。

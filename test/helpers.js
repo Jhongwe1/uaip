@@ -95,13 +95,13 @@ export async function seedUser(over) {
   return await testEnv.DB.prepare("SELECT * FROM users WHERE id=?1").bind(r.meta.last_row_id).first();
 }
 
-// 建站長（信箱對齊 vitest.config.mjs 注入的 ADMIN_EMAILS，登入即管理員）
+// 建管理員（信箱對齊 vitest.config.mjs 注入的 ADMIN_EMAILS，登入即管理員）
 export function seedAdmin(over) {
   return seedUser(
     Object.assign(
       {
         email: "admin@example.com",
-        name: "站長",
+        name: "管理員",
         status: "approved",
         is_admin: 1
       },

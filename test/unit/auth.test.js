@@ -101,14 +101,14 @@ describe("userServices（分服務批准）矩陣", () => {
     expect(userServices(null, env)).toEqual([]);
     expect(userServices({ status: "blocked", is_admin: 1, services: "relay" }, env)).toEqual([]);
   });
-  it("站長（is_admin=1）→ 全部服務，不看 services 欄", () => {
+  it("管理員（is_admin=1）→ 全部服務，不看 services 欄", () => {
     expect(userServices({ status: "approved", is_admin: 1, services: "" }, env)).toEqual([
       "relay",
       "vpn",
       "playground"
     ]);
   });
-  it("ADMIN_EMAILS 名單內的信箱（未設 is_admin）也算站長", () => {
+  it("ADMIN_EMAILS 名單內的信箱（未設 is_admin）也算管理員", () => {
     expect(
       userServices({ status: "approved", is_admin: 0, email: "admin@example.com", services: "" }, env)
     ).toEqual(["relay", "vpn", "playground"]);

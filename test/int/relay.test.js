@@ -1,6 +1,6 @@
 // /relay/<slug>/<path> 轉發引擎 — 安全邊界與直通保真。
 // 上游用 cloudflare:test 的 fetchMock 攔截：能斷言「上游實際收到什麼」，
-// 特別是會員身分標頭有沒有被剝乾淨、金鑰有沒有換成站長的上游金鑰。
+// 特別是會員身分標頭有沒有被剝乾淨、金鑰有沒有換成管理員的上游金鑰。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
 import { onRequest } from "../../functions/relay/[[path]].js";
@@ -149,7 +149,7 @@ describe("relay 轉發：標頭剝除＋金鑰置換", () => {
     await r.text();
     await drainWaits(ctx);
     expect(r.status).toBe(200);
-    // 上游收到的：金鑰換成站長的、會員身分痕跡為零
+    // 上游收到的：金鑰換成管理員的、會員身分痕跡為零
     expect(cap.header("authorization")).toBe("Bearer sk-upstream-secret");
     expect(cap.header("x-api-key")).toBeUndefined();
     expect(cap.header("cookie")).toBeUndefined();

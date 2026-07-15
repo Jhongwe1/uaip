@@ -86,7 +86,7 @@ describe("公開內容頁", () => {
   });
 });
 
-describe("站長／會員頁（noindex）", () => {
+describe("管理員／會員頁（noindex）", () => {
   it("/admin：200＋noindex＋nonce", async () => {
     const text = await expectPage(
       await adminPage(makeCtx({ url: ORIGIN + "/admin", init: { headers: await adminHeaders() } }))

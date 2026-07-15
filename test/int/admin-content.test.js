@@ -1,4 +1,4 @@
-// 站長內容寫入 API：文章 CRUD、頁面 CRUD、選單整包覆蓋。
+// 管理員內容寫入 API：文章 CRUD、頁面 CRUD、選單整包覆蓋。
 // 驗證授權閘門（無金鑰→401）、輸入清洗、audit 寫入、published_at 穩定性。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";

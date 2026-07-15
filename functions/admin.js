@@ -1,4 +1,4 @@
-// GET /admin — 文章管理後台（站長專用；支援 ?edit=編號、?new=分類 直達）。
+// GET /admin — 文章管理後台（管理員專用；支援 ?edit=編號、?new=分類 直達）。
 // 2026-07-09 起改用全站共用外殼（lib/site.js pageShell）：☰ 側邊欄、日夜、EN/中 與其他頁一致。
 // 頁面行為在 public/assets/admin.js；內文預覽直接吃外殼的 .prose 樣式，跟正式文章頁完全同一份。
 import { html, pageShell, ADMIN_CSS } from "../lib/site.js";
@@ -28,8 +28,8 @@ const PAGE_CSS = `
 const BODY = `
 <!-- 金鑰驗證（與 /logs 同一把管理金鑰） -->
 <section id="gate" class="card hidden">
-  <div class="card-title">站長驗證</div>
-  <p class="hint">這一頁只有站長能用。用站長 Google 帳號 <a href="/auth/login?next=/admin">登入</a>，或輸入管理金鑰（與訪客紀錄相同那一把）；金鑰只存在這台裝置的瀏覽器裡。</p>
+  <div class="card-title">管理員驗證</div>
+  <p class="hint">這一頁只有管理員能用。用管理員 Google 帳號 <a href="/auth/login?next=/admin">登入</a>，或輸入管理金鑰（與訪客紀錄相同那一把）；金鑰只存在這台裝置的瀏覽器裡。</p>
   <form id="gateForm" class="query">
     <input id="tokenInput" type="password" autocomplete="off" placeholder="管理金鑰">
     <button type="submit">進入</button>
@@ -131,7 +131,7 @@ export async function onRequestGet({ request, env }) {
   return html(
     pageShell({
       title: "文章管理",
-      desc: "站長專用的文章管理後台。",
+      desc: "管理員專用的文章管理後台。",
       noindex: true,
       chrome: chrome,
       activePath: "/admin",

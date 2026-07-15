@@ -105,10 +105,10 @@ Secrets: GOOGLE_CLIENT_ID/SECRET, ADMIN_EMAILS, LOGS_TOKEN (wrangler secrets)
 
 **Google OAuth**：`state` 亂數綁 HttpOnly cookie（10 分鐘）防 CSRF 登入；token 由伺服器直連
 Google 交換（TLS、來源可信）；`aud` 必須是自己的 client id；`email_verified` 必須為真；
-站長身分只認 `ADMIN_EMAILS` 環境變數，網頁上動不了。登入失敗進站內錯誤日誌。
+管理員身分只認 `ADMIN_EMAILS` 環境變數，網頁上動不了。登入失敗進站內錯誤日誌。
 
 **Session cookie**：HttpOnly＋Secure＋SameSite=Lax；**資料庫只存 sid 的 SHA-256** —
-資料庫外洩拿不到能用的 cookie。過期即失效；站長可 `revoke_sessions` 踢人、
+資料庫外洩拿不到能用的 cookie。過期即失效；管理員可 `revoke_sessions` 踢人、
 會員可 `/api/account/logout-all` 自救。所有 cookie 身分的寫入端點都驗 `Origin`。
 
 **會員金鑰（uak-）**：產生當下顯示一次，庫內只有雜湊＋提示；先過格式檢查再查庫；
@@ -116,25 +116,25 @@ Google 交換（TLS、來源可信）；`aud` 必須是自己的 client id；`em
 且被日配額＋每分鐘限流鎖住；重生金鑰立即讓舊的失效。
 
 **中轉直通**：DROP 名單剝掉連線層／CF／身分標頭；路徑重新編碼防注入；上游目標＝
-站長設定的 base_url，會員控制不了主機；計量只掃「回應」尾端，絕不緩衝會員請求本體；
+管理員設定的 base_url，會員控制不了主機；計量只掃「回應」尾端，絕不緩衝會員請求本體；
 會員斷線立即 cancel 上游（pump 不用 tee，不燒錢）；每請求一列 req_log 可追帳。
 
 **VPN 訂閱**：token 放網址是為了 VPN App 相容性（App 不會帶 cookie）的必要取捨 —
 可重生、有格式檢查、封鎖／未批准者即使 token 對也拿不到內容；上游網址永不出現在回應；
 v1.0.0 起無 vpn 權限者連 `/vpn` 頁面存在都看不到（隱形）。
 
-**站長 API**：雙身分（Bearer 金鑰／站長 cookie＋Origin）；金鑰明文只在 gitignored 的
+**管理員 API**：雙身分（Bearer 金鑰／管理員 cookie＋Origin）；金鑰明文只在 gitignored 的
 ADMIN.local.md、v1.0.0 發佈時輪替（舊值在 git 歷史裡 — repo 公開前必須 filter-repo，記 DEBT）；
-所有變更寫 audit_log 且絕不含秘密；root 站長帳號網頁上不可封鎖／降級／刪除。
+所有變更寫 audit_log 且絕不含秘密；root 管理員帳號網頁上不可封鎖／降級／刪除。
 
-**SSE 串流**：上游錯誤對會員淨化（不洩提供商身分）、站長看原文；會員中斷 → 上游取消；
+**SSE 串流**：上游錯誤對會員淨化（不洩提供商身分）、管理員看原文；會員中斷 → 上游取消；
 輸出在瀏覽器端經 marked＋DOM 消毒（去 script／on*／js: 網址），聊天區是無 script 的內容 —
 惡意上游注入的 HTML 拿不到 nonce，CSP 直接封殺。
 
 **D1**：全部參數綁定（無字串拼 SQL）；寫入長度上限；觀測性寫入永不影響請求本體；
 備份靠手動 export（個人站接受的風險，記 DEBT）。
 
-**瀏覽器面（Stored-XSS，v2.0.0 修復）**：站長寫的文章／頁面 Markdown 由伺服器用 marked
+**瀏覽器面（Stored-XSS，v2.0.0 修復）**：管理員寫的文章／頁面 Markdown 由伺服器用 marked
 轉 HTML，而 marked **會原樣放行內嵌的原始 HTML** — 管理 token 失竊（或日後低權限作者角色）
 就能在文章裡存 `<script>`／`onerror=`。內容與執行之間現在有兩道獨立防線：
 ① **白名單消毒器**（`lib/sanitize.js`，零依賴、約 130 行）套在每個 `marked.parse()` 輸出上

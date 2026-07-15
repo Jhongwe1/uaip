@@ -54,7 +54,7 @@ describe("vpn sub token 矩陣", () => {
     await vpnUser({ status: "blocked" });
     expect((await onRequestGet(subCtx(TOKEN))).status).toBe(403);
   });
-  it("有 vpn 服務但站長沒設任何渠道 → 404", async () => {
+  it("有 vpn 服務但管理員沒設任何渠道 → 404", async () => {
     await vpnUser();
     const ctx = subCtx(TOKEN);
     const r = await onRequestGet(ctx);

@@ -1,4 +1,4 @@
-// /api/admin/articles/<編號> — 站長專用：GET 讀單篇（含內文原稿）、PUT 更新、DELETE 刪除。
+// /api/admin/articles/<編號> — 管理員專用：GET 讀單篇（含內文原稿）、PUT 更新、DELETE 刪除。
 import { json } from "../../../../lib/site.js";
 import { adminOk } from "../../../../lib/auth.js";
 import { audit } from "../../../../lib/observe.js";

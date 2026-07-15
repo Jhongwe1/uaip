@@ -1,4 +1,4 @@
-// /api/admin/pages/<編號或slug> — 站長專用：GET 讀單頁（含內文原稿）、PUT 更新、DELETE 刪除。
+// /api/admin/pages/<編號或slug> — 管理員專用：GET 讀單頁（含內文原稿）、PUT 更新、DELETE 刪除。
 // <key> 純數字＝用編號找，其他＝用 slug 找（agent 用 slug 操作比較直覺）。
 // PUT 跟文章一樣是「整包覆蓋」：先 GET 拿舊資料、改完整包送回；slug 也可以在 PUT 裡改（等於搬家）。
 import { json, SLUG_RE } from "../../../../lib/site.js";

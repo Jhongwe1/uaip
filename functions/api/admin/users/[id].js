@@ -1,4 +1,4 @@
-// /api/admin/users/<編號> — 站長專用：管理單一會員。
+// /api/admin/users/<編號> — 管理員專用：管理單一會員。
 //   PUT    { action: "approve" | "block" | "unblock" | "make_admin" | "drop_admin" }
 //          或 { action: "set_services", services: ["relay","vpn","playground"] } — 分服務批准
 //          或 { action: "set_quota", quota_relay_day?, quota_pg_day?, rl_per_min? } — 個人配額覆寫
@@ -8,7 +8,7 @@
 // 所有變更都寫 audit_log（誰、何時、對誰、做了什麼）。
 // approve＝快速鍵：一次批准全部服務。set_services＝精準開關單一服務；
 // 給了任何服務就算 approved、全部收回就退回 pending（封鎖中的帳號只改清單、狀態不動）。
-// 護欄：站長不能封鎖／降級／刪除「自己」，也不能動到「環境變數指定的站長信箱」帳號
+// 護欄：管理員不能封鎖／降級／刪除「自己」，也不能動到「環境變數指定的管理員信箱」帳號
 //       （那些是設定裡的老大，只能改設定，不能在網頁上互鎖）。
 import { json } from "../../../../lib/site.js";
 import { adminOk, getSessionUser, adminEmails, SERVICES } from "../../../../lib/auth.js";
@@ -30,7 +30,7 @@ function idOf(params) {
   return id > 0 ? id : null;
 }
 
-// 這個帳號是不是「設定檔裡欽定的站長」（環境變數 ADMIN_EMAILS）—— 網頁上不能動他
+// 這個帳號是不是「設定檔裡欽定的管理員」（環境變數 ADMIN_EMAILS）—— 網頁上不能動他
 function isRootAdmin(row, env) {
   return adminEmails(env).indexOf(String(row.email || "").toLowerCase()) >= 0;
 }
@@ -97,7 +97,7 @@ export async function onRequestPut(context) {
       400
     );
 
-  const me = await getSessionUser(request, env); // 金鑰身分時為 null（金鑰＝超級站長，不受自我保護限制）
+  const me = await getSessionUser(request, env); // 金鑰身分時為 null（金鑰＝超級管理員，不受自我保護限制）
   const target = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(id).first();
   if (!target) return json({ error: "not-found" }, 404);
 
@@ -114,7 +114,7 @@ export async function onRequestPut(context) {
 
   const demoting = body.action === "block" || body.action === "drop_admin";
   if (demoting && isRootAdmin(target, env)) {
-    return json({ error: "protected", hint: "這是設定檔指定的站長帳號，請改 ADMIN_EMAILS 環境變數" }, 403);
+    return json({ error: "protected", hint: "這是設定檔指定的管理員帳號，請改 ADMIN_EMAILS 環境變數" }, 403);
   }
   if (me && me.id === target.id && demoting) {
     return json({ error: "self", hint: "不能封鎖或降級自己" }, 400);
@@ -181,7 +181,7 @@ export async function onRequestDelete(context) {
   const target = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(id).first();
   if (!target) return json({ error: "not-found" }, 404);
   if (isRootAdmin(target, env))
-    return json({ error: "protected", hint: "設定檔指定的站長帳號不能在此刪除" }, 403);
+    return json({ error: "protected", hint: "設定檔指定的管理員帳號不能在此刪除" }, 403);
   if (me && me.id === target.id) return json({ error: "self", hint: "不能刪除自己" }, 400);
 
   try {

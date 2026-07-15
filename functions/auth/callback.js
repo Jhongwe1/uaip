@@ -30,7 +30,7 @@ function fail(text) {
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  // 登入流程的失敗要進站內錯誤日誌（會員只會看到 miniPage，站長在 /logs 錯誤分頁看原因）
+  // 登入流程的失敗要進站內錯誤日誌（會員只會看到 miniPage，管理員在 /logs 錯誤分頁看原因）
   const oops = function (err, detail) {
     reportError(
       env,
@@ -99,8 +99,8 @@ export async function onRequestGet(context) {
   const isAdm = adminEmails(env).indexOf(email) >= 0;
   const now = new Date().toISOString();
 
-  // 建立或更新會員：新帳號預設 pending（待站長核准）；站長信箱自動核准＋管理員。
-  // 既有帳號每次登入同步信箱／名字／頭像；被加進站長清單的舊帳號也在這裡自動升級。
+  // 建立或更新會員：新帳號預設 pending（待管理員核准）；管理員信箱自動核准＋管理員。
+  // 既有帳號每次登入同步信箱／名字／頭像；被加進管理員清單的舊帳號也在這裡自動升級。
   await env.DB.prepare(
     "INSERT INTO users (google_sub,email,name,picture,status,is_admin,vpn_token,created_at,last_login) " +
       "VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?8) " +

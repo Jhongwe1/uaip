@@ -1,10 +1,10 @@
 /* account.js — 右上角「帳號」按鈕（2026-07-11 Google 登入上線）。全站每頁載入。
    未登入：顯示「登入」小鈕 → 導向 Google 登入。
-   已登入：顯示大頭貼 → 下拉選單（信箱、API 中轉站、VPN 訂閱、站長：成員管理、登出）。
+   已登入：顯示大頭貼 → 下拉選單（信箱、API 中轉站、VPN 訂閱、管理員：成員管理、登出）。
 
    為了「一般匿名訪客不要無謂打 API」：登入時伺服器種了一個非 HttpOnly 的提示 cookie
    ipua_auth=1；沒有這個 cookie 就直接畫「登入」鈕，完全不呼叫 /api/me。
-   站長身分另有提示 cookie ipua_adm=1 → 用來決定要不要載入編輯工具 adminbar.js。 */
+   管理員身分另有提示 cookie ipua_adm=1 → 用來決定要不要載入編輯工具 adminbar.js。 */
 (function () {
   "use strict";
   if (window.__ipuaAccount) return;
@@ -93,17 +93,17 @@
     var head = el("div", "acct-me");
     head.appendChild(el("div", "nm", me.name || me.email));
     head.appendChild(el("div", "em", me.email));
-    if (me.is_admin) head.appendChild(el("span", "acct-badge ok", tx("站長", "Admin")));
+    if (me.is_admin) head.appendChild(el("span", "acct-badge ok", tx("管理員", "Admin")));
     else if (me.status === "approved") head.appendChild(el("span", "acct-badge", tx("已核准", "Approved")));
     else head.appendChild(el("span", "acct-badge warn", tx("待核准", "Pending")));
     panel.appendChild(head);
     panel.appendChild(el("div", "acct-hr"));
 
-    // 純文字項目，不加前綴小圖示（站長 2026-07-14 要求全站拿掉這類裝飾）
-    // 項目清單以站長指定為準，不要擅自加（LLM playground 曾被加過又被要求移除）
+    // 純文字項目，不加前綴小圖示（管理員 2026-07-14 要求全站拿掉這類裝飾）
+    // 項目清單以管理員指定為準，不要擅自加（LLM playground 曾被加過又被要求移除）
     function link(text, href) { var a = el("a", "acct-item", text); a.href = href; panel.appendChild(a); }
     link(tx("API 中轉站", "API relay"), "/relay");
-    // VPN 隱形（2026-07-14）：站長或被批准 vpn 服務的人才看得到這個入口
+    // VPN 隱形（2026-07-14）：管理員或被批准 vpn 服務的人才看得到這個入口
     if (me.is_admin || (me.services || []).indexOf("vpn") >= 0) link(tx("VPN", "VPN"), "/vpn");
     if (me.is_admin) {
       panel.appendChild(el("div", "acct-hr"));
@@ -163,7 +163,7 @@
       if (d && d.user) {
         window.__ipuaMe = d.user;
         mountAvatar(d.user);
-        // 站長 → 載入側邊欄編輯工具（若還沒被 index.html/shell 的判斷載入）
+        // 管理員 → 載入側邊欄編輯工具（若還沒被 index.html/shell 的判斷載入）
         if (d.user.is_admin && !window.__ipuaAdminbar) {
           var s = document.createElement("script"); s.src = "/assets/adminbar.js?v=20260714"; document.head.appendChild(s);
         }

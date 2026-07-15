@@ -1,7 +1,7 @@
-// GET /api-docs — API 文件頁（站長專用）。
+// GET /api-docs — API 文件頁（管理員專用）。
 // 跟 /logs、/admin 同一套金鑰閘門模式：頁面本身只是空殼＋金鑰輸入框，
 // 文件內容要帶金鑰打 /api/admin/apidoc 才拿得到，再由瀏覽器端 marked 渲染 —
-// 沒金鑰的人看不到文件內容。noindex、選單也只有站長裝置才會長出入口。
+// 沒金鑰的人看不到文件內容。noindex、選單也只有管理員裝置才會長出入口。
 import { html, pageShell } from "../lib/site.js";
 import { getChromeFor } from "../lib/chrome.js";
 
@@ -58,7 +58,7 @@ export async function onRequestGet({ request, env }) {
     GATE_CSS +
     "</style>\n" +
     '<div id="docGate" class="gatecard" hidden>\n' +
-    '  <p>API 文件只開放站長閱讀。用站長 Google 帳號 <a href="/auth/login?next=/api-docs">登入</a>，或輸入管理金鑰（與 /logs、/admin 同一把）；金鑰只存在這台裝置的瀏覽器裡。</p>\n' +
+    '  <p>API 文件只開放管理員閱讀。用管理員 Google 帳號 <a href="/auth/login?next=/api-docs">登入</a>，或輸入管理金鑰（與 /logs、/admin 同一把）；金鑰只存在這台裝置的瀏覽器裡。</p>\n' +
     '  <form id="docForm"><input id="docToken" type="password" autocomplete="off" placeholder="管理金鑰"><button type="submit">進入</button></form>\n' +
     '  <div id="docErr" class="gateerr" hidden>⚠ 金鑰不正確，請再試一次。</div>\n' +
     "</div>\n" +
@@ -72,7 +72,7 @@ export async function onRequestGet({ request, env }) {
   return html(
     pageShell({
       title: "API 文件",
-      desc: "站長專用的 API 使用說明。",
+      desc: "管理員專用的 API 使用說明。",
       noindex: true,
       chrome: chrome,
       activePath: "/api-docs",

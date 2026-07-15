@@ -1,4 +1,4 @@
-// GET /logs — 訪客紀錄管理頁（站長專用）。
+// GET /logs — 訪客紀錄管理頁（管理員專用）。
 // 2026-07-09 起改用全站共用外殼（lib/site.js pageShell）：☰ 側邊欄、日夜、EN/中 與其他頁一致。
 // 頁面行為在 public/assets/logs.js；資料要帶金鑰打 /api/logs 才拿得到，沒金鑰只會看到驗證畫面。
 import { html, pageShell, ADMIN_CSS } from "../lib/site.js";
@@ -32,8 +32,8 @@ const PAGE_CSS = `
 const BODY = `
 <!-- 金鑰輸入（驗證失敗或第一次來會顯示） -->
 <section id="gate" class="card hidden">
-  <div class="card-title">站長驗證</div>
-  <p class="hint">這一頁只有站長能看。用站長 Google 帳號 <a href="/auth/login?next=/logs">登入</a>，或輸入管理金鑰（LOGS_TOKEN）；金鑰只會存在這台裝置的瀏覽器裡，不會外傳。</p>
+  <div class="card-title">管理員驗證</div>
+  <p class="hint">這一頁只有管理員能看。用管理員 Google 帳號 <a href="/auth/login?next=/logs">登入</a>，或輸入管理金鑰（LOGS_TOKEN）；金鑰只會存在這台裝置的瀏覽器裡，不會外傳。</p>
   <form id="gateForm" class="query">
     <input id="tokenInput" type="password" autocomplete="off" placeholder="管理金鑰">
     <button type="submit">進入</button>
@@ -145,7 +145,7 @@ export async function onRequestGet({ request, env }) {
   return html(
     pageShell({
       title: "訪客紀錄",
-      desc: "站長專用的訪客紀錄管理頁。",
+      desc: "管理員專用的訪客紀錄管理頁。",
       noindex: true,
       chrome: chrome,
       activePath: "/logs",

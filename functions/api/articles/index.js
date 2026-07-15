@@ -1,4 +1,4 @@
-// GET /api/articles — 公開：已發佈文章列表（草稿一律看不到；要含草稿請用站長版 /api/admin/articles）。
+// GET /api/articles — 公開：已發佈文章列表（草稿一律看不到；要含草稿請用管理員版 /api/admin/articles）。
 // 參數：category=news|article（省略＝全部）、p=頁碼（預設 1）、per=每頁筆數（1–50，預設 10）。
 // 回傳：{ rows:[{id,category,title,summary,cover,views,published_at}], total, page, per, pages }
 import { json } from "../../../lib/site.js";

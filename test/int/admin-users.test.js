@@ -1,4 +1,4 @@
-// /api/admin/users/<id> — 分服務批准語意、狀態耦合、自我保護與 root 站長護欄。
+// /api/admin/users/<id> — 分服務批准語意、狀態耦合、自我保護與 root 管理員護欄。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
 import {
@@ -141,7 +141,7 @@ describe("set_quota（個人配額覆寫）", () => {
 });
 
 describe("護欄", () => {
-  it("root 站長（ADMIN_EMAILS 內建信箱）不能被封鎖／降級／刪除", async () => {
+  it("root 管理員（ADMIN_EMAILS 內建信箱）不能被封鎖／降級／刪除", async () => {
     const root = await seedAdmin(); // admin@example.com＝測試注入的 ADMIN_EMAILS 信箱
     for (const action of ["block", "drop_admin"]) {
       const r = await onRequestPut(putCtx(root.id, { action }));
@@ -152,7 +152,7 @@ describe("護欄", () => {
     expect(del.status).toBe(403);
   });
 
-  it("站長用 cookie 身分時不能封鎖／刪除自己", async () => {
+  it("管理員用 cookie 身分時不能封鎖／刪除自己", async () => {
     const admin = await seedUser({ email: "second-admin@example.com", status: "approved", is_admin: 1 });
     const sess = await createSession(env, admin, new URL(ORIGIN + "/"));
     const selfCtx = (method) =>

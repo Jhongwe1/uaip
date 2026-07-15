@@ -136,9 +136,9 @@
 <body>
 
 <!-- 側邊欄：最左上角 ☰ 開啟。#sbMenu 裡是選單本體 — 頁面先內建預設（SEO/斷網 fallback），
-     載入後由 loadMenu() 從 /api/menu 取得站長自訂選單覆蓋（站長可在 ✎ 編輯模式改選單）。
+     載入後由 loadMenu() 從 /api/menu 取得管理員自訂選單覆蓋（管理員可在 ✎ 編輯模式改選單）。
      /ip、/ua 是本頁分頁：renderMenu 會補 data-nav，點了走前端 showTab 切換（不重新載入）。
-     #sbAdmin 是站長區容器 — 一般訪客永遠是空的；登入過後台的裝置由 adminbar.js 動態長出
+     #sbAdmin 是管理員區容器 — 一般訪客永遠是空的；登入過後台的裝置由 adminbar.js 動態長出
      「文章管理 / 訪客紀錄 / API 文件」，選單重繪（只動 #sbMenu）不會把它洗掉。 -->
 <button id="menuBtn" class="ctrl" aria-label="選單 / Menu" aria-expanded="false" aria-controls="sidebar">
   <svg width="16" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M1 1h14M1 7h14M1 13h14"/></svg>
@@ -323,7 +323,7 @@
       "os.bits":"({n}位)","err.query":"查詢失敗，請稍後再試",
       "sb.title":"選單","sb.content":"內容","sb.news":"新聞","sb.posts":"文章","sb.tools":"工具",
       "sb.services":"服務","sb.relay":"API 中轉站","sb.vpn":"VPN",
-      "sb.admin":"站長","sb.manage":"文章管理","sb.logs":"訪客紀錄",
+      "sb.admin":"管理員","sb.manage":"文章管理","sb.logs":"訪客紀錄",
       "theme.day":"白天模式（點擊切換）","theme.night":"夜間模式（點擊切換）","theme.auto":"自動日夜（點擊切換）"
     },
     en: {
@@ -856,7 +856,7 @@
     document.title = t("doc.title");
     $$("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
     $$("[data-i18n-ph]").forEach(function(el){ el.placeholder = t(el.getAttribute("data-i18n-ph")); });
-    // 自訂選單／站長區項目：中文寫在內容裡、英文放 data-en（第一次先把中文備份到 data-zh）
+    // 自訂選單／管理員區項目：中文寫在內容裡、英文放 data-en（第一次先把中文備份到 data-zh）
     $$("[data-en]").forEach(function(el){
       if(!el.getAttribute("data-zh")) el.setAttribute("data-zh", el.textContent);
       var ev = el.getAttribute("data-en");
@@ -922,11 +922,11 @@
       showTab(a.getAttribute("data-nav"), true);
       setOpen(false);
     });
-    // 站長區（文章管理/訪客紀錄/API 文件）不在這裡 — 由 adminbar.js 注入 #sbAdmin，
+    // 管理員區（文章管理/訪客紀錄/API 文件）不在這裡 — 由 adminbar.js 注入 #sbAdmin，
     // 一般訪客（localStorage 沒金鑰）根本不會載入那支程式。
   }
 
-  /* ================= 側邊欄選單（站長可在 ✎ 編輯模式自訂，存 D1） ================= */
+  /* ================= 側邊欄選單（管理員可在 ✎ 編輯模式自訂，存 D1） ================= */
   // 頁面 HTML 內建預設選單當底；載入後從 /api/menu 拿最新（有快取先畫快取，網路回來再更新）。
   function renderMenu(items){
     if(document.querySelector(".ab-ed")) return;   // 選單編輯器開著 → 別把編輯畫面蓋掉
@@ -1038,7 +1038,7 @@
     initAds();
     startIPQuery("");   // 載入即查自己的 IP（也用來判斷日夜）
 
-    // 站長工具（✎ 編輯模式＋站長捷徑）：登入過後台的裝置或本機開發才載入，
+    // 管理員工具（✎ 編輯模式＋管理員捷徑）：登入過後台的裝置或本機開發才載入，
     // 一般訪客完全不會下載這支程式。真正的權限在伺服器端驗金鑰。
     try{
       if(localStorage.getItem("ipua-logs-token") || /^(localhost|127\.)/.test(location.hostname)){

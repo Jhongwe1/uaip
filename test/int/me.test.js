@@ -46,7 +46,7 @@ describe("/api/me", () => {
     expect(j.user.services).toEqual([]);
   });
 
-  it("站長：is_admin=true、全服務", async () => {
+  it("管理員：is_admin=true、全服務", async () => {
     const a = await seedAdmin();
     const j = await (await onRequestGet(await meCtx(a))).json();
     expect(j.user.is_admin).toBe(true);
@@ -68,7 +68,7 @@ describe("/api/me", () => {
     expect(j.user.usage).toEqual({ relay_today: 2, relay_limit: 9 }); // 沒 pg 權限 → pg 鍵省略
   });
 
-  it("usage：站長 limit=null（無上限）；兩服務都沒權限 → 整塊省略", async () => {
+  it("usage：管理員 limit=null（無上限）；兩服務都沒權限 → 整塊省略", async () => {
     const a = await seedAdmin();
     const ja = await (await onRequestGet(await meCtx(a))).json();
     expect(ja.user.usage.relay_limit).toBeNull();

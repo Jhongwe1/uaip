@@ -1,7 +1,7 @@
 // GET /api/settings — 公開：讀網站公開設定（白名單，只吐這幾個鍵）。
 // brand＝站名（settings 表沒 brand 鍵 → 回預設＝正式網址主機名，custom:false）。
 // pg_open＝Playground 是否對所有登入會員開放（true/false；沒設過＝false）。
-// contact_url＝站長對外聯絡連結（沒設＝空字串，前端就不顯示聯絡鈕）。
+// contact_url＝管理員對外聯絡連結（沒設＝空字串，前端就不顯示聯絡鈕）。
 import { json, siteBrand } from "../../lib/site.js";
 import { pgOpenAll } from "../../lib/auth.js";
 

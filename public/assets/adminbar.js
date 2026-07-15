@@ -1,8 +1,8 @@
-/* adminbar.js — 站長編輯工具（2026-07-11 改版：不再有右上角 ✎，全部收進 ☰ 側邊欄「站長」區）。
-   載入時機：登入過後台的裝置（localStorage 有金鑰）、Google 站長（account.js 偵測到 is_admin 後載入）、
+/* adminbar.js — 管理員編輯工具（2026-07-11 改版：不再有右上角 ✎，全部收進 ☰ 側邊欄「管理員」區）。
+   載入時機：登入過後台的裝置（localStorage 有金鑰）、Google 管理員（account.js 偵測到 is_admin 後載入）、
    或本機開發。一般訪客不會下載這支；真正的權限仍在伺服器端每支 /api/admin/* 驗證。
 
-   側邊欄「站長」區提供（2026-07-14 起純文字、不加前綴小圖示）：
+   側邊欄「管理員」區提供（2026-07-14 起純文字、不加前綴小圖示）：
      編輯這篇文章（文章頁才有）、新增文章、編輯選單、網站名稱、
      文章管理、成員管理、訪客紀錄、API 文件
    編輯選單＝把側邊欄變成編輯器（↑↓ 排序、改名、刪除、＋連結/分類、還原預設），即時自動儲存。 */
@@ -44,7 +44,7 @@
     });
   }
   function alertErr(e) {
-    if (e && e.auth) alert(tx("登入已失效 — 請用站長 Google 帳號重新登入，或到 /admin 輸入管理金鑰。", "Session expired — sign in again."));
+    if (e && e.auth) alert(tx("登入已失效 — 請用管理員 Google 帳號重新登入，或到 /admin 輸入管理金鑰。", "Session expired — sign in again."));
     else alert(tx("操作失敗：", "Failed: ") + (e && e.message || e));
   }
 
@@ -84,7 +84,7 @@
   var artM = location.pathname.match(/^\/(news|articles)\/(\d+)$/);   // 文章頁 → 可「編輯這篇」
   var newCat = /^\/articles/.test(location.pathname) ? "article" : "news";
 
-  /* ===== 側邊欄「站長」區（純文字，不加前綴小圖示 — 站長 2026-07-14 要求） ===== */
+  /* ===== 側邊欄「管理員」區（純文字，不加前綴小圖示 — 管理員 2026-07-14 要求） ===== */
   function itemLink(zh, en, href) {
     var a = el("a", "sb-link sb-action", tx(zh, en));
     a.href = href;
@@ -105,8 +105,8 @@
     if (!host || host.getAttribute("data-ab")) return;
     host.setAttribute("data-ab", "1");
 
-    var sec = el("div", "sb-sec", tx("站長", "Admin"));
-    sec.setAttribute("data-en", "Admin"); sec.setAttribute("data-zh", "站長");
+    var sec = el("div", "sb-sec", tx("管理員", "Admin"));
+    sec.setAttribute("data-en", "Admin"); sec.setAttribute("data-zh", "管理員");
     host.appendChild(sec);
 
     if (artM) host.appendChild(itemLink("編輯這篇文章", "Edit this post", "/admin?edit=" + artM[2]));

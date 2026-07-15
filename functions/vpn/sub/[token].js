@@ -1,7 +1,7 @@
 // GET /vpn/sub/<token> — VPN 訂閱鏡像端點（給 Clash／v2rayN 等 App 直接訂閱）。
 // token 就是驗證本身（等於會員的訂閱網址），不需要登入 cookie，方便 App 定時更新。
 //
-// 2026-07-12 多渠道化：上游來源存 vpn_channels 表（站長在 /vpn 頁管理），
+// 2026-07-12 多渠道化：上游來源存 vpn_channels 表（管理員在 /vpn 頁管理），
 // 這裡把「所有啟用中渠道」合併成一份訂閱回給會員 — 會員看不到渠道存在與上游網址。
 //
 // 合併規則（按渠道數自動選最相容的做法）：
@@ -122,7 +122,7 @@ export async function onRequestGet(context) {
     );
   } catch (e) {}
 
-  // 沒有任何訂閱渠道：只回手動節點（也沒有 → 站長還沒設定）
+  // 沒有任何訂閱渠道：只回手動節點（也沒有 → 管理員還沒設定）
   if (!subs.length) {
     if (!manual.length) return textResp("no subscription configured", 404);
     return textResp(b64encode(dedupe(manual).join("\n")), 200, { "profile-update-interval": "12" });

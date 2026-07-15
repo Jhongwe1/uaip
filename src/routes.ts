@@ -64,7 +64,7 @@ import { onRequestPost as acctKeyPost, onRequestDelete as acctKeyDel } from "../
 import { onRequestPost as acctVpnToken } from "../functions/api/account/vpn-token.js";
 import { onRequestPost as acctLogoutAll } from "../functions/api/account/logout-all.js";
 
-// —— 站長 API ——
+// —— 管理員 API ——
 import { onRequestGet as admApidoc } from "../functions/api/admin/apidoc.js";
 import {
   onRequestGet as admErrorsGet,
@@ -119,7 +119,7 @@ type H = MethodMap[string];
 const G = (fn: unknown): MethodMap => ({ GET: fn as H });
 
 export const ROUTES: Array<[string, MethodMap]> = [
-  // 站長內容 API（放最前面，確保 :id/:slug 段不被別的規則搶）
+  // 管理員內容 API（放最前面，確保 :id/:slug 段不被別的規則搶）
   ["/api/admin/apidoc", G(admApidoc)],
   ["/api/admin/errors", { GET: admErrorsGet as H, DELETE: admErrorsDel as H }],
   ["/api/admin/media", { POST: admMedia as H }],

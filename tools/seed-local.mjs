@@ -1,4 +1,4 @@
-// tools/seed-local.mjs — 本機開發資料種子：塞一個站長、一個已批准會員、
+// tools/seed-local.mjs — 本機開發資料種子：塞一個管理員、一個已批准會員、
 // 一個 relay 渠道（假上游，聊天會 502 但頁面全部能看）。可重複執行（OR IGNORE）。
 // 先跑 npm run migrate:local 建表，再跑 npm run seed。
 import { execFileSync } from "node:child_process";
@@ -7,7 +7,7 @@ import { writeFileSync, rmSync } from "node:fs";
 const now = new Date().toISOString();
 const sql = `
 INSERT OR IGNORE INTO users (google_sub,email,name,status,services,is_admin,vpn_token,created_at,last_login)
-VALUES ('dev:admin@example.com','admin@example.com','站長（本機）','approved','',1,'uvtdevadmintoken2345','${now}','${now}');
+VALUES ('dev:admin@example.com','admin@example.com','管理員（本機）','approved','',1,'uvtdevadmintoken2345','${now}','${now}');
 INSERT OR IGNORE INTO users (google_sub,email,name,status,services,is_admin,vpn_token,created_at,last_login)
 VALUES ('dev:member@example.com','member@example.com','測試會員','approved','relay,playground',0,'uvtdevmembertoken234','${now}','${now}');
 INSERT OR IGNORE INTO relay_channels (slug,name,kind,base_url,api_key,models,enabled,created_at)
@@ -26,4 +26,4 @@ try {
 } finally {
   rmSync(tmp, { force: true });
 }
-console.log("本機種子完成：站長 admin@example.com、會員 member@example.com、渠道 demo。");
+console.log("本機種子完成：管理員 admin@example.com、會員 member@example.com、渠道 demo。");

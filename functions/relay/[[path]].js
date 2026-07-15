@@ -1,7 +1,7 @@
 // /relay/<管道slug>/<上游路徑…> — API 中轉站的轉發引擎（2026-07-11 上線）。
 //
 // 會員把 AI 工具的 base URL 換成 https://uaip.cc.cd/relay/<slug>，金鑰填自己的 uak- 金鑰，
-// 伺服器驗過會員身分後把驗證換成站長存的上游金鑰、原樣轉發（含串流回應）。
+// 伺服器驗過會員身分後把驗證換成管理員存的上游金鑰、原樣轉發（含串流回應）。
 // 例：POST /relay/openai/v1/chat/completions → POST https://api.openai.com/v1/chat/completions
 //
 // 會員金鑰放哪裡都收（配合各家 SDK 的習慣）：
@@ -53,10 +53,10 @@ export async function onRequest(context) {
   const user = await userFromKey(env, key);
   if (!user) return json({ error: "bad-key", hint: "金鑰無效或已被重新產生 — 到 /relay 看看目前這把" }, 401);
   if (!hasService(user, env, "relay")) {
-    return json({ error: "not-approved", hint: "帳號還沒被站長批准使用中轉站，批准後金鑰才會生效" }, 403);
+    return json({ error: "not-approved", hint: "帳號還沒被管理員批准使用中轉站，批准後金鑰才會生效" }, 403);
   }
 
-  // 1.5) 配額（站長豁免；超額 429＋Retry-After，見 lib/quota.js）
+  // 1.5) 配額（管理員豁免；超額 429＋Retry-After，見 lib/quota.js）
   const quota = await checkQuota(env, user, "relay");
   if (!quota.ok) return quota.resp;
 

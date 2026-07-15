@@ -116,7 +116,7 @@ describe("playground chat", () => {
     expect((await onRequestPost(none)).status).toBe(404);
   });
 
-  it("上游先失敗（HTTP 500）：會員只看安全分類字、站長看得到原文", async () => {
+  it("上游先失敗（HTTP 500）：會員只看安全分類字、管理員看得到原文", async () => {
     const member = await seedUser({ status: "approved", services: "playground" });
     await seedChannel({ slug: "pg3", base_url: UP, models: "m" });
     fetchMock
@@ -150,7 +150,7 @@ describe("playground chat", () => {
     });
     const j2 = await (await onRequestPost(ctx2)).json();
     await drainWaits(ctx2);
-    expect(j2.detail).toContain("secret provider detail"); // 站長除錯用
+    expect(j2.detail).toContain("secret provider detail"); // 管理員除錯用
     // 埋點：上游 5xx 也留了站內錯誤（src=pg.upstream）
     const errs = await env.DB.prepare("SELECT COUNT(*) c FROM errlog WHERE src='pg.upstream'").first();
     expect(errs.c).toBe(2);

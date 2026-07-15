@@ -1,4 +1,4 @@
-// /api/admin/relay/channels — 站長專用：API 中轉站的上游管道管理。
+// /api/admin/relay/channels — 管理員專用：API 中轉站的上游管道管理。
 //   GET  列出全部管道（上游金鑰一律遮罩，只回 has_key 與提示）
 //   POST 新增管道 { slug, name, kind, base_url, api_key?, enabled? }
 // kind：openai（OpenAI 與所有 OpenAI 相容服務，含本地 AI）/ anthropic / gemini / custom。
@@ -37,7 +37,7 @@ export function modelList(r) {
 }
 
 // 名稱 → 自動網址代稱：能轉英數就用名稱（gemini official → gemini-official），
-// 轉不出來（中文名等）就給隨機代稱。站長介面 2026-07-14 起不再要求填 slug。
+// 轉不出來（中文名等）就給隨機代稱。管理員介面 2026-07-14 起不再要求填 slug。
 export function autoSlug(name) {
   let s = String(name || "")
     .toLowerCase()

@@ -1,4 +1,4 @@
-// /api/admin/vpn/channels/<編號> — 站長專用：PUT 更新渠道、DELETE 刪除渠道。
+// /api/admin/vpn/channels/<編號> — 管理員專用：PUT 更新渠道、DELETE 刪除渠道。
 // PUT 整包覆蓋，唯一例外：本體「沒帶 url 欄位」＝上游訂閱網址保留舊值
 //（帶空字串 ""＝清掉）。這樣改名／停用不用重貼網址。
 import { json } from "../../../../../lib/site.js";

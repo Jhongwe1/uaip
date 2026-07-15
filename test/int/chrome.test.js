@@ -62,7 +62,7 @@ describe("getChromeFor 四種身分", () => {
       true
     );
   });
-  it("站長：看得到（不看 services 欄）", async () => {
+  it("管理員：看得到（不看 services 欄）", async () => {
     const adm = await seedAdmin();
     expect((await getChromeFor(env, await reqAs(adm))).chrome.menu.some((i) => i.url === "/vpn")).toBe(true);
     expect(canSeeVpn(adm, env)).toBe(true);
@@ -99,7 +99,7 @@ describe("/vpn 頁隱形（stub env.ASSETS）", () => {
       expect(await r.text()).toBe(SPA); // 拿到的是 SPA 殼，不是 VPN 頁
     }
   });
-  it("有 vpn 服務的會員與站長 → 真的 VPN 頁", async () => {
+  it("有 vpn 服務的會員與管理員 → 真的 VPN 頁", async () => {
     for (const user of [await seedUser({ status: "approved", services: "vpn" }), await seedAdmin()]) {
       const r = await hit(user);
       expect(r.status).toBe(200);
@@ -125,7 +125,7 @@ describe("/api/me 的 vpn 欄位省略矩陣", () => {
     expect("vpn_pulls" in j.user).toBe(false);
     expect(j.user.services).toEqual(["relay"]);
   });
-  it("有 vpn 權限／站長：欄位照給", async () => {
+  it("有 vpn 權限／管理員：欄位照給", async () => {
     const u = await seedUser({ status: "approved", services: "vpn", vpn_token: "uvt" + "y".repeat(20) });
     const j = await meFor(u);
     expect(j.user.vpn_token).toBe("uvt" + "y".repeat(20));

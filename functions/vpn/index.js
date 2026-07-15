@@ -1,7 +1,7 @@
 // GET /vpn — VPN 訂閱（會員頁）。
-// 2026-07-14 VPN 隱形：非（站長或已批准 vpn 服務）的訪客 — 包含匿名 — 一律回
+// 2026-07-14 VPN 隱形：非（管理員或已批准 vpn 服務）的訪客 — 包含匿名 — 一律回
 // 靜態 SPA（env.ASSETS），跟打一個不存在的路徑一模一樣：頁面「不存在」。
-// 已授權會員 → 顯示專屬訂閱網址＋複製鈕＋一鍵匯入＋教學；站長另有渠道管理卡。
+// 已授權會員 → 顯示專屬訂閱網址＋複製鈕＋一鍵匯入＋教學；管理員另有渠道管理卡。
 // 訂閱內容由 functions/vpn/sub/<token> 產生（驗 token→抓上游→轉發）。
 // 註（記在 ADMIN.md）：已授權但「未登入」的人訪 /vpn 也看到 SPA — 隱形的必然代價；
 // 登入後從頭像選單進入。
@@ -140,10 +140,10 @@ const VPN_JS = `
     if(me.is_admin)root.appendChild(adminCard());
   }
 
-  /* ===== 站長：渠道管理（多上游，會員看不到） ===== */
+  /* ===== 管理員：渠道管理（多上游，會員看不到） ===== */
   function adminCard(){
     var card=el("div","card");
-    var h=el("h2");h.appendChild(document.createTextNode(tx("渠道管理（站長）","Channels admin")));
+    var h=el("h2");h.appendChild(document.createTextNode(tx("渠道管理（管理員）","Channels admin")));
     var add=el("button","btn pri",tx("＋ 新增","＋ Add"));
     h.appendChild(add);card.appendChild(h);
     card.appendChild(el("p","lead",tx("找到便宜的機場就加進來：會員的訂閱網址不變，伺服器自動合併所有「啟用中」渠道的節點，會員看不到上游。只開一個訂閱渠道時原樣轉發（含流量資訊、支援 Clash YAML）；開兩個以上會合併成 base64 節點訂閱（v2rayN／Shadowrocket／NekoBox 都吃）。","Add cheap upstreams here. Members keep one URL; the server merges nodes from every enabled channel and upstreams stay hidden. With one sub channel content is passed through as-is; with several they're merged into a base64 node list.")));

@@ -37,7 +37,7 @@ describe("relay 配額", () => {
     expect((await r.json()).error).toBe("quota-exceeded");
   });
 
-  it("站長帶自己的金鑰不吃配額（quota_relay_day=0 也照轉）", async () => {
+  it("管理員帶自己的金鑰不吃配額（quota_relay_day=0 也照轉）", async () => {
     const adm = await seedAdmin({ quota_relay_day: 0, rl_per_min: 0 });
     const key = await giveKey(adm);
     await seedChannel({ slug: "m2" });

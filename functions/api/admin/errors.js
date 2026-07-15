@@ -1,4 +1,4 @@
-// /api/admin/errors — 站長專用：站內錯誤日誌（errlog 表；relay/pg/oauth/csp 埋點寫入）。
+// /api/admin/errors — 管理員專用：站內錯誤日誌（errlog 表；relay/pg/oauth/csp 埋點寫入）。
 //   GET    ?limit=50&offset=0&src=relay.upstream → { rows, total }（新的在前）
 //   DELETE 清空全部
 import { json } from "../../../lib/site.js";

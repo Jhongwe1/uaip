@@ -1,5 +1,5 @@
-// GET /members — 成員管理（站長專用頁）。
-// 非站長（未登入／一般會員）→ 顯示「僅限站長」擋板。站長 → 列出所有帳號，
+// GET /members — 成員管理（管理員專用頁）。
+// 非管理員（未登入／一般會員）→ 顯示「僅限管理員」擋板。管理員 → 列出所有帳號，
 // 可核准／封鎖／解封／升降管理員／刪除。所有動作打 /api/admin/users。
 // 頁面最上方另有「Playground 開放給所有登入會員」全站開關（settings.pg_open，打 /api/admin/settings）。
 import { html, pageShell } from "../lib/site.js";
@@ -47,7 +47,7 @@ export async function onRequestGet({ request, env }) {
     pageShell({
       title: "成員管理",
       tkey: "page.members",
-      desc: "站長專用的成員管理頁。",
+      desc: "管理員專用的成員管理頁。",
       noindex: true,
       chrome: chrome,
       activePath: "/members",
@@ -71,12 +71,12 @@ const MEMBERS_JS = `
   }
 
   function paint(){
-    if(!me){MU.gateLogin(root,tx("成員管理","Members"),tx("這一頁只有站長能看，請先登入。","Owner only. Please sign in."));return;}
+    if(!me){MU.gateLogin(root,tx("成員管理","Members"),tx("這一頁只有管理員能看，請先登入。","Owner only. Please sign in."));return;}
     if(!me.is_admin){
       root.innerHTML="";root.appendChild(MU.acctCard(me));
       var g=el("div","gate");
-      g.appendChild(el("h2",null,tx("僅限站長","Owner only")));
-      g.appendChild(el("p",null,tx("這一頁只有站長能看。","This page is for the site owner only.")));
+      g.appendChild(el("h2",null,tx("僅限管理員","Owner only")));
+      g.appendChild(el("p",null,tx("這一頁只有管理員能看。","This page is for the site owner only.")));
       root.appendChild(g);return;
     }
     render();
@@ -176,8 +176,8 @@ const MEMBERS_JS = `
     if(r.status==="pending")act(tx("批准全部服務","Approve all"),"approve","pri");
     if(r.status==="approved"&&!r.is_admin)act(tx("封鎖","Block"),"block");
     if(r.status==="blocked")act(tx("解封","Unblock"),"unblock","pri");
-    if(!r.is_admin&&r.status!=="blocked")act(tx("設為站長","Make admin"),"make_admin");
-    if(r.is_admin&&(!me||me.id!==r.id))act(tx("取消站長","Drop admin"),"drop_admin");
+    if(!r.is_admin&&r.status!=="blocked")act(tx("設為管理員","Make admin"),"make_admin");
+    if(r.is_admin&&(!me||me.id!==r.id))act(tx("取消管理員","Drop admin"),"drop_admin");
     if(!me||me.id!==r.id){
       var del=el("button","mbtn danger",tx("刪除","Delete"));
       del.addEventListener("click",function(){
@@ -249,12 +249,12 @@ const MEMBERS_JS = `
   }
 
   // 分服務批准：每個會員三顆服務開關（實心＝已批准），點一下切換。
-  // 站長帳號不用開關（天生全通）；封鎖中的帳號開關鎖住（先解封再說）。
+  // 管理員帳號不用開關（天生全通）；封鎖中的帳號開關鎖住（先解封再說）。
   var SVC=[["playground","Playground"],["relay",null],["vpn","VPN"]];
   function svcChips(r){
     var box=el("div","svcs");
     box.appendChild(el("span","lb",tx("服務","SERVICES")));
-    if(r.is_admin){box.appendChild(el("span","muted",tx("站長＝全部服務","admin = all services")));return box;}
+    if(r.is_admin){box.appendChild(el("span","muted",tx("管理員＝全部服務","admin = all services")));return box;}
     var cur=String(r.services||"").split(",").filter(Boolean);
     SVC.forEach(function(s){
       var label=s[1]||(s[0]==="relay"?tx("中轉站","Relay"):s[0]);

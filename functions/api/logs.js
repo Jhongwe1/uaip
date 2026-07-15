@@ -1,4 +1,4 @@
-// GET /api/logs — 訪客紀錄查詢（站長專用，給 /logs 管理頁呼叫）。
+// GET /api/logs — 訪客紀錄查詢（管理員專用，給 /logs 管理頁呼叫）。
 // 驗證：Authorization: Bearer <LOGS_TOKEN>；LOGS_TOKEN 是 Cloudflare Pages 的加密環境變數
 //（用 `npx wrangler pages secret put LOGS_TOKEN --project-name uaip` 設定/更換）。
 // 本機開發（localhost 且沒設 LOGS_TOKEN）免驗證，方便測試；正式站一定要過金鑰。
@@ -6,7 +6,7 @@
 // 參數：limit（1–200，預設 50）、offset（分頁）、q（模糊搜尋 ip/ua/path/country/city/isp）、
 //       since（ISO 時間，回傳該時間之後的瀏覽數與不重複 IP 數，管理頁拿來算「今日」）。
 
-// 2026-07-11 起：站長 Google 帳號的登入 cookie 也可以（與金鑰並存），驗證邏輯統一在 lib/auth.js
+// 2026-07-11 起：管理員 Google 帳號的登入 cookie 也可以（與金鑰並存），驗證邏輯統一在 lib/auth.js
 import { adminOk } from "../../lib/auth.js";
 
 export async function onRequestGet({ request, env }) {

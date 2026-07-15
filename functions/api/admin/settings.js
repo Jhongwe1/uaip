@@ -1,6 +1,6 @@
-// PUT /api/admin/settings — 站長專用：改網站設定。**本體帶哪個鍵就改哪個鍵**（沒帶的不動）：
+// PUT /api/admin/settings — 管理員專用：改網站設定。**本體帶哪個鍵就改哪個鍵**（沒帶的不動）：
 //   brand:   新站名（最長 60 字）；空字串＝刪掉自訂站名＝還原預設（正式網址主機名）。
-//   contact_url: 站長對外聯絡連結（http/https，最長 300 字；顯示在會員頁登入閘門的「聯絡我」鈕）。
+//   contact_url: 管理員對外聯絡連結（http/https，最長 300 字；顯示在會員頁登入閘門的「聯絡我」鈕）。
 //            空字串或 null＝刪鍵＝不顯示聯絡鈕。
 //   pg_open: true/false — Playground 對所有登入會員開放（不必逐人批准；封鎖者照擋）。
 //            存 settings 表 pg_open='1'；false＝刪鍵＝回到逐人批准。

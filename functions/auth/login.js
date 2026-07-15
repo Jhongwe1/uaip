@@ -14,7 +14,7 @@ export async function onRequestGet({ request, env }) {
     if (isLocal(url)) return devForm(next);
     return miniPage(
       "Google 登入尚未開通",
-      "<p>站長還沒設定 Google 登入憑證（GOOGLE_CLIENT_ID／GOOGLE_CLIENT_SECRET）。設定方式見專案 ADMIN.md。</p>" +
+      "<p>管理員還沒設定 Google 登入憑證（GOOGLE_CLIENT_ID／GOOGLE_CLIENT_SECRET）。設定方式見專案 ADMIN.md。</p>" +
         '<a class="btn" href="/">回首頁</a>',
       503
     );
@@ -80,7 +80,7 @@ function devForm(next, err) {
   return miniPage(
     "本機測試登入",
     "<p>本機開發模式（正式站是真正的 Google 登入）。輸入信箱就能以該身分登入；" +
-      "輸入站長信箱＝站長身分。</p>" +
+      "輸入管理員信箱＝管理員身分。</p>" +
       (err ? "<p>⚠ " + err + "</p>" : "") +
       '<form method="POST" action="/auth/login">' +
       '<input type="hidden" name="next" value="' +

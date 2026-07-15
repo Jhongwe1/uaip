@@ -1,5 +1,5 @@
 // GET /api/playground/models — Playground 可選的模型清單（依渠道分組）。
-// 要有 playground 服務（或站長金鑰）；不含任何上游金鑰與網址。
+// 要有 playground 服務（或管理員金鑰）；不含任何上游金鑰與網址。
 import { json } from "../../../lib/site.js";
 import { pgUser, chModels } from "../../../lib/playground.js";
 

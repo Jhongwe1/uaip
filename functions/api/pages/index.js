@@ -1,4 +1,4 @@
-// GET /api/pages — 公開：已發佈自訂頁面列表（草稿看不到；要含草稿用站長版 /api/admin/pages）。
+// GET /api/pages — 公開：已發佈自訂頁面列表（草稿看不到；要含草稿用管理員版 /api/admin/pages）。
 // 回傳：{ rows:[{slug,title,summary,updated_at}] }；每頁的公開網址是 /p/<slug>。
 import { json } from "../../../lib/site.js";
 

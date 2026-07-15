@@ -1,5 +1,5 @@
 // OAuth 授權碼流程（/auth/callback）全流程 — 用 fetchMock 攔 Google token 端點。
-// 這是「任何人能不能變成會員／站長」的信任邊界，遷移前一定要有網。
+// 這是「任何人能不能變成會員／管理員」的信任邊界，遷移前一定要有網。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
 import { onRequestGet as callback } from "../../functions/auth/callback.js";
@@ -71,9 +71,9 @@ describe("OAuth callback 全流程", () => {
     expect(row.vpn_token).toMatch(/^uvt[a-z2-7]{20}$/);
   });
 
-  it("站長信箱：自動 approved＋is_admin=1", async () => {
+  it("管理員信箱：自動 approved＋is_admin=1", async () => {
     const sub = "g-adm-" + Math.random().toString(36).slice(2);
-    mockToken(idToken({ sub, aud: CID, email: "admin@example.com", email_verified: true, name: "站長" }));
+    mockToken(idToken({ sub, aud: CID, email: "admin@example.com", email_verified: true, name: "管理員" }));
     const ctx = cbCtx("c", "s", "s|/", { ADMIN_EMAILS: "admin@example.com" });
     const r = await callback(ctx);
     await drainWaits(ctx);

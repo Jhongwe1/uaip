@@ -1,4 +1,4 @@
-// POST /api/admin/media — 站長專用：上傳圖片（後台已先在瀏覽器壓縮）。
+// POST /api/admin/media — 管理員專用：上傳圖片（後台已先在瀏覽器壓縮）。
 // 內容直接放在請求本體（二進位），Content-Type 帶圖片格式，?w=寬&h=高 供後台顯示。
 // 存進 D1 的 media 表，之後由 /img/<編號> 讀出；D1 單一值上限 2MB，這裡收 1.8MB 以下。
 import { json } from "../../../lib/site.js";

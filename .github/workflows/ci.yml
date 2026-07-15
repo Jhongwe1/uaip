@@ -1,4 +1,4 @@
-# CI — 只跑檢查與測試（站長拍板：部署照舊在本機跑 npm run deploy，CI 不碰部署）。
+# CI — 只跑檢查與測試（管理員拍板：部署照舊在本機跑 npm run deploy，CI 不碰部署）。
 # 綠燈 ＝ lint 過、Prettier 無漂移、typecheck 過、全部測試過、apidoc 與 CSP hash 沒漂移、無外洩秘密。
 name: CI
 

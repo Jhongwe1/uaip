@@ -1,4 +1,4 @@
-// GET /api/admin/stats?days=7 — 站長專用：req_log 用量統計（/logs 用量分頁＋延遲/成本報告的數據源）。
+// GET /api/admin/stats?days=7 — 管理員專用：req_log 用量統計（/logs 用量分頁＋延遲/成本報告的數據源）。
 // 回 {
 //   days, since,
 //   by_day:     每日×服務的請求數／平均耗時／平均首位元組／token 合計

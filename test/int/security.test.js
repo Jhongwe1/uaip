@@ -44,7 +44,7 @@ describe("/api/account/logout-all（會員自助撤銷全部裝置）", () => {
   });
 });
 
-describe("站長 revoke_sessions", () => {
+describe("管理員 revoke_sessions", () => {
   it("目標會員所有裝置立即失效、帳號狀態不動、寫 audit", async () => {
     const u = await seedUser({ status: "approved", services: "relay" });
     await createSession(env, u, new URL(ORIGIN + "/"));

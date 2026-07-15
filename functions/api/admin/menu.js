@@ -1,4 +1,4 @@
-// PUT /api/admin/menu — 站長專用：整包覆蓋側邊欄選單。
+// PUT /api/admin/menu — 管理員專用：整包覆蓋側邊欄選單。
 // 本體 { items: [ { kind:"section"|"link", label, label_en?, url? }, … ] }，依陣列順序顯示。
 // 傳空陣列 = 清空自訂選單 = 還原成內建預設。整個覆蓋動作在同一個交易裡（batch），不會存到一半。
 import { json } from "../../../lib/site.js";

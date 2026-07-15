@@ -19,7 +19,7 @@
 | **管理** | `/members` `/admin` `/logs` `/api-docs` | 會員／服務／配額管理、文章後台、訪客＋錯誤＋用量儀表板、自架 API 文件。 |
 
 身分：Google OAuth → HttpOnly session（sid 只存雜湊）。每個會員可**分服務批准**
-（relay／vpn／playground）；站長＝環境變數欽定的信箱清單。所有管理變更都寫稽核日誌。
+（relay／vpn／playground）；管理員＝環境變數欽定的信箱清單。所有管理變更都寫稽核日誌。
 
 ## 設計裁決（ADR，誠實記錄取捨）
 
@@ -51,14 +51,14 @@
 ```bash
 npm ci                    # 開發工具鏈（vitest、wrangler、tsc）— 執行期依然零依賴
 npm run migrate:local     # 從 migrations/ 建本機 D1
-npm run seed              # 選用：本機種子（站長＋會員＋示範渠道）
-npm run dev               # http://localhost:8788（localhost 的站長 API 免金鑰）
+npm run seed              # 選用：本機種子（管理員＋會員＋示範渠道）
+npm run dev               # http://localhost:8788（localhost 的管理員 API 免金鑰）
 npm run checks            # typecheck＋全部測試
 npm run deploy            # 重建 apidoc＋wrangler pages deploy（千萬不要加「.」）
 npm run migrate:remote    # 正式庫套新 migration（要在 deploy 之前跑）
 ```
 
-首次設定（Cloudflare 登入、Google OAuth 憑證、站長信箱）見 [ADMIN.md](./ADMIN.md)。
+首次設定（Cloudflare 登入、Google OAuth 憑證、管理員信箱）見 [ADMIN.md](./ADMIN.md)。
 API 快速上手（發文、開頁面、掛選單）見 [API.md](./API.md)（線上版在 `/api-docs`）。
 
 ## 文件地圖
@@ -67,7 +67,7 @@ API 快速上手（發文、開頁面、掛選單）見 [API.md](./API.md)（線
 |---|---|
 | [API.md](./API.md) | **完整 API 文件**：所有端點、參數、欄位規則、curl 範例（線上 /api-docs 的原稿） |
 | [AGENTS.md](./AGENTS.md) | **給 AI agent 的操作指南**：金鑰在哪、照抄流程、驗證清單 |
-| [ADMIN.md](./ADMIN.md) | 站長維護筆記：部署眉角、資料庫維護、會員系統設定（金鑰明文只在 gitignored 的 ADMIN.local.md） |
+| [ADMIN.md](./ADMIN.md) | 管理員維護筆記：部署眉角、資料庫維護、會員系統設定（金鑰明文只在 gitignored 的 ADMIN.local.md） |
 | [DEBT.md](./DEBT.md) | 已知債務與門檻（何時該還） |
 | `.claude/skills/uaip-api/` | Claude Code skill 入口（薄殼，指向 AGENTS.md 與 API.md） |
 

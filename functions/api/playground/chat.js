@@ -1,7 +1,7 @@
 // POST /api/playground/chat — Playground 的聊天端點（SSE 串流）。
 // 本體：{ conv_id?, channel, model, messages:[{role,content}…] }（messages＝完整上下文，最後一則是 user）。
 //
-// 流程：驗身分（cookie 或站長金鑰）→ 查渠道與模型 → 沒帶 conv_id 就自動開新對話
+// 流程：驗身分（cookie 或管理員金鑰）→ 查渠道與模型 → 沒帶 conv_id 就自動開新對話
 // → 存 user 訊息 → 帶上游金鑰打上游（串流）→ 轉成統一 SSE 回瀏覽器
 // → 串完（或會員按停止）把 assistant 回覆存進 D1。
 //
@@ -26,9 +26,9 @@ import { checkQuota } from "../../../lib/quota.js";
 import { reportError, reportErrorNow } from "../../../lib/observe.js";
 
 // 會員看的上游錯誤一律用「安全分類字」— 上游的原始錯誤內容（格式、文件連結、專案編號）
-// 會洩漏真實提供商身分，只有站長能看原文（除錯用）。
+// 會洩漏真實提供商身分，只有管理員能看原文（除錯用）。
 function safeHint(status) {
-  if (status === 401 || status === 403) return "渠道憑證可能失效，請聯絡站長";
+  if (status === 401 || status === 403) return "渠道憑證可能失效，請聯絡管理員";
   if (status === 429) return "上游流量限制，請稍後再試";
   if (status >= 500) return "上游暫時故障，請稍後再試";
   return "上游回應異常（HTTP " + status + "）";
@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
   const user = who.user;
   const isAdm = isAdminUser(user, env);
 
-  // 配額：一定要在「任何 D1 寫入之前」— 429 時連對話都不會建（站長豁免）
+  // 配額：一定要在「任何 D1 寫入之前」— 429 時連對話都不會建（管理員豁免）
   const quota = await checkQuota(env, user, "pg");
   if (!quota.ok) return quota.resp;
 
@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
   const v = cleanChat(body);
   if (v.err) return json({ error: "bad-input", hint: v.err }, 400);
 
-  // 渠道與模型（模型一定要在渠道設定的清單裡 — 會員只能用站長開出來的）
+  // 渠道與模型（模型一定要在渠道設定的清單裡 — 會員只能用管理員開出來的）
   let ch = null;
   try {
     ch = await env.DB.prepare("SELECT * FROM relay_channels WHERE slug=?1 AND enabled=1")
@@ -67,7 +67,7 @@ export async function onRequestPost(context) {
     return json({ error: "bad-model", hint: "渠道「" + ch.name + "」沒有開放模型「" + v.model + "」" }, 400);
   }
   if (!ch.api_key)
-    return json({ error: "no-upstream-key", hint: "渠道還沒設定上游金鑰，請站長到 /relay 補上" }, 502);
+    return json({ error: "no-upstream-key", hint: "渠道還沒設定上游金鑰，請管理員到 /relay 補上" }, 502);
 
   // 對話：沒帶 conv_id＝開新對話（標題自動取第一句 user 訊息）
   const now = new Date().toISOString();
@@ -109,7 +109,7 @@ export async function onRequestPost(context) {
   try {
     resp = await fetch(up.url, { method: "POST", headers: up.headers, body: up.body });
   } catch (e) {
-    // fetch 例外訊息可能含主機名 → 只有站長看得到；站內 errlog 留完整一筆
+    // fetch 例外訊息可能含主機名 → 只有管理員看得到；站內 errlog 留完整一筆
     reportError(
       env,
       function (p) {
@@ -265,7 +265,7 @@ export async function onRequestPost(context) {
         // 持久化失敗＝會員的回覆沒存進去 — 一定要留痕跡（已在 waitUntil 裡，直接 await）
         await reportErrorNow(env, "pg.persist", e, { user_id: user.id, path: "/playground/" + v.channel });
       }
-      // 串流中途的錯誤訊息是上游原文（會露出提供商身分）→ 會員只看安全字，站長看原文
+      // 串流中途的錯誤訊息是上游原文（會露出提供商身分）→ 會員只看安全字，管理員看原文
       if (errMsg) {
         await reportErrorNow(env, "pg.stream", errMsg, {
           user_id: user.id,
