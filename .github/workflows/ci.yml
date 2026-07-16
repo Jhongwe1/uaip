@@ -47,6 +47,25 @@ jobs:
       - name: CSP hash 防漂移
         run: node tools/check-csp.mjs
 
+  # E2E（Playwright，Phase M）：真瀏覽器×wrangler dev×mock 上游，只跑 chromium。
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
   # 秘密外洩掃描（gitleaks）：擋住把金鑰／token commit 進 repo。
   # 公開前的硬性防線之一（另有 Phase O 的 filter-repo 洗歷史＋GitHub push protection）。
   gitleaks:

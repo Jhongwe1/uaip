@@ -15,6 +15,10 @@ node_modules/
 *.log
 npm-debug.log*
 
+# Playwright E2E 產物（Phase M）
+test-results/
+playwright-report/
+
 # 本機專用的管理筆記（LOGS_TOKEN 等秘密只放這裡，絕不進版控）
 ADMIN.local.md
 

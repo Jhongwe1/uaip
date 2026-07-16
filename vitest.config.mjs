@@ -14,6 +14,7 @@ export default defineWorkersConfig(async () => {
   const migrations = await readD1Migrations(path.join(here, "migrations"));
   return {
     test: {
+      include: ["test/**/*.test.ts"], // e2e/*.spec.ts 是 Playwright 的（Phase M），vitest 不碰
       setupFiles: ["./test/apply-migrations.ts"],
       poolOptions: {
         workers: {
