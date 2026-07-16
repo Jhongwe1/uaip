@@ -36,3 +36,8 @@ SITE_ORIGIN = "https://uaip.cc.cd"
 binding = "DB"
 database_name = "ipua-logs"
 database_id = "75e2b765-66fd-4946-99c4-4524b4149ce0"
+
+# 本機 wrangler dev 用 localhost 當 request.url 的 host（不設的話會拿 routes 的正式網域，
+# localhost 免金鑰／dev 登入表單全會失效）。只影響本機，不影響部署。
+[dev]
+host = "localhost"
