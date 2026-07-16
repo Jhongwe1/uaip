@@ -7,9 +7,10 @@ import { onRequestGet as meGet } from "../../src/routes/api/me.js";
 import { DEFAULT_MENU } from "../../src/lib/site.js";
 import { createSession } from "../../src/lib/auth.js";
 import { makeCtx, seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
+import type { UserRow } from "../../src/types.js";
 
-async function reqAs(user, path) {
-  const headers = {};
+async function reqAs(user: UserRow | null, path?: string) {
+  const headers: Record<string, string> = {};
   if (user) {
     const s = await createSession(env, user, new URL(ORIGIN + "/"));
     headers.cookie = "ipua_sess=" + s.sid;
@@ -27,15 +28,15 @@ describe("filterMenu（純函式）", () => {
   ];
   it("showVpn=false：/vpn 與 /vpn/ 開頭的項目消失，其餘原樣", () => {
     const out = filterMenu(menu, false);
-    expect(out.map((i) => i.url)).toEqual(["", "/relay", "/articles/9"]);
+    expect(out.map((i: any) => i.url)).toEqual(["", "/relay", "/articles/9"]);
   });
   it("showVpn=true：一項都不動", () => {
     expect(filterMenu(menu, true)).toEqual(menu);
   });
   it("內建預設選單也適用", () => {
     const out = filterMenu(DEFAULT_MENU, false);
-    expect(out.some((i) => i.url === "/vpn")).toBe(false);
-    expect(out.some((i) => i.url === "/relay")).toBe(true);
+    expect(out.some((i: any) => i.url === "/vpn")).toBe(false);
+    expect(out.some((i: any) => i.url === "/relay")).toBe(true);
   });
 });
 
@@ -43,28 +44,30 @@ describe("getChromeFor 四種身分", () => {
   it("匿名：無 VPN 項、user=null", async () => {
     const r = await getChromeFor(env, await reqAs(null));
     expect(r.user).toBeNull();
-    expect(r.chrome.menu.some((i) => i.url === "/vpn")).toBe(false);
+    expect(r.chrome.menu.some((i: any) => i.url === "/vpn")).toBe(false);
     expect(r.chrome.brand).toBeTruthy();
   });
   it("pending 會員：無 VPN 項", async () => {
     const u = await seedUser({ status: "pending" });
     const r = await getChromeFor(env, await reqAs(u));
-    expect(r.user.id).toBe(u.id);
-    expect(r.chrome.menu.some((i) => i.url === "/vpn")).toBe(false);
+    expect(r.user!.id).toBe(u.id);
+    expect(r.chrome.menu.some((i: any) => i.url === "/vpn")).toBe(false);
   });
   it("approved 但沒 vpn 服務：無 VPN 項；有 vpn 服務：看得到", async () => {
     const noVpn = await seedUser({ status: "approved", services: "relay,playground" });
-    expect((await getChromeFor(env, await reqAs(noVpn))).chrome.menu.some((i) => i.url === "/vpn")).toBe(
+    expect((await getChromeFor(env, await reqAs(noVpn))).chrome.menu.some((i: any) => i.url === "/vpn")).toBe(
       false
     );
     const withVpn = await seedUser({ status: "approved", services: "vpn" });
-    expect((await getChromeFor(env, await reqAs(withVpn))).chrome.menu.some((i) => i.url === "/vpn")).toBe(
-      true
-    );
+    expect(
+      (await getChromeFor(env, await reqAs(withVpn))).chrome.menu.some((i: any) => i.url === "/vpn")
+    ).toBe(true);
   });
   it("管理員：看得到（不看 services 欄）", async () => {
     const adm = await seedAdmin();
-    expect((await getChromeFor(env, await reqAs(adm))).chrome.menu.some((i) => i.url === "/vpn")).toBe(true);
+    expect((await getChromeFor(env, await reqAs(adm))).chrome.menu.some((i: any) => i.url === "/vpn")).toBe(
+      true
+    );
     expect(canSeeVpn(adm, env)).toBe(true);
   });
 });
@@ -79,8 +82,8 @@ describe("/vpn 頁隱形（stub env.ASSETS）", () => {
       }
     });
 
-  async function hit(user) {
-    const headers = {};
+  async function hit(user: UserRow | null) {
+    const headers: Record<string, string> = {};
     if (user) {
       const s = await createSession(env, user, new URL(ORIGIN + "/"));
       headers.cookie = "ipua_sess=" + s.sid;
@@ -112,8 +115,8 @@ describe("/vpn 頁隱形（stub env.ASSETS）", () => {
 });
 
 describe("/api/me 的 vpn 欄位省略矩陣", () => {
-  async function meFor(user) {
-    const headers = {};
+  async function meFor(user: UserRow): Promise<any> {
+    const headers: Record<string, string> = {};
     const s = await createSession(env, user, new URL(ORIGIN + "/"));
     headers.cookie = "ipua_sess=" + s.sid;
     return (await meGet(makeCtx({ url: ORIGIN + "/api/me", init: { headers } }))).json();

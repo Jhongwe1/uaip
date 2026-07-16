@@ -21,13 +21,13 @@ async function adminHeaders() {
 }
 
 // 共用斷言：200＋text/html＋CSP nonce
-async function expectPage(r) {
+async function expectPage(r: Response) {
   expect(r.status).toBe(200);
   expect(r.headers.get("content-type")).toContain("text/html");
   expect(r.headers.get("content-security-policy")).toContain("nonce-");
   const text = await r.text();
   // 蓋到 nonce 的 script 一定帶本回應的 nonce（外殼至少一顆）
-  const nonce = r.headers.get("content-security-policy").match(/'nonce-([^']+)'/)[1];
+  const nonce = r.headers.get("content-security-policy")!.match(/'nonce-([^']+)'/)![1];
   expect(text).toContain('nonce="' + nonce + '"');
   return text;
 }

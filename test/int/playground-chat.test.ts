@@ -13,6 +13,7 @@ import {
   sseEvents,
   ORIGIN
 } from "../helpers.js";
+import type { UserRow } from "../../src/types.js";
 
 const UP = "https://api.example.com";
 
@@ -22,7 +23,7 @@ beforeAll(() => {
 });
 afterEach(() => fetchMock.assertNoPendingInterceptors());
 
-async function chatCtx(user, body) {
+async function chatCtx(user: UserRow, body: unknown) {
   const sess = await createSession(env, user, new URL(ORIGIN + "/"));
   return makeCtx({
     url: ORIGIN + "/api/playground/chat",
@@ -38,8 +39,8 @@ async function chatCtx(user, body) {
   });
 }
 
-const openaiSSE = (chunks) =>
-  chunks.map((c) => 'data: {"choices":[{"delta":{"content":' + JSON.stringify(c) + "}}]}").join("\n\n") +
+const openaiSSE = (chunks: string[]) =>
+  chunks.map((c: any) => 'data: {"choices":[{"delta":{"content":' + JSON.stringify(c) + "}}]}").join("\n\n") +
   "\n\ndata: [DONE]\n\n";
 
 describe("playground chat", () => {
@@ -82,8 +83,8 @@ describe("playground chat", () => {
     expect(events[0].title).toBe("打招呼");
     expect(
       events
-        .filter((e) => e.d)
-        .map((e) => e.d)
+        .filter((e: any) => e.d)
+        .map((e: any) => e.d)
         .join("")
     ).toBe("你好");
     expect(events[events.length - 1].done).toBe(true);
@@ -92,9 +93,9 @@ describe("playground chat", () => {
     const msgs = await env.DB.prepare("SELECT role,content FROM pg_messages WHERE conv_id=?1 ORDER BY id")
       .bind(convId)
       .all();
-    expect(msgs.results.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(msgs.results.map((m: any) => m.role)).toEqual(["user", "assistant"]);
     expect(msgs.results[1].content).toBe("你好");
-    const conv = await env.DB.prepare("SELECT * FROM pg_conversations WHERE id=?1").bind(convId).first();
+    const conv = await env.DB.prepare("SELECT * FROM pg_conversations WHERE id=?1").bind(convId).first<any>();
     expect(conv.user_id).toBe(user.id);
     expect(conv.model).toBe("gpt-t");
   });
@@ -132,7 +133,7 @@ describe("playground chat", () => {
     const r = await onRequestPost(ctx);
     await drainWaits(ctx); // 埋點（errlog）是背景寫入，要等它收尾
     expect(r.status).toBe(502);
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.error).toBe("upstream-error");
     expect(j.detail).toBeUndefined(); // 原文不外洩
     expect(JSON.stringify(j)).not.toContain("secret provider detail");
@@ -148,11 +149,11 @@ describe("playground chat", () => {
       model: "m",
       messages: [{ role: "user", content: "x" }]
     });
-    const j2 = await (await onRequestPost(ctx2)).json();
+    const j2: any = await (await onRequestPost(ctx2)).json();
     await drainWaits(ctx2);
     expect(j2.detail).toContain("secret provider detail"); // 管理員除錯用
     // 埋點：上游 5xx 也留了站內錯誤（src=pg.upstream）
-    const errs = await env.DB.prepare("SELECT COUNT(*) c FROM errlog WHERE src='pg.upstream'").first();
+    const errs = await env.DB.prepare("SELECT COUNT(*) c FROM errlog WHERE src='pg.upstream'").first<any>();
     expect(errs.c).toBe(2);
   });
 
@@ -174,7 +175,7 @@ describe("playground chat", () => {
     });
     const events = sseEvents(await readAll(await onRequestPost(ctx)));
     await drainWaits(ctx);
-    const errEv = events.find((e) => e.error);
+    const errEv = events.find((e: any) => e.error);
     expect(errEv).toBeTruthy();
     expect(errEv.hint).not.toContain("provider blew up"); // 淨化
     const convId = events[0].conv;
@@ -182,7 +183,7 @@ describe("playground chat", () => {
       "SELECT content FROM pg_messages WHERE conv_id=?1 AND role='assistant'"
     )
       .bind(convId)
-      .first();
+      .first<any>();
     expect(saved.content).toBe("部分"); // 部分內容留住
   });
 
@@ -203,7 +204,7 @@ describe("playground chat", () => {
     });
     const events = sseEvents(await readAll(await onRequestPost(ctx)));
     await drainWaits(ctx);
-    expect(events.find((e) => e.d).d).toBe("整包回覆");
+    expect(events.find((e: any) => e.d).d).toBe("整包回覆");
     expect(events[events.length - 1].done).toBe(true);
   });
 

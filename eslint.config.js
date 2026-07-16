@@ -29,10 +29,10 @@ export default [
   },
   js.configs.recommended,
 
-  // 後端 .ts（src/，Phase F 起全面 TypeScript）
+  // 後端＋測試 .ts（Phase F 起全面 TypeScript）
   ...tseslint.configs.recommended.map((c) => ({
     ...c,
-    files: ["src/**/*.ts"]
+    files: ["src/**/*.ts", "test/**/*.ts"]
   })),
   {
     files: ["src/**/*.ts"],
@@ -52,14 +52,12 @@ export default [
 
   // 測試（vitest；node＋worker 都會用到）
   {
-    files: ["test/**/*.js"],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: "module",
-      globals: { ...workerGlobals, ...globals.node }
-    },
+    files: ["test/**/*.ts"],
+    languageOptions: { globals: { ...workerGlobals, ...globals.node } },
     rules: {
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      // 測試斷言大量對付「邊界形狀」（回應 JSON、D1 整列）— 與 src 同樣允許 any
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", caughtErrors: "none" }],
       "no-empty": ["warn", { allowEmptyCatch: true }]
     }
   },

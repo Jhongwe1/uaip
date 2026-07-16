@@ -12,7 +12,7 @@ import { onRequestGet as articleApi } from "../../src/routes/api/articles/[id].j
 import { onRequestGet as pageApi } from "../../src/routes/api/pages/[slug].js";
 import { makeCtx, ORIGIN } from "../helpers.js";
 
-async function pubArticle(over) {
+async function pubArticle(over?: Record<string, unknown>) {
   const now = new Date().toISOString();
   const o = Object.assign(
     { category: "news", title: "文", summary: "要", body_md: "內文", status: "published" },
@@ -40,7 +40,7 @@ describe("/feed（RSS）", () => {
   });
   it("草稿不出現在 feed", async () => {
     await pubArticle({ title: "秘密草稿", status: "draft" });
-    const xml = await (await feed(makeCtx({ url: ORIGIN + "/feed" }))).text();
+    const xml: any = await (await feed(makeCtx({ url: ORIGIN + "/feed" }))).text();
     expect(xml).not.toContain("秘密草稿");
   });
 });
@@ -91,7 +91,7 @@ describe("/api/health", () => {
   it("回 ok/version/db=true", async () => {
     const r = await health(makeCtx({ url: ORIGIN + "/api/health" }));
     expect(r.status).toBe(200);
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.ok).toBe(true);
     expect(j.db).toBe(true);
     expect(typeof j.version).toBe("string");
@@ -109,7 +109,7 @@ describe("/api/whoami", () => {
     expect(r.status).toBe(200);
     expect(r.headers.get("access-control-allow-origin")).toBe("*");
     expect(r.headers.get("cache-control")).toBe("no-store");
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.ua).toBe("smoke-ua");
     expect(j.lang).toBe("zh-TW");
     expect("latitude" in j).toBe(true);
@@ -118,15 +118,15 @@ describe("/api/whoami", () => {
 
 describe("/api/menu", () => {
   it("空表回內建預設 custom:false", async () => {
-    const j = await (await menu(makeCtx({ url: ORIGIN + "/api/menu" }))).json();
+    const j: any = await (await menu(makeCtx({ url: ORIGIN + "/api/menu" }))).json();
     expect(j.custom).toBe(false);
-    expect(j.items.some((i) => i.url === "/playground")).toBe(true);
+    expect(j.items.some((i: any) => i.url === "/playground")).toBe(true);
   });
   it("有自訂列回 custom:true", async () => {
     await env.DB.prepare(
       "INSERT INTO menu (pos,kind,label,label_en,url) VALUES (0,'link','自訂','Custom','/x')"
     ).run();
-    const j = await (await menu(makeCtx({ url: ORIGIN + "/api/menu" }))).json();
+    const j: any = await (await menu(makeCtx({ url: ORIGIN + "/api/menu" }))).json();
     expect(j.custom).toBe(true);
     expect(j.items[0].url).toBe("/x");
   });
@@ -135,7 +135,7 @@ describe("/api/menu", () => {
 describe("/api/articles/<id> 與 /api/pages/<slug>（公開讀）", () => {
   it("已發佈文章回 row；?html=1 附消毒後 body_html", async () => {
     const id = await pubArticle({ title: "讀文", body_md: "**粗**\n\n<script>x</script>" });
-    let j = await (
+    let j: any = await (
       await articleApi(makeCtx({ url: ORIGIN + "/api/articles/" + id, params: { id: String(id) } }))
     ).json();
     expect(j.row.title).toBe("讀文");

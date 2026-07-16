@@ -5,7 +5,7 @@
 
 A single-maintainer engineering case study: a **zero-framework, zero-runtime-dependency
 LLM gateway with member management, metering/quotas, observability and a full content portal**,
-running entirely on Cloudflare Pages Functions + one D1 (SQLite) database. No servers,
+running entirely on a single Cloudflare Worker + one D1 (SQLite) database. No servers,
 no containers, no build step for the runtime — `git push` is the whole supply chain.
 
 ## What it does
@@ -27,11 +27,12 @@ Identity: Google OAuth → HttpOnly session (hashed sids). Per-service grants (`
 ```
                       Cloudflare edge
 ┌────────────────────────────────────────────────────────┐
-│ static SPA (public/)          Pages Functions          │
-│  /, /ip, /ua                  functions/**             │
-│  CSP: sha256 inline hash       ├─ SSR shell lib/site.js│
-│                                │   (per-request CSP    │
-│  _headers ──────────┐          │    nonce, one exit)   │
+│ static assets (public/)       Worker (src/index.ts)    │
+│  /, /ip, /ua                  src/routes/**            │
+│  CSP: sha256 inline hash       ├─ SSR shell            │
+│                                │   src/lib/site.ts     │
+│  _headers ──────────┐          │   (per-request CSP    │
+│                     │          │    nonce, one exit)   │
 │                     ▼          ├─ /relay pump ─────────┼──► any LLM upstream
 │               ┌──────────┐     ├─ /vpn/sub merge ──────┼──► airports
 │               │    D1    │◄────┤─ /api/** (JSON)       │
@@ -48,6 +49,8 @@ Design decisions are recorded as ADRs — the honest trade-offs, not just the wi
 - [ADR-0003 Shared upstream keys + quotas, not BYOK](./docs/adr/0003-shared-key-quota-not-byok.md)
 - [ADR-0004 CSP: per-request nonce (SSR) + sha256 (static)](./docs/adr/0004-csp-nonce-plus-hash.md)
 - [ADR-0005 Relay metering via pump, not tee()](./docs/adr/0005-relay-pump-metering-not-tee.md)
+- [ADR-0006 Pages → Workers migration](./docs/adr/0006-pages-to-workers.md)
+- [ADR-0008 Full TypeScript (strict)](./docs/adr/0008-typescript-strict.md)
 
 Also: [Threat model (STRIDE)](./docs/THREAT-MODEL.md) · [Honest comparison vs one-api / LiteLLM / OpenRouter / AI Gateway](./docs/COMPARISON.md) · [Known debt](./DEBT.md) · [Latency/cost report skeleton](./docs/REPORT-SKELETON.md) · [Security policy](./SECURITY.md)
 
@@ -69,9 +72,10 @@ Also: [Threat model (STRIDE)](./docs/THREAT-MODEL.md) · [Honest comparison vs o
 ## Repository layout
 
 ```
-functions/        Pages Functions: APIs, SSR pages, relay engine, middleware
-lib/              shared server code (site shell, auth, quota, observe, chrome, playground)
-public/           deployed static assets (SPA + client scripts + _headers CSP)
+src/              the Worker (TypeScript, strict): entry + hand-written router
+  src/routes/     route handlers: APIs, SSR pages, relay engine, middleware
+  src/lib/        shared server code (site shell, auth, quota, observe, chrome, playground)
+public/           static assets (SPA + client scripts + _headers CSP)
 migrations/       D1 schema, the only source of truth
 test/             vitest-pool-workers suites (unit + integration)
 tools/            build-apidoc / check-csp / seed-local
@@ -87,9 +91,9 @@ ADMIN.md          maintainer notes (secrets live in gitignored ADMIN.local.md)
 npm ci                    # dev toolchain (vitest, wrangler, tsc) — runtime has zero deps
 npm run migrate:local     # create local D1 from migrations/
 npm run seed              # optional: local admin/member/channel seed
-npm run dev               # http://localhost:8788 (admin APIs need no token on localhost)
+npm run dev               # http://localhost:8787 (admin APIs need no token on localhost)
 npm run checks            # typecheck + full test suite
-npm run deploy            # rebuild apidoc + wrangler pages deploy  (never pass ".")
+npm run deploy            # rebuild apidoc + wrangler deploy
 npm run migrate:remote    # apply new migrations to production (run BEFORE deploy)
 ```
 

@@ -62,7 +62,7 @@ export async function tokenEqual(a: string, b: string): Promise<boolean> {
 }
 
 // 金鑰顯示提示：uak-abcd…wxyz（明文不落地，資料庫只存雜湊）
-export function keyHint(key: string): string {
+export function keyHint(key: string | null | undefined): string {
   const k = String(key || "");
   return k.length < 12 ? k : k.slice(0, 8) + "…" + k.slice(-4);
 }
@@ -170,13 +170,13 @@ export async function deleteSession(request: Request, env: Env): Promise<void> {
 
 /* ===== 身分判斷 ===== */
 
-export function isAdminUser(user: UserRow | null | undefined, env: Env): boolean {
+export function isAdminUser(user: Partial<UserRow> | null | undefined, env: Env): boolean {
   if (!user || user.status === "blocked") return false;
   return user.is_admin === 1 || adminEmails(env).indexOf(String(user.email || "").toLowerCase()) >= 0;
 }
 
 // 核准過（或管理員）才能用中轉／VPN 這類會花錢的功能
-export function isApproved(user: UserRow | null | undefined, env: Env): boolean {
+export function isApproved(user: Partial<UserRow> | null | undefined, env: Env): boolean {
   if (!user || user.status === "blocked") return false;
   return user.status === "approved" || isAdminUser(user, env);
 }
@@ -187,7 +187,7 @@ export function isApproved(user: UserRow | null | undefined, env: Env): boolean 
 export const SERVICES = ["relay", "vpn", "playground"];
 
 // 這個會員被批准的服務清單（依 SERVICES 順序、只留合法值）；管理員＝全部。
-export function userServices(user: UserRow | null | undefined, env: Env): string[] {
+export function userServices(user: Partial<UserRow> | null | undefined, env: Env): string[] {
   if (!user || user.status === "blocked") return [];
   if (isAdminUser(user, env)) return SERVICES.slice();
   if (user.status !== "approved") return [];
@@ -228,7 +228,7 @@ export async function canUsePlayground(user: UserRow | null | undefined, env: En
 // CSRF 防線（cookie 身分專用）：瀏覽器跨站送出的請求會帶 Origin 標頭，
 // 不是自家網域就擋。沒有 Origin（curl、同站 GET 導覽）放行 — 那些拿不到回應或不是跨站。
 // 額外放行的網域只有 env.SITE_ORIGIN（正式網址；同源之外例如反向代理／預覽域打正式 API）。
-export function goodOrigin(request: Request, url: URL, env: Env): boolean {
+export function goodOrigin(request: Request, url: URL, env?: Env): boolean {
   const o = request.headers.get("origin") || "";
   if (!o) return true;
   if (o === "null") return false;

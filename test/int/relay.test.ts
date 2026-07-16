@@ -5,6 +5,7 @@ import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
 import { onRequest } from "../../src/routes/relay/[[path]].js";
 import { makeCtx, drainWaits, seedUser, giveKey, seedChannel, ORIGIN } from "../helpers.js";
+import type { ChannelRow } from "../../src/types.js";
 
 const UP = "https://api.example.com";
 
@@ -15,8 +16,9 @@ beforeAll(() => {
 afterEach(() => fetchMock.assertNoPendingInterceptors());
 
 // 攔一次上游請求並捕捉其 path/headers/body；回傳讀取器
-function interceptUpstream(reply) {
-  const cap = { path: null, headers: null, body: null };
+function interceptUpstream(reply: { status?: number; body?: string; headers?: Record<string, string> } = {}) {
+  // cap 收集上游實際收到的 path/method/headers/body — 形狀鬆散，測試各自斷言
+  const cap: any = { path: null, headers: null, body: null };
   fetchMock
     .get(UP)
     .intercept({
@@ -38,7 +40,7 @@ function interceptUpstream(reply) {
       }
     })
     .reply(reply.status || 200, reply.body || "", { headers: reply.headers || {} });
-  cap.header = (name) => {
+  cap.header = (name: string) => {
     const h = cap.headers || {};
     for (const k of Object.keys(h)) if (k.toLowerCase() === name) return h[k];
     return undefined;
@@ -46,7 +48,7 @@ function interceptUpstream(reply) {
   return cap;
 }
 
-async function relayCtx(path, init, params) {
+async function relayCtx(path: string, init?: RequestInit, params: string[] = []) {
   return makeCtx({
     url: ORIGIN + path,
     init,
@@ -55,7 +57,7 @@ async function relayCtx(path, init, params) {
 }
 
 // 佈置：已批准會員（有 relay 服務）＋金鑰＋一個 openai 渠道
-async function setup(chOver) {
+async function setup(chOver?: Partial<ChannelRow>) {
   const user = await seedUser({ status: "approved", services: "relay" });
   const key = await giveKey(user);
   const ch = await seedChannel(Object.assign({ slug: "up", kind: "openai" }, chOver || {}));
@@ -74,7 +76,7 @@ describe("relay 安全邊界", () => {
     const ctx = await relayCtx("/relay/up/v1/x", {}, ["up", "v1", "x"]);
     const r = await onRequest(ctx);
     expect(r.status).toBe(401);
-    expect((await r.json()).error).toBe("no-key");
+    expect(((await r.json()) as any).error).toBe("no-key");
   });
 
   it("金鑰無效 → 401 bad-key", async () => {
@@ -87,7 +89,7 @@ describe("relay 安全邊界", () => {
     );
     const r = await onRequest(ctx);
     expect(r.status).toBe(401);
-    expect((await r.json()).error).toBe("bad-key");
+    expect(((await r.json()) as any).error).toBe("bad-key");
   });
 
   it("沒被批准 relay 服務 → 403；封鎖 → 403", async () => {
@@ -104,7 +106,7 @@ describe("relay 安全邊界", () => {
       ]);
       const r = await onRequest(ctx);
       expect(r.status).toBe(403);
-      expect((await r.json()).error).toBe("not-approved");
+      expect(((await r.json()) as any).error).toBe("not-approved");
     }
   });
 
@@ -119,7 +121,7 @@ describe("relay 安全邊界", () => {
       );
       const r = await onRequest(ctx);
       expect(r.status).toBe(404);
-      expect((await r.json()).error).toBe("unknown-channel");
+      expect(((await r.json()) as any).error).toBe("unknown-channel");
     }
   });
 });
@@ -280,7 +282,7 @@ describe("relay 回應直通", () => {
     const r = await onRequest(ctx);
     await r.text();
     await drainWaits(ctx);
-    const row = await env.DB.prepare("SELECT relay_calls FROM users WHERE id=?1").bind(user.id).first();
+    const row = await env.DB.prepare("SELECT relay_calls FROM users WHERE id=?1").bind(user.id).first<any>();
     expect(row.relay_calls).toBe(1);
   });
 });

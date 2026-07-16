@@ -8,7 +8,7 @@ import { ORIGIN } from "../helpers.js";
 // 假 DB：只認 INSERT INTO visits，記下呼叫次數；其餘語句照樣回傳 no-op。
 function recordingEnv() {
   const state = { inserts: 0 };
-  const stmt = (sql) => ({
+  const stmt = (sql: string) => ({
     bind: () => ({
       run: async () => {
         if (/INSERT INTO visits/i.test(sql)) state.inserts++;
@@ -22,14 +22,13 @@ function recordingEnv() {
 }
 
 // 驅動一次請求並等背景寫入跑完；回傳 inserts 次數。
-async function run(path, opts) {
-  opts = opts || {};
+async function run(path: string, opts: { method?: string; headers?: Record<string, string> } = {}) {
   const { env, state } = recordingEnv();
-  const waits = [];
-  const ctx = {
+  const waits: Promise<unknown>[] = [];
+  const ctx: any = {
     request: new Request(ORIGIN + path, { method: opts.method || "GET", headers: opts.headers || {} }),
     env,
-    waitUntil: (p) => waits.push(Promise.resolve(p)),
+    waitUntil: (p: Promise<unknown>) => waits.push(Promise.resolve(p)),
     next: async () => new Response("ok")
   };
   const r = await onRequest(ctx);
@@ -100,11 +99,11 @@ describe("中介層永不影響網站本體", () => {
     expect(await resp.text()).toBe("ok");
   });
   it("沒有 env.DB 也不炸、照樣放行", async () => {
-    const waits = [];
-    const ctx = {
+    const waits: Promise<unknown>[] = [];
+    const ctx: any = {
       request: new Request(ORIGIN + "/news", { headers: HTML }),
       env: {},
-      waitUntil: (p) => waits.push(Promise.resolve(p)),
+      waitUntil: (p: Promise<unknown>) => waits.push(Promise.resolve(p)),
       next: async () => new Response("ok")
     };
     const r = await onRequest(ctx);

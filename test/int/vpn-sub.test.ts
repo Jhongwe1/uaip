@@ -12,7 +12,7 @@ afterEach(() => fetchMock.assertNoPendingInterceptors());
 
 const TOKEN = "uvt" + "a".repeat(20);
 
-function subCtx(token, ua) {
+function subCtx(token: string, ua?: string) {
   return makeCtx({
     url: ORIGIN + "/vpn/sub/" + token,
     init: { headers: ua ? { "user-agent": ua } : {} },
@@ -20,11 +20,11 @@ function subCtx(token, ua) {
   });
 }
 
-async function vpnUser(over) {
+async function vpnUser(over?: Record<string, unknown>) {
   return seedUser(Object.assign({ status: "approved", services: "vpn", vpn_token: TOKEN }, over || {}));
 }
 
-async function addChannel(o) {
+async function addChannel(o: Record<string, any>) {
   await env.DB.prepare(
     "INSERT INTO vpn_channels (name,kind,url,nodes,enabled,created_at) VALUES (?1,?2,?3,?4,?5,?6)"
   )
@@ -39,8 +39,8 @@ async function addChannel(o) {
     .run();
 }
 
-const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
-const unb64 = (s) => decodeURIComponent(escape(atob(s)));
+const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
+const unb64 = (s: string) => decodeURIComponent(escape(atob(s)));
 
 describe("vpn sub token 矩陣", () => {
   it("格式不對 → 404（不打庫）", async () => {
@@ -144,7 +144,7 @@ describe("vpn sub 合併規則", () => {
     const ctx = subCtx(TOKEN);
     await (await onRequestGet(ctx)).text();
     await drainWaits(ctx);
-    const row = await env.DB.prepare("SELECT vpn_pulls FROM users WHERE id=?1").bind(u.id).first();
+    const row = await env.DB.prepare("SELECT vpn_pulls FROM users WHERE id=?1").bind(u.id).first<any>();
     expect(row.vpn_pulls).toBe(1);
   });
 });

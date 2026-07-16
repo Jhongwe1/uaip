@@ -5,7 +5,7 @@ import { createSession, getSessionUser, deleteSession, sha256hex } from "../../s
 import { seedUser, ORIGIN } from "../helpers.js";
 
 const URL_ = new URL(ORIGIN + "/");
-const reqWith = (sid) =>
+const reqWith = (sid?: string | null) =>
   new Request(ORIGIN + "/api/me", {
     headers: sid ? { cookie: "ipua_sess=" + sid } : {}
   });
@@ -15,21 +15,21 @@ describe("session 生命週期", () => {
     const u = await seedUser({ status: "approved" });
     const sess = await createSession(env, u, URL_);
     expect(sess.sid).toMatch(/^[a-z2-7]{32}$/);
-    expect(sess.cookies.some((c) => c.startsWith("ipua_sess=") && c.includes("HttpOnly"))).toBe(true);
+    expect(sess.cookies.some((c: any) => c.startsWith("ipua_sess=") && c.includes("HttpOnly"))).toBe(true);
     const back = await getSessionUser(reqWith(sess.sid), env);
     expect(back).toBeTruthy();
-    expect(back.id).toBe(u.id);
-    expect(back.email).toBe(u.email);
+    expect(back!.id).toBe(u.id);
+    expect(back!.email).toBe(u.email);
   });
 
   it("資料庫裡沒有明文 sid — 存的是 SHA-256", async () => {
     const u = await seedUser();
     const sess = await createSession(env, u, URL_);
-    const plain = await env.DB.prepare("SELECT sid FROM sessions WHERE sid=?1").bind(sess.sid).first();
+    const plain = await env.DB.prepare("SELECT sid FROM sessions WHERE sid=?1").bind(sess.sid).first<any>();
     expect(plain).toBeNull();
     const hashed = await env.DB.prepare("SELECT sid FROM sessions WHERE sid=?1")
       .bind(await sha256hex(sess.sid))
-      .first();
+      .first<any>();
     expect(hashed).toBeTruthy();
   });
 
@@ -50,7 +50,7 @@ describe("session 生命週期", () => {
       .bind(u.id)
       .run();
     await createSession(env, u, URL_);
-    const dead = await env.DB.prepare("SELECT sid FROM sessions WHERE sid='deadhash'").first();
+    const dead = await env.DB.prepare("SELECT sid FROM sessions WHERE sid='deadhash'").first<any>();
     expect(dead).toBeNull();
   });
 

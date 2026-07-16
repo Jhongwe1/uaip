@@ -21,7 +21,7 @@ describe("json（API 回應工具）", () => {
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toContain("application/json");
     expect(r.headers.get("cache-control")).toBe("no-store");
-    expect(await r.json()).toEqual({ ok: true });
+    expect((await r.json()) as any).toEqual({ ok: true });
   });
   it("自訂狀態碼", () => {
     expect(json({ error: "x" }, 403).status).toBe(403);
@@ -36,13 +36,13 @@ describe("html（SSR 單一入口：CSP nonce 只蓋外殼的 data-nonce 標記�
       "<script>alert(1)</script>" + // 模擬混進內容層的 script：不蓋章
       "<p>&lt;script&gt; 這是跳脫過的字不該被蓋</p></body></html>";
     const r = html(body);
-    const csp = r.headers.get("content-security-policy");
+    const csp = r.headers.get("content-security-policy")!;
     const m = csp.match(/'nonce-([^']+)'/);
     expect(m).toBeTruthy();
     const text = await r.text();
     const stamped = text.match(/<script nonce="([^"]+)"/g) || [];
     expect(stamped.length).toBe(2); // 只有兩顆標記 script 蓋到
-    expect(text).toContain('<script nonce="' + m[1] + '">'); // nonce 與標頭一致
+    expect(text).toContain('<script nonce="' + m![1] + '">'); // nonce 與標頭一致
     expect(text).toContain("<script>alert(1)</script>"); // 內容層 script 原樣（無 nonce）
     expect(text).toContain("&lt;script&gt;"); // 跳脫內容不受影響
     expect(csp).toContain("frame-ancestors 'none'");
@@ -51,7 +51,7 @@ describe("html（SSR 單一入口：CSP nonce 只蓋外殼的 data-nonce 標記�
     expect(r.headers.get("x-content-type-options")).toBe("nosniff");
   });
   it("兩次呼叫 nonce 不同（per-request）", async () => {
-    const n = (r) => r.headers.get("content-security-policy").match(/'nonce-([^']+)'/)[1];
+    const n = (r: Response) => r.headers.get("content-security-policy")!.match(/'nonce-([^']+)'/)![1];
     expect(n(html("<p>a</p>"))).not.toBe(n(html("<p>a</p>")));
   });
 });

@@ -10,10 +10,10 @@ Remix) or utility packages (jose for JWT, zod for validation, a UI kit).
 
 ## Decision
 
-The **runtime has zero npm dependencies**. Pages Functions are plain ESM handlers; HTML is
-template strings through one shared shell (`lib/site.js pageShell`); validation is hand-rolled
+The **runtime has zero npm dependencies**. Route handlers are plain ESM (TypeScript since v2.0.0); HTML is
+template strings through one shared shell (`src/lib/site.ts pageShell`); validation is hand-rolled
 per endpoint; crypto is WebCrypto; the only vendored code is `marked` (checked into
-`lib/vendor/`, no install). The dev toolchain (vitest/wrangler/tsc, added in v1.0.0) is
+`src/lib/vendor/`, no install). The dev toolchain (vitest/wrangler/tsc, added in v1.0.0) is
 devDependencies only — nothing from npm executes in production.
 
 ## Consequences

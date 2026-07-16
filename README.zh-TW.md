@@ -4,7 +4,7 @@
 &nbsp;線上：**<https://uaip.cc.cd>** · English: **[README.md](./README.md)**
 
 單人維護的工程案例：**零框架、執行期零依賴**的 LLM 中轉站＋會員系統＋計量配額＋
-可觀測性＋完整內容門戶，全部跑在 Cloudflare Pages Functions 加一顆 D1（SQLite）上。
+可觀測性＋完整內容門戶，全部跑在單一 Cloudflare Worker 加一顆 D1（SQLite）上。
 沒有伺服器、沒有容器、執行期不用打包 — `git push` 就是整條供應鏈。
 
 ## 功能一覽
@@ -28,6 +28,8 @@
 - [ADR-0003 共享上游金鑰＋配額，而非 BYOK](./docs/adr/0003-shared-key-quota-not-byok.md)
 - [ADR-0004 CSP：SSR 用 per-request nonce＋靜態用 sha256](./docs/adr/0004-csp-nonce-plus-hash.md)
 - [ADR-0005 中轉計量用 pump 而非 tee()](./docs/adr/0005-relay-pump-metering-not-tee.md)
+- [ADR-0006 Pages → Workers 遷移](./docs/adr/0006-pages-to-workers.md)
+- [ADR-0008 全面 TypeScript（strict）](./docs/adr/0008-typescript-strict.md)
 
 另見：[威脅模型（STRIDE）](./docs/THREAT-MODEL.md) ·
 [與 one-api／LiteLLM／OpenRouter／AI Gateway 的誠實對照](./docs/COMPARISON.md) ·
@@ -52,9 +54,9 @@
 npm ci                    # 開發工具鏈（vitest、wrangler、tsc）— 執行期依然零依賴
 npm run migrate:local     # 從 migrations/ 建本機 D1
 npm run seed              # 選用：本機種子（管理員＋會員＋示範渠道）
-npm run dev               # http://localhost:8788（localhost 的管理員 API 免金鑰）
+npm run dev               # http://localhost:8787（localhost 的管理員 API 免金鑰）
 npm run checks            # typecheck＋全部測試
-npm run deploy            # 重建 apidoc＋wrangler pages deploy（千萬不要加「.」）
+npm run deploy            # 重建 apidoc＋wrangler deploy
 npm run migrate:remote    # 正式庫套新 migration（要在 deploy 之前跑）
 ```
 

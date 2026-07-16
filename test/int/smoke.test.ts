@@ -14,13 +14,13 @@ describe("工具鏈冒煙", () => {
     });
     const resp = await onRequest(ctx);
     expect(resp.status).toBe(401);
-    const j = await resp.json();
+    const j: any = await resp.json();
     expect(j.error).toBe("no-key");
   });
 
   it("migrations 已套用：核心表都在", async () => {
     const r = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
-    const names = (r.results || []).map((x) => x.name);
+    const names = (r.results || []).map((x: any) => x.name);
     for (const t of [
       "visits",
       "articles",

@@ -17,10 +17,11 @@ import {
 } from "../../src/routes/api/admin/pages/[key].js";
 import { onRequestPut as menuPut } from "../../src/routes/api/admin/menu.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
+import type { TestCtx } from "../helpers.js";
 
 const TOK = "admintok";
 // 帶管理金鑰的 ctx（drainWaits 讓 audit 背景寫入跑完）
-function ctx(path, method, body, params) {
+function ctx(path: string, method: string, body?: unknown, params?: Record<string, string>) {
   return makeCtx({
     url: ORIGIN + path,
     init: {
@@ -32,14 +33,20 @@ function ctx(path, method, body, params) {
     env: envWith({ LOGS_TOKEN: TOK })
   });
 }
-async function call(fn, path, method, body, params) {
+async function call(
+  fn: (c: TestCtx) => Promise<Response>,
+  path: string,
+  method: string,
+  body?: unknown,
+  params?: Record<string, string>
+) {
   const c = ctx(path, method, body, params);
   const r = await fn(c);
   await drainWaits(c);
   return r;
 }
 // 無授權 ctx（沒帶金鑰，也沒 cookie）
-function anon(path, method, body, params) {
+function anon(path: string, method: string, body?: unknown, params?: Record<string, string>) {
   return makeCtx({
     url: ORIGIN + path,
     init: {
@@ -52,7 +59,7 @@ function anon(path, method, body, params) {
   });
 }
 const lastAudit = () =>
-  env.DB.prepare("SELECT action,target FROM audit_log ORDER BY id DESC LIMIT 1").first();
+  env.DB.prepare("SELECT action,target FROM audit_log ORDER BY id DESC LIMIT 1").first<any>();
 
 describe("文章 CRUD", () => {
   it("POST 新增 → GET 列表看得到 → audit 記 create", async () => {
@@ -64,20 +71,20 @@ describe("文章 CRUD", () => {
       body_md: "b"
     });
     expect(r.status).toBe(200);
-    const { id } = await r.json();
+    const { id } = (await r.json()) as any;
     expect(id).toBeGreaterThan(0);
-    const list = await (await call(artList, "/api/admin/articles", "GET")).json();
-    expect(list.rows.some((x) => x.id === id)).toBe(true);
+    const list: any = await (await call(artList, "/api/admin/articles", "GET")).json();
+    expect(list.rows.some((x: any) => x.id === id)).toBe(true);
     expect((await lastAudit()).action).toBe("articles.create");
   });
 
   it("PUT 更新：published_at 首次發佈才寫、之後不變", async () => {
-    const created = await (
+    const created: any = await (
       await call(artCreate, "/api/admin/articles", "POST", { status: "published", title: "原標題" })
     ).json();
     const row1 = await env.DB.prepare("SELECT published_at FROM articles WHERE id=?1")
       .bind(created.id)
-      .first();
+      .first<any>();
     expect(row1.published_at).toBeTruthy();
     await call(
       artUpdate,
@@ -88,7 +95,7 @@ describe("文章 CRUD", () => {
     );
     const row2 = await env.DB.prepare("SELECT published_at,title,status FROM articles WHERE id=?1")
       .bind(created.id)
-      .first();
+      .first<any>();
     expect(row2.title).toBe("改成草稿");
     expect(row2.status).toBe("draft");
     expect(row2.published_at).toBe(row1.published_at); // 首次發佈時間保留
@@ -102,10 +109,10 @@ describe("文章 CRUD", () => {
   });
 
   it("DELETE 刪除 → 查不到 → audit 記 delete", async () => {
-    const c = await (await call(artCreate, "/api/admin/articles", "POST", { title: "待刪" })).json();
+    const c: any = await (await call(artCreate, "/api/admin/articles", "POST", { title: "待刪" })).json();
     const r = await call(artDelete, "/api/admin/articles/" + c.id, "DELETE", undefined, { id: String(c.id) });
     expect(r.status).toBe(200);
-    expect(await env.DB.prepare("SELECT id FROM articles WHERE id=?1").bind(c.id).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT id FROM articles WHERE id=?1").bind(c.id).first<any>()).toBeNull();
     expect((await lastAudit()).action).toBe("articles.delete");
   });
 
@@ -124,7 +131,7 @@ describe("頁面 CRUD", () => {
   it("POST 新增 → slug 重複回 409", async () => {
     const r = await call(pageCreate, "/api/admin/pages", "POST", { slug: "dup", title: "頁一" });
     expect(r.status).toBe(200);
-    expect((await r.json()).url).toBe("/p/dup");
+    expect(((await r.json()) as any).url).toBe("/p/dup");
     const r2 = await call(pageCreate, "/api/admin/pages", "POST", { slug: "dup", title: "頁二" });
     expect(r2.status).toBe(409);
   });
@@ -146,10 +153,10 @@ describe("頁面 CRUD", () => {
       { key: "movable" }
     );
     expect(put.status).toBe(200);
-    expect(await env.DB.prepare("SELECT title FROM pages WHERE slug='moved'").first()).toBeTruthy();
+    expect(await env.DB.prepare("SELECT title FROM pages WHERE slug='moved'").first<any>()).toBeTruthy();
     const del = await call(pageDelete, "/api/admin/pages/moved", "DELETE", undefined, { key: "moved" });
     expect(del.status).toBe(200);
-    expect(await env.DB.prepare("SELECT id FROM pages WHERE slug='moved'").first()).toBeNull();
+    expect(await env.DB.prepare("SELECT id FROM pages WHERE slug='moved'").first<any>()).toBeNull();
   });
 
   it("無授權：401", async () => {
@@ -166,13 +173,13 @@ describe("選單整包覆蓋", () => {
       ]
     });
     expect(r.status).toBe(200);
-    expect((await r.json()).count).toBe(2);
+    expect(((await r.json()) as any).count).toBe(2);
     const rows = await env.DB.prepare("SELECT label,url FROM menu ORDER BY pos").all();
     expect(rows.results.length).toBe(2);
     // 清空＝還原
     const back = await call(menuPut, "/api/admin/menu", "PUT", { items: [] });
-    expect((await back.json()).custom).toBe(false);
-    expect((await env.DB.prepare("SELECT COUNT(*) c FROM menu").first()).c).toBe(0);
+    expect(((await back.json()) as any).custom).toBe(false);
+    expect((await env.DB.prepare("SELECT COUNT(*) c FROM menu").first<any>()).c).toBe(0);
   });
 
   it("link 網址非 / 或 http(s) → 400（擋 javascript:）", async () => {
@@ -180,7 +187,7 @@ describe("選單整包覆蓋", () => {
       items: [{ kind: "link", label: "壞", url: "javascript:alert(1)" }]
     });
     expect(r.status).toBe(400);
-    expect((await r.json()).error).toBe("bad-url");
+    expect(((await r.json()) as any).error).toBe("bad-url");
   });
 
   it("缺 items 陣列 → 400；無授權 → 401", async () => {

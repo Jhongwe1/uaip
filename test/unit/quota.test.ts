@@ -73,12 +73,12 @@ describe("checkQuota 三層優先序＋豁免", () => {
     await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
     // 滾動 60 秒的 rate limit 會先擋 — 拉高個人 rl 讓日配額先觸發
     await env.DB.prepare("UPDATE users SET rl_per_min=999 WHERE id=?1").bind(u.id).run();
-    const fresh = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first();
+    const fresh = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first<any>();
     const q = await checkQuota(env, fresh, "relay");
     expect(q.ok).toBe(false);
-    expect(q.resp.status).toBe(429);
-    expect(q.resp.headers.get("retry-after")).toMatch(/^\d+$/);
-    const j = await q.resp.json();
+    expect(q.resp!.status).toBe(429);
+    expect(q.resp!.headers.get("retry-after")).toMatch(/^\d+$/);
+    const j: any = await q.resp!.json();
     expect(j.error).toBe("quota-exceeded");
     expect(j.used).toBe(1);
     expect(j.limit).toBe(1);
@@ -87,12 +87,12 @@ describe("checkQuota 三層優先序＋豁免", () => {
   it("滾動 60 秒 rate limit：個人 rl_per_min=1、剛用 1 次 → 429 rate-limited", async () => {
     const u = await seedUser({ status: "approved", services: "relay", rl_per_min: 1 });
     await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
-    const fresh = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first();
+    const fresh = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first<any>();
     const q = await checkQuota(env, fresh, "relay");
     expect(q.ok).toBe(false);
-    const j = await q.resp.json();
+    const j: any = await q.resp!.json();
     expect(j.error).toBe("rate-limited");
-    expect(q.resp.headers.get("retry-after")).toBe("60");
+    expect(q.resp!.headers.get("retry-after")).toBe("60");
   });
   it("沒設定就用內建預設（用量 0 → 放行）；兩服務日窗分開算", async () => {
     const u = await seedUser({ status: "approved", services: "relay,playground" });

@@ -11,14 +11,19 @@ import { createSession } from "../../src/lib/auth.js";
 // exec.waitUntil 收集背景 promise（visitLog 的 D1 寫入）並在回傳前排水 —
 // 不然背景寫入會拖過測試邊界，觸發 pool-workers 的 isolated storage 錯誤。
 const SPA = "<!doctype html><title>SPA-INDEX</title>";
-async function run(path, init) {
+async function run(path: string, init?: RequestInit) {
   const e = envWith({
     ASSETS: {
       fetch: async () => new Response(SPA, { status: 200, headers: { "content-type": "text/html" } })
     }
   });
-  const waits = [];
-  const exec = { waitUntil: (p) => waits.push(Promise.resolve(p)), passThroughOnException() {} };
+  const waits: Promise<unknown>[] = [];
+  const exec = {
+    waitUntil: (p: Promise<unknown>) => {
+      waits.push(Promise.resolve(p));
+    },
+    passThroughOnException() {}
+  } as ExecutionContext;
   const r = await worker.fetch(new Request(ORIGIN + path, init || {}), e, exec);
   await Promise.allSettled(waits);
   return r;
@@ -28,14 +33,14 @@ describe("路由對應（命中 handler）", () => {
   it("GET /api/health → 200 JSON", async () => {
     const r = await run("/api/health");
     expect(r.status).toBe(200);
-    expect((await r.json()).ok).toBe(true);
+    expect(((await r.json()) as any).ok).toBe(true);
   });
   it("GET /api/whoami → 200＋CORS", async () => {
     const r = await run("/api/whoami");
     expect(r.headers.get("access-control-allow-origin")).toBe("*");
   });
   it("GET /api/settings → 公開設定", async () => {
-    const j = await (await run("/api/settings")).json();
+    const j: any = await (await run("/api/settings")).json();
     expect("brand" in j).toBe(true);
     expect("contact_url" in j).toBe(true);
   });
@@ -76,7 +81,7 @@ describe("動態參數（:id / :slug / *path）", () => {
     )
       .bind(now)
       .run();
-    const j = await (await run("/api/articles/" + ins.meta.last_row_id)).json();
+    const j: any = await (await run("/api/articles/" + ins.meta.last_row_id)).json();
     expect(j.row.title).toBe("apirow");
   });
   it("relay catch-all：/relay 零段落＝操作頁（200）", async () => {
@@ -85,7 +90,7 @@ describe("動態參數（:id / :slug / *path）", () => {
     expect(r.headers.get("content-security-policy")).toContain("nonce-");
   });
   it("relay catch-all：/relay/<slug>/<path> 進轉發（無金鑰→401）", async () => {
-    const j = await (await run("/relay/openai/v1/models")).json();
+    const j: any = await (await run("/relay/openai/v1/models")).json();
     expect(j.error).toBe("no-key");
   });
   it("relay 轉發真的能跑到會員驗證（*path 傳成陣列）", async () => {
@@ -94,7 +99,7 @@ describe("動態參數（:id / :slug / *path）", () => {
     // 沒有渠道 → 404 no-channel（代表 path 陣列有正確帶進去、通過金鑰驗證）
     const r = await run("/relay/ghost/v1/models", { headers: { authorization: "Bearer " + key } });
     expect([404, 502]).toContain(r.status);
-    expect((await r.json()).error).toBeTruthy();
+    expect(((await r.json()) as any).error).toBeTruthy();
   });
 });
 

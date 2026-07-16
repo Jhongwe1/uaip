@@ -7,8 +7,8 @@
 Every page carries inline `<script>` (the shared shell's i18n/theme/sidebar code and each
 page's app code are inlined by design — see ADR-0001). A useful CSP must therefore either
 allow `'unsafe-inline'` (pointless), enumerate hashes, or use nonces. The site has two
-delivery paths: SSR pages all exit through one function (`lib/site.js html()`), and the
-static SPA (`public/index.html`) is served by Pages' asset host where no code runs.
+delivery paths: SSR pages all exit through one function (`src/lib/site.ts html()`), and the
+static SPA (`public/index.html`) is served by the Workers static-asset host where no code runs.
 
 ## Decision
 

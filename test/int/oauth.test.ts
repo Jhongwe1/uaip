@@ -17,8 +17,8 @@ afterEach(() => fetchMock.assertNoPendingInterceptors());
 
 // 造一顆假 id_token（header.payload.signature）— 伺服器只 base64url 解 payload、核對 aud，不驗簽章。
 // Google 的 payload 是 UTF-8 JSON 的 base64url，所以中文名要先編成 UTF-8 位元組再 btoa。
-function idToken(claims) {
-  const b64 = (o) => {
+function idToken(claims: Record<string, unknown>) {
+  const b64 = (o: Record<string, unknown>) => {
     const bytes = new TextEncoder().encode(JSON.stringify(o));
     let bin = "";
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -26,7 +26,7 @@ function idToken(claims) {
   };
   return b64({ alg: "RS256" }) + "." + b64(claims) + ".sig";
 }
-function mockToken(idTok, status) {
+function mockToken(idTok: string, status?: number) {
   fetchMock
     .get(GOOGLE)
     .intercept({ path: "/token", method: "POST" })
@@ -35,7 +35,7 @@ function mockToken(idTok, status) {
     });
 }
 // state|next 存在 ipua_oauth cookie；callback 讀 ?code & ?state 與它核對
-function cbCtx(code, state, cookieVal, over) {
+function cbCtx(code: string, state: string, cookieVal: string, over?: Record<string, unknown>) {
   return makeCtx({
     url: ORIGIN + "/auth/callback?code=" + code + "&state=" + state,
     init: { headers: { cookie: "ipua_oauth=" + encodeURIComponent(cookieVal) } },
@@ -64,7 +64,7 @@ describe("OAuth callback 全流程", () => {
     const setCookies = r.headers.getSetCookie().join("\n");
     expect(setCookies).toContain("ipua_sess=");
     expect(setCookies).toContain("ipua_oauth=;"); // 用過即清掉
-    const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first();
+    const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first<any>();
     expect(row.email).toBe("new@example.com"); // 信箱小寫化
     expect(row.status).toBe("pending"); // 一般人預設待批准
     expect(row.is_admin).toBe(0);
@@ -78,7 +78,7 @@ describe("OAuth callback 全流程", () => {
     const r = await callback(ctx);
     await drainWaits(ctx);
     expect(r.status).toBe(302);
-    const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first();
+    const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first<any>();
     expect(row.status).toBe("approved");
     expect(row.is_admin).toBe(1);
   });
@@ -106,19 +106,19 @@ describe("OAuth callback 全流程", () => {
     const r = await callback(ctx);
     await drainWaits(ctx);
     expect(r.headers.get("location")).toBe("/news");
-    const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first();
+    const row = await env.DB.prepare("SELECT * FROM users WHERE google_sub=?1").bind(sub).first<any>();
     expect(row.name).toBe("新名");
     expect(row.status).toBe("approved"); // 不被登入洗回 pending
     // 種下的 cookie 真的能換回這個 user
     const sid = r.headers
       .getSetCookie()
       .join("\n")
-      .match(/ipua_sess=([^;]+)/)[1];
+      .match(/ipua_sess=([^;]+)/)![1];
     const back = await getSessionUser(
       new Request(ORIGIN + "/", { headers: { cookie: "ipua_sess=" + sid } }),
       env
     );
-    expect(back.google_sub).toBe(sub);
+    expect(back!.google_sub).toBe(sub);
   });
 
   it("state 不符 → 400，不打 Google（無 pending interceptor）", async () => {

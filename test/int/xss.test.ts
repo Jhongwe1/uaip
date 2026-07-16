@@ -6,7 +6,7 @@ import { onRequestGet as newsPage } from "../../src/routes/news/[id].js";
 import { onRequestGet as articleApi } from "../../src/routes/api/articles/[id].js";
 import { makeCtx, ORIGIN } from "../helpers.js";
 
-async function seedArticle(body_md) {
+async function seedArticle(body_md: string) {
   const now = new Date().toISOString();
   const r = await env.DB.prepare(
     "INSERT INTO articles (category,title,summary,cover,body_md,status,views,created_at,updated_at,published_at) " +
@@ -32,7 +32,7 @@ describe("stored-XSS 防線（消毒＋nonce 標記制）", () => {
     expect(text).not.toContain("onerror");
     expect(text).not.toContain('href="javascript:');
     // 每一顆「可執行」的 script 都必須帶本回應的 nonce（JSON-LD 是資料塊、不用蓋）
-    const nonce = r.headers.get("content-security-policy").match(/'nonce-([^']+)'/)[1];
+    const nonce = r.headers.get("content-security-policy")!.match(/'nonce-([^']+)'/)![1];
     const scripts = text.match(/<script[^>]*>/g) || [];
     const exec = scripts.filter(function (s) {
       return s.indexOf("application/ld+json") < 0;
@@ -54,7 +54,7 @@ describe("stored-XSS 防線（消毒＋nonce 標記制）", () => {
         params: { id: String(id) }
       })
     );
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.row.body_html).not.toContain("<script");
     expect(j.row.body_html).not.toContain("onerror");
     expect(j.row.body_md).toContain("<script"); // 編輯用原稿保持原樣

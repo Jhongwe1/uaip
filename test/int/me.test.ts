@@ -6,9 +6,10 @@ import { onRequestGet } from "../../src/routes/api/me.js";
 import { createSession } from "../../src/lib/auth.js";
 import { logReq } from "../../src/lib/quota.js";
 import { makeCtx, seedUser, seedAdmin, giveKey, ORIGIN } from "../helpers.js";
+import type { UserRow } from "../../src/types.js";
 
-async function meCtx(user) {
-  const headers = {};
+async function meCtx(user: UserRow | null) {
+  const headers: Record<string, string> = {};
   if (user) {
     const sess = await createSession(env, user, new URL(ORIGIN + "/"));
     headers.cookie = "ipua_sess=" + sess.sid;
@@ -18,7 +19,7 @@ async function meCtx(user) {
 
 describe("/api/me", () => {
   it("匿名 → { user: null }", async () => {
-    const j = await (await onRequestGet(await meCtx(null))).json();
+    const j: any = await (await onRequestGet(await meCtx(null))).json();
     expect(j).toEqual({ user: null });
   });
 
@@ -29,7 +30,7 @@ describe("/api/me", () => {
       vpn_token: "uvt" + "c".repeat(20)
     });
     const key = await giveKey(u);
-    const j = await (await onRequestGet(await meCtx(u))).json();
+    const j: any = await (await onRequestGet(await meCtx(u))).json();
     expect(j.user.email).toBe(u.email);
     expect(j.user.is_admin).toBe(false);
     expect(j.user.approved).toBe(true);
@@ -41,14 +42,14 @@ describe("/api/me", () => {
 
   it("pending 會員：approved=false、services 空", async () => {
     const u = await seedUser({ status: "pending" });
-    const j = await (await onRequestGet(await meCtx(u))).json();
+    const j: any = await (await onRequestGet(await meCtx(u))).json();
     expect(j.user.approved).toBe(false);
     expect(j.user.services).toEqual([]);
   });
 
   it("管理員：is_admin=true、全服務", async () => {
     const a = await seedAdmin();
-    const j = await (await onRequestGet(await meCtx(a))).json();
+    const j: any = await (await onRequestGet(await meCtx(a))).json();
     expect(j.user.is_admin).toBe(true);
     expect(j.user.services).toEqual(["relay", "vpn", "playground"]);
   });
@@ -56,7 +57,7 @@ describe("/api/me", () => {
   it("pg_open 全站開放：沒被逐人批准的會員 services 也含 playground", async () => {
     await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('pg_open','1')").run();
     const u = await seedUser({ status: "approved", services: "" });
-    const j = await (await onRequestGet(await meCtx(u))).json();
+    const j: any = await (await onRequestGet(await meCtx(u))).json();
     expect(j.user.services).toContain("playground");
   });
 
@@ -64,17 +65,17 @@ describe("/api/me", () => {
     const u = await seedUser({ status: "approved", services: "relay", quota_relay_day: 9 });
     await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
     await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
-    const j = await (await onRequestGet(await meCtx(u))).json();
+    const j: any = await (await onRequestGet(await meCtx(u))).json();
     expect(j.user.usage).toEqual({ relay_today: 2, relay_limit: 9 }); // 沒 pg 權限 → pg 鍵省略
   });
 
   it("usage：管理員 limit=null（無上限）；兩服務都沒權限 → 整塊省略", async () => {
     const a = await seedAdmin();
-    const ja = await (await onRequestGet(await meCtx(a))).json();
+    const ja: any = await (await onRequestGet(await meCtx(a))).json();
     expect(ja.user.usage.relay_limit).toBeNull();
     expect(ja.user.usage.pg_limit).toBeNull();
     const p = await seedUser({ status: "pending" });
-    const jp = await (await onRequestGet(await meCtx(p))).json();
+    const jp: any = await (await onRequestGet(await meCtx(p))).json();
     expect(jp.user.usage).toBeUndefined();
   });
 });

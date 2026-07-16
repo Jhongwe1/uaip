@@ -24,10 +24,12 @@ describe("/api/account/logout-all（會員自助撤銷全部裝置）", () => {
     const r = await logoutAll(ctx);
     expect(r.status).toBe(200);
     expect(r.headers.get("set-cookie")).toContain("ipua_sess=;"); // 本裝置 cookie 清掉
-    const mine = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1").bind(u.id).first();
+    const mine = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1")
+      .bind(u.id)
+      .first<any>();
     const theirs = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1")
       .bind(other.id)
-      .first();
+      .first<any>();
     expect(mine.c).toBe(0);
     expect(theirs.c).toBe(1);
   });
@@ -62,11 +64,13 @@ describe("管理員 revoke_sessions", () => {
     const r = await usersPut(ctx);
     expect(r.status).toBe(200);
     await drainWaits(ctx);
-    const n = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1").bind(u.id).first();
+    const n = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1")
+      .bind(u.id)
+      .first<any>();
     expect(n.c).toBe(0);
-    const row = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first();
+    const row = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first<any>();
     expect(row.status).toBe("approved"); // 狀態與服務不動
-    const audit = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first();
+    const audit = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first<any>();
     expect(audit.action).toBe("users.revoke_sessions");
     expect(audit.actor).toBe("token"); // 金鑰身分記 token
   });
@@ -89,7 +93,7 @@ describe("audit_log 落庫", () => {
     });
     await usersPut(ctx);
     await drainWaits(ctx);
-    let row = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first();
+    let row = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first<any>();
     expect(row.action).toBe("users.set_services");
     expect(row.actor).toBe(adm.email); // cookie 身分＝email
     expect(row.summary).toContain("relay");
@@ -105,7 +109,7 @@ describe("audit_log 落庫", () => {
     });
     await settingsPut(ctx2);
     await drainWaits(ctx2);
-    row = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first();
+    row = await env.DB.prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1").first<any>();
     expect(row.action).toBe("settings.put");
     expect(row.summary).toContain("pg_open=true");
     expect(row.summary).toContain("quota_relay_day=100");

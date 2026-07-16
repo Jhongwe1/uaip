@@ -13,7 +13,7 @@ beforeAll(() => {
 });
 afterEach(() => fetchMock.assertNoPendingInterceptors());
 
-function ctxFor(key, path, init) {
+function ctxFor(key: string, path: string, init?: RequestInit) {
   const segs = path.split("/").filter(Boolean).slice(1); // 去掉 "relay"
   return makeCtx({
     url: ORIGIN + path,
@@ -22,7 +22,7 @@ function ctxFor(key, path, init) {
   });
 }
 
-const lastLog = () => env.DB.prepare("SELECT * FROM req_log ORDER BY id DESC LIMIT 1").first();
+const lastLog = () => env.DB.prepare("SELECT * FROM req_log ORDER BY id DESC LIMIT 1").first<any>();
 
 describe("relay 配額", () => {
   it("超過個人日配額 → 429 quota-exceeded＋Retry-After；上游一次都不會被打", async () => {
@@ -34,7 +34,7 @@ describe("relay 配額", () => {
     const r = await onRequest(ctx);
     expect(r.status).toBe(429);
     expect(r.headers.get("retry-after")).toMatch(/^\d+$/);
-    expect((await r.json()).error).toBe("quota-exceeded");
+    expect(((await r.json()) as any).error).toBe("quota-exceeded");
   });
 
   it("管理員帶自己的金鑰不吃配額（quota_relay_day=0 也照轉）", async () => {
@@ -51,7 +51,7 @@ describe("relay 配額", () => {
 });
 
 describe("relay 計量 pump", () => {
-  async function member(chOver) {
+  async function member(chOver?: Record<string, unknown>) {
     const u = await seedUser({ status: "approved", services: "relay" });
     const key = await giveKey(u);
     const ch = await seedChannel(Object.assign({ slug: "mm" }, chOver || {}));
@@ -83,7 +83,7 @@ describe("relay 計量 pump", () => {
     expect(log.ttfb_ms).toBeGreaterThanOrEqual(0);
     expect(log.dur_ms).toBeGreaterThanOrEqual(log.ttfb_ms);
     // 舊計數器也照加
-    const row = await env.DB.prepare("SELECT relay_calls FROM users WHERE id=?1").bind(u.id).first();
+    const row = await env.DB.prepare("SELECT relay_calls FROM users WHERE id=?1").bind(u.id).first<any>();
     expect(row.relay_calls).toBe(1);
   });
 
@@ -112,7 +112,7 @@ describe("relay 計量 pump", () => {
     const r = await onRequest(ctx);
     expect(await r.text()).toBe("{}");
     await drainWaits(ctx);
-    const n = await env.DB.prepare("SELECT COUNT(*) c FROM req_log").first();
+    const n = await env.DB.prepare("SELECT COUNT(*) c FROM req_log").first<any>();
     expect(n.c).toBe(0);
   });
 
@@ -136,7 +136,7 @@ describe("relay 計量 pump", () => {
       .reply(200, 'data: {"model":"m-abort"}\n\n', { headers: { "content-type": "text/event-stream" } });
     const ctx = ctxFor(key, "/relay/mc/v1/chat/completions", { method: "POST", body: "{}" });
     const r = await onRequest(ctx);
-    await r.body.cancel(); // 模擬會員關掉連線
+    await r.body!.cancel(); // 模擬會員關掉連線
     await drainWaits(ctx); // pump 應正常收尾（cancel 上游、寫 log），不會卡住
     const log = await lastLog();
     expect(log.svc).toBe("relay");

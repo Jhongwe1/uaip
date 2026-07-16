@@ -16,7 +16,7 @@ do not run denial-of-service tests, and do not test the upstream providers throu
 
 ## Scope
 
-In scope: everything served from `uaip.cc.cd` (Pages Functions, D1-backed APIs, static SPA).
+In scope: everything served from `uaip.cc.cd` (the Worker, D1-backed APIs, static SPA).
 Out of scope: Cloudflare platform, Google OAuth, upstream LLM/VPN providers.
 
 ## Design overview

@@ -6,7 +6,8 @@ import { adminOk, createSession } from "../../src/lib/auth.js";
 import { seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
 
 const URL_ = new URL(ORIGIN + "/api/admin/x");
-const req = (headers) => new Request(ORIGIN + "/api/admin/x", { headers: headers || {} });
+const req = (headers?: Record<string, string>) =>
+  new Request(ORIGIN + "/api/admin/x", { headers: headers || {} });
 
 describe("adminOk × LOGS_TOKEN 已設定", () => {
   const e = () => envWith({ LOGS_TOKEN: "sekret-token" });

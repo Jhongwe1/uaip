@@ -66,7 +66,7 @@ describe("safeNext（登入後跳轉只收站內路徑）", () => {
 
 describe("goodOrigin（CSRF 防線）矩陣", () => {
   const url = new URL("https://uaip.cc.cd/api/x");
-  const req = (origin) =>
+  const req = (origin: string | null) =>
     new Request("https://uaip.cc.cd/api/x", {
       headers: origin == null ? {} : { origin }
     });
@@ -82,8 +82,8 @@ describe("goodOrigin（CSRF 防線）矩陣", () => {
   it("env.SITE_ORIGIN（正式網址）跨源放行 — 例如從預覽域打正式 API", () => {
     const u2 = new URL("https://uaip.pages.dev/api/x");
     const r2 = new Request("https://uaip.pages.dev/api/x", { headers: { origin: "https://uaip.cc.cd" } });
-    expect(goodOrigin(r2, u2, { SITE_ORIGIN: "https://uaip.cc.cd" })).toBe(true);
-    expect(goodOrigin(r2, u2, {})).toBe(false); // 沒設 SITE_ORIGIN 就不放行
+    expect(goodOrigin(r2, u2, { SITE_ORIGIN: "https://uaip.cc.cd" } as any)).toBe(true);
+    expect(goodOrigin(r2, u2, {} as any)).toBe(false); // 沒設 SITE_ORIGIN 就不放行
   });
   it("localhost 開發放行", () => {
     expect(goodOrigin(req("http://localhost:8788"), url)).toBe(true);
@@ -96,7 +96,7 @@ describe("goodOrigin（CSRF 防線）矩陣", () => {
 });
 
 describe("userServices（分服務批准）矩陣", () => {
-  const env = { ADMIN_EMAILS: "admin@example.com" };
+  const env = { ADMIN_EMAILS: "admin@example.com" } as any;
   it("null／封鎖 → 空清單", () => {
     expect(userServices(null, env)).toEqual([]);
     expect(userServices({ status: "blocked", is_admin: 1, services: "relay" }, env)).toEqual([]);

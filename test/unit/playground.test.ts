@@ -1,5 +1,7 @@
 // lib/playground.js 純函式 — 請求驗證、三種上游的請求轉換、串流解析 fixtures。
 import { describe, it, expect } from "vitest";
+import type { ChannelRow } from "../../src/types.js";
+import type { ChatMsg } from "../../src/lib/playground.js";
 import {
   cleanChat,
   buildUpstream,
@@ -51,7 +53,7 @@ describe("cleanChat（聊天請求驗證）", () => {
       ]
     });
     expect(v.err).toBeUndefined();
-    expect(v.messages[0].role).toBe("system");
+    expect(v.messages![0].role).toBe("system");
   });
   it("單則超長／整包超長 → err", () => {
     const long = "x".repeat(PG_LIMITS.maxChars + 1);
@@ -75,7 +77,7 @@ describe("cleanChat（聊天請求驗證）", () => {
       ]
     });
     expect(v.err).toBeUndefined(); // 尾端空白 assistant 被剔除後，最後一則是 user
-    expect(v.messages.length).toBe(1);
+    expect(v.messages!.length).toBe(1);
     expect(
       cleanChat({
         channel: "c",
@@ -90,7 +92,7 @@ describe("cleanChat（聊天請求驗證）", () => {
 });
 
 describe("buildUpstream（三種上游的請求轉換）", () => {
-  const msgs = [
+  const msgs: ChatMsg[] = [
     { role: "system", content: "你是助理" },
     { role: "user", content: "嗨" },
     { role: "assistant", content: "你好" },
@@ -98,7 +100,7 @@ describe("buildUpstream（三種上游的請求轉換）", () => {
   ];
 
   it("anthropic：/v1/messages、x-api-key、system 抽出、max_tokens 必填", () => {
-    const ch = { kind: "anthropic", base_url: "https://api.anthropic.com", api_key: "sk-ant" };
+    const ch = { kind: "anthropic", base_url: "https://api.anthropic.com", api_key: "sk-ant" } as ChannelRow;
     const up = buildUpstream(ch, "claude-x", msgs);
     expect(up.url).toBe("https://api.anthropic.com/v1/messages");
     expect(up.headers["x-api-key"]).toBe("sk-ant");
@@ -108,12 +110,16 @@ describe("buildUpstream（三種上游的請求轉換）", () => {
     expect(b.stream).toBe(true);
     expect(b.max_tokens).toBe(PG_LIMITS.maxTokens);
     expect(b.system).toBe("你是助理");
-    expect(b.messages.every((m) => m.role !== "system")).toBe(true);
+    expect(b.messages.every((m: any) => m.role !== "system")).toBe(true);
     expect(b.messages.length).toBe(3);
   });
 
   it("gemini：streamGenerateContent?alt=sse、x-goog-api-key、assistant→model、systemInstruction", () => {
-    const ch = { kind: "gemini", base_url: "https://generativelanguage.googleapis.com", api_key: "sk-goog" };
+    const ch = {
+      kind: "gemini",
+      base_url: "https://generativelanguage.googleapis.com",
+      api_key: "sk-goog"
+    } as ChannelRow;
     const up = buildUpstream(ch, "gemini-x", msgs);
     expect(up.url).toBe(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-x:streamGenerateContent?alt=sse"
@@ -122,11 +128,11 @@ describe("buildUpstream（三種上游的請求轉換）", () => {
     expect(up.headers.authorization).toBeUndefined(); // 多送 Authorization 會 401（實測踩過）
     const b = JSON.parse(up.body);
     expect(b.systemInstruction.parts[0].text).toBe("你是助理");
-    expect(b.contents.map((c) => c.role)).toEqual(["user", "model", "user"]);
+    expect(b.contents.map((c: any) => c.role)).toEqual(["user", "model", "user"]);
   });
 
   it("openai/custom：/v1/chat/completions、Bearer、system 留在 messages", () => {
-    const ch = { kind: "openai", base_url: "https://api.openai.com", api_key: "sk-oai" };
+    const ch = { kind: "openai", base_url: "https://api.openai.com", api_key: "sk-oai" } as ChannelRow;
     const up = buildUpstream(ch, "gpt-x", msgs);
     expect(up.url).toBe("https://api.openai.com/v1/chat/completions");
     expect(up.headers.authorization).toBe("Bearer sk-oai");

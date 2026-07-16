@@ -3,16 +3,17 @@ import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
 import { onRequestPut as rawPut } from "../../src/routes/api/admin/settings.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
+import type { TestCtx } from "../helpers.js";
 
 // settings PUT 會掛 audit 背景寫入 — 包一層自動排水
-const onRequestPut = async (ctx) => {
+const onRequestPut = async (ctx: TestCtx) => {
   const r = await rawPut(ctx);
   await drainWaits(ctx);
   return r;
 };
 
 const TOK = "admintok";
-function ctx(body) {
+function ctx(body: unknown) {
   return makeCtx({
     url: ORIGIN + "/api/admin/settings",
     init: {
@@ -23,14 +24,14 @@ function ctx(body) {
     env: envWith({ LOGS_TOKEN: TOK })
   });
 }
-const getKey = (k) => env.DB.prepare("SELECT v FROM settings WHERE k=?1").bind(k).first();
+const getKey = (k: string) => env.DB.prepare("SELECT v FROM settings WHERE k=?1").bind(k).first<any>();
 
 describe("settings 帶哪鍵改哪鍵", () => {
   it("只帶 brand：改站名、pg_open 不動", async () => {
     await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('pg_open','1')").run();
     const r = await onRequestPut(ctx({ brand: "新站名" }));
     expect(r.status).toBe(200);
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.brand).toBe("新站名");
     expect(j.pg_open).toBe(true); // 沒帶的鍵原封不動
     expect((await getKey("brand")).v).toBe("新站名");
@@ -39,7 +40,7 @@ describe("settings 帶哪鍵改哪鍵", () => {
   it("只帶 pg_open：brand 不動", async () => {
     await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('brand','舊站名')").run();
     const r = await onRequestPut(ctx({ pg_open: true }));
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.pg_open).toBe(true);
     expect(j.brand).toBe("舊站名");
     expect((await getKey("pg_open")).v).toBe("1");
@@ -47,20 +48,20 @@ describe("settings 帶哪鍵改哪鍵", () => {
 
   it("brand 空字串＝刪鍵＝還原預設", async () => {
     await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('brand','自訂')").run();
-    const j = await (await onRequestPut(ctx({ brand: "" }))).json();
+    const j: any = await (await onRequestPut(ctx({ brand: "" }))).json();
     expect(j.custom).toBe(false);
     expect(await getKey("brand")).toBeNull();
   });
 
   it("pg_open false＝刪鍵＝回到逐人批准", async () => {
     await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('pg_open','1')").run();
-    const j = await (await onRequestPut(ctx({ pg_open: false }))).json();
+    const j: any = await (await onRequestPut(ctx({ pg_open: false }))).json();
     expect(j.pg_open).toBe(false);
     expect(await getKey("pg_open")).toBeNull();
   });
 
   it("配額全域鍵：正整數存入、null 刪鍵回內建預設、壞值 400", async () => {
-    let j = await (await onRequestPut(ctx({ quota_relay_day: 100, rl_per_min: 5 }))).json();
+    let j: any = await (await onRequestPut(ctx({ quota_relay_day: 100, rl_per_min: 5 }))).json();
     expect(j.quota_relay_day).toBe(100);
     expect(j.rl_per_min).toBe(5);
     expect(j.quota_pg_day).toBe(200); // 沒帶＝內建預設
@@ -73,7 +74,7 @@ describe("settings 帶哪鍵改哪鍵", () => {
   });
 
   it("contact_url：http(s) 網址存入、空字串刪鍵、非 http(s) 400", async () => {
-    let j = await (await onRequestPut(ctx({ contact_url: "https://example.com/me" }))).json();
+    let j: any = await (await onRequestPut(ctx({ contact_url: "https://example.com/me" }))).json();
     expect(j.contact_url).toBe("https://example.com/me");
     expect((await getKey("contact_url")).v).toBe("https://example.com/me");
     expect((await onRequestPut(ctx({ contact_url: "javascript:alert(1)" }))).status).toBe(400);
@@ -83,7 +84,7 @@ describe("settings 帶哪鍵改哪鍵", () => {
   });
 
   it("relay_meter：false 存 '0'（退回純直通）、true 刪鍵（預設開）", async () => {
-    let j = await (await onRequestPut(ctx({ relay_meter: false }))).json();
+    let j: any = await (await onRequestPut(ctx({ relay_meter: false }))).json();
     expect(j.relay_meter).toBe(false);
     expect((await getKey("relay_meter")).v).toBe("0");
     j = await (await onRequestPut(ctx({ relay_meter: true }))).json();
@@ -92,7 +93,7 @@ describe("settings 帶哪鍵改哪鍵", () => {
   });
 
   it("站名截斷 60 字；一個鍵都沒帶 → 400；沒授權 → 401", async () => {
-    const j = await (await onRequestPut(ctx({ brand: "x".repeat(100) }))).json();
+    const j: any = await (await onRequestPut(ctx({ brand: "x".repeat(100) }))).json();
     expect(j.brand.length).toBe(60);
     expect((await onRequestPut(ctx({}))).status).toBe(400);
     const anon = makeCtx({

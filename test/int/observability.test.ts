@@ -24,7 +24,7 @@ afterEach(() => fetchMock.assertNoPendingInterceptors());
 describe("/api/health", () => {
   it("公開回 { ok, version, db:true }", async () => {
     const r = await healthGet(makeCtx({ url: ORIGIN + "/api/health" }));
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.ok).toBe(true);
     expect(j.version).toBe("1.0.0");
     expect(j.db).toBe(true);
@@ -39,7 +39,7 @@ describe("/api/admin/errors", () => {
     await reportErrorNow(env, "test.src", new Error("第一筆"), { path: "/x" });
     await reportErrorNow(env, "test.src", "第二筆");
     const ctx = makeCtx({ url: ORIGIN + "/api/admin/errors?limit=1", init: { headers: AUTH }, env: E() });
-    const j = await (await errsGet(ctx)).json();
+    const j: any = await (await errsGet(ctx)).json();
     expect(j.total).toBe(2);
     expect(j.rows.length).toBe(1);
     expect(j.rows[0].msg).toBe("第二筆"); // 新的在前
@@ -50,7 +50,7 @@ describe("/api/admin/errors", () => {
       env: E()
     });
     expect((await errsDel(del)).status).toBe(200);
-    const after = await (
+    const after: any = await (
       await errsGet(makeCtx({ url: ORIGIN + "/api/admin/errors", init: { headers: AUTH }, env: E() }))
     ).json();
     expect(after.total).toBe(0);
@@ -64,7 +64,7 @@ describe("/api/admin/errors", () => {
       init: { headers: AUTH },
       env: E()
     });
-    const j = await (await errsGet(ctx)).json();
+    const j: any = await (await errsGet(ctx)).json();
     expect(j.total).toBe(1);
     expect(j.rows[0].src).toBe("pg.stream");
   });
@@ -96,20 +96,20 @@ describe("/api/admin/stats", () => {
       tokens_out: 6
     });
     const ctx = makeCtx({ url: ORIGIN + "/api/admin/stats?days=7", init: { headers: AUTH }, env: E() });
-    const j = await (await statsGet(ctx)).json();
+    const j: any = await (await statsGet(ctx)).json();
     expect(j.days).toBe(7);
-    const relayDay = j.by_day.find((r) => r.svc === "relay");
+    const relayDay = j.by_day.find((r: any) => r.svc === "relay");
     expect(relayDay.n).toBe(2);
     expect(relayDay.errs).toBe(1);
     expect(relayDay.avg_dur).toBe(200);
-    const ch = j.by_channel.find((r) => r.channel === "c1" && r.model === "m1");
+    const ch = j.by_channel.find((r: any) => r.channel === "c1" && r.model === "m1");
     expect(ch.n).toBe(2);
     expect(ch.tokens_in).toBe(10);
     expect(j.durs.length).toBe(3);
   });
   it("days 界限外自動回 7", async () => {
     const ctx = makeCtx({ url: ORIGIN + "/api/admin/stats?days=999", init: { headers: AUTH }, env: E() });
-    expect((await (await statsGet(ctx)).json()).days).toBe(7);
+    expect(((await (await statsGet(ctx)).json()) as any).days).toBe(7);
   });
 });
 
@@ -130,7 +130,7 @@ describe("/api/csp-report", () => {
       expect(r.status).toBe(204);
       const row = await env.DB.prepare(
         "SELECT * FROM errlog WHERE src='csp' ORDER BY id DESC LIMIT 1"
-      ).first();
+      ).first<any>();
       expect(row.msg).toContain("script-src");
       expect(row.msg).toContain("evil.com");
     } finally {
@@ -143,7 +143,7 @@ describe("/api/csp-report", () => {
     try {
       const ctx = makeCtx({ url: ORIGIN + "/api/csp-report", init: { method: "POST", body: "junk" } });
       expect((await cspPost(ctx)).status).toBe(204);
-      const n = await env.DB.prepare("SELECT COUNT(*) c FROM errlog").first();
+      const n = await env.DB.prepare("SELECT COUNT(*) c FROM errlog").first<any>();
       expect(n.c).toBe(0);
     } finally {
       Math.random = orig;
@@ -170,7 +170,7 @@ describe("埋點：relay 上游故障進 errlog", () => {
     await drainWaits(ctx);
     const row = await env.DB.prepare(
       "SELECT * FROM errlog WHERE src='relay.upstream' ORDER BY id DESC LIMIT 1"
-    ).first();
+    ).first<any>();
     expect(row).toBeTruthy();
     expect(row.user_id).toBe(u.id);
     expect(row.path).toBe("/relay/ob1");
@@ -192,7 +192,7 @@ describe("埋點：relay 上游故障進 errlog", () => {
     await drainWaits(ctx);
     const row = await env.DB.prepare(
       "SELECT * FROM errlog WHERE src='relay.upstream' ORDER BY id DESC LIMIT 1"
-    ).first();
+    ).first<any>();
     expect(row.msg).toContain("503");
   });
 });

@@ -1,7 +1,7 @@
 # uaip.cc.cd API 文件
 
 > **這份檔案是 API 文件的唯一原稿。** 線上版 <https://uaip.cc.cd/api-docs>（要管理金鑰）顯示的內容
-> 就是本檔 — 改完本檔要執行 `node tools/build-apidoc.mjs` 重新產生 `lib/apidoc.js`，再部署。
+> 就是本檔 — 改完本檔要執行 `node tools/build-apidoc.mjs` 重新產生 `src/lib/apidoc.ts`，再部署。
 > 給 AI agent 的操作指南（含常用流程與眉角）見 [AGENTS.md](./AGENTS.md)。
 
 網頁後台能做的每一件事，這裡都有對應的 HTTP API — 用 curl、排程或 AI agent 都能操作整個網站。
@@ -10,8 +10,8 @@
 
 | 項目 | 值 |
 |---|---|
-| 正式站 | `https://uaip.cc.cd`（等同 `https://uaip.pages.dev`） |
-| 本機開發 | `http://localhost:8788`（`npx wrangler pages dev`） |
+| 正式站 | `https://uaip.cc.cd`（Cloudflare Workers） |
+| 本機開發 | `http://localhost:8787`（`npx wrangler dev`） |
 | 回應格式 | 一律 JSON（UTF-8） |
 | 時間欄位 | 一律 UTC 的 ISO 8601（例 `2026-07-09T03:00:00.000Z`），顯示時自行轉時區 |
 
@@ -19,10 +19,10 @@
 
 1. **公開**：免驗證（whoami、已發佈內容、選單、站名）。
 2. **管理員**：路徑含 `/admin` 的、以及 `/api/logs`。兩種通過方式（擇一）：
-   - 請求標頭 `Authorization: Bearer <管理金鑰>`（curl／排程／AI agent 用）。管理金鑰＝Cloudflare Pages 環境變數 **LOGS_TOKEN**，跟 /logs、/admin 網頁登入同一把；值記在 ADMIN.md（不會上網）。
+   - 請求標頭 `Authorization: Bearer <管理金鑰>`（curl／排程／AI agent 用）。管理金鑰＝Cloudflare Workers secret **LOGS_TOKEN**，跟 /logs、/admin 網頁登入同一把；值記在 ADMIN.md（不會上網）。
    - 管理員 Google 帳號的登入 cookie（瀏覽器用）：管理員信箱登入後，管理頁與管理員 API 免金鑰。管理員信箱＝環境變數 **ADMIN_EMAILS**（逗號分隔，例 `admin@example.com`；沒設定＝沒有信箱直升管理員，只認資料庫 users.is_admin）。
    - **本機開發（localhost）免金鑰**；正式站沒帶或帶錯一律回 401。用 cookie 身分時，跨網站送出的請求會被 Origin 檢查擋掉（防 CSRF）。
-   - 換金鑰：`printf '新金鑰' | npx wrangler pages secret put LOGS_TOKEN --project-name uaip`，跑完要重新部署才生效。
+   - 換金鑰：`printf '新金鑰' | npx wrangler secret put LOGS_TOKEN`，設定後立即生效（Workers secret 不需重新部署）。
 3. **會員**：任何人用 Google 登入即為會員（見 `/auth/login`）。會員功能（API 中轉、VPN 訂閱）要**管理員核准**（status=approved）後才生效。
    - 網頁操作靠登入 cookie；**API 中轉**另用會員自己的金鑰 `uak-…`（在 /relay 頁產生，帶法同各家 AI API）。
 

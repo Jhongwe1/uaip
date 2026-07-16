@@ -7,14 +7,16 @@ import {
 } from "../../src/routes/api/admin/users/[id].js";
 import { createSession } from "../../src/lib/auth.js";
 import { makeCtx, drainWaits, seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
+import type { TestCtx } from "../helpers.js";
+import type { Env } from "../../src/types.js";
 
 // 每次變更都會掛 audit 的背景寫入（waitUntil）— 包一層自動排水，測試結束前收乾淨
-const onRequestPut = async (ctx) => {
+const onRequestPut = async (ctx: TestCtx) => {
   const r = await rawPut(ctx);
   await drainWaits(ctx);
   return r;
 };
-const onRequestDelete = async (ctx) => {
+const onRequestDelete = async (ctx: TestCtx) => {
   const r = await rawDelete(ctx);
   await drainWaits(ctx);
   return r;
@@ -23,7 +25,7 @@ const onRequestDelete = async (ctx) => {
 const TOK = "admintok";
 const E = () => envWith({ LOGS_TOKEN: TOK });
 
-function putCtx(id, body, extra) {
+function putCtx(id: number | string, body: unknown, extra?: { headers?: Record<string, string>; env?: Env }) {
   return makeCtx({
     url: ORIGIN + "/api/admin/users/" + id,
     init: {
@@ -38,7 +40,8 @@ function putCtx(id, body, extra) {
     env: (extra || {}).env || E()
   });
 }
-const getUser = (id) => env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(id).first();
+const getUser = (id: number | string) =>
+  env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(id).first<any>();
 
 describe("set_services（分服務批准）", () => {
   it("白名單過濾：亂七八糟的服務名被丟掉", async () => {
@@ -86,7 +89,9 @@ describe("快速動作", () => {
     await createSession(env, u, new URL(ORIGIN + "/"));
     await onRequestPut(putCtx(u.id, { action: "block" }));
     expect((await getUser(u.id)).status).toBe("blocked");
-    const s = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1").bind(u.id).first();
+    const s = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1")
+      .bind(u.id)
+      .first<any>();
     expect(s.c).toBe(0);
   });
   it("unblock：原本有服務 → approved；沒服務 → pending", async () => {
@@ -146,7 +151,7 @@ describe("護欄", () => {
     for (const action of ["block", "drop_admin"]) {
       const r = await onRequestPut(putCtx(root.id, { action }));
       expect(r.status).toBe(403);
-      expect((await r.json()).error).toBe("protected");
+      expect(((await r.json()) as any).error).toBe("protected");
     }
     const del = await onRequestDelete(putCtx(root.id, {}));
     expect(del.status).toBe(403);
@@ -155,7 +160,7 @@ describe("護欄", () => {
   it("管理員用 cookie 身分時不能封鎖／刪除自己", async () => {
     const admin = await seedUser({ email: "second-admin@example.com", status: "approved", is_admin: 1 });
     const sess = await createSession(env, admin, new URL(ORIGIN + "/"));
-    const selfCtx = (method) =>
+    const selfCtx = (method: string) =>
       makeCtx({
         url: ORIGIN + "/api/admin/users/" + admin.id,
         init: {
@@ -168,7 +173,7 @@ describe("護欄", () => {
       });
     const r = await onRequestPut(selfCtx("PUT"));
     expect(r.status).toBe(400);
-    expect((await r.json()).error).toBe("self");
+    expect(((await r.json()) as any).error).toBe("self");
     expect((await onRequestDelete(selfCtx("DELETE"))).status).toBe(400);
   });
 
@@ -178,7 +183,9 @@ describe("護欄", () => {
     const r = await onRequestDelete(putCtx(u.id, {}));
     expect(r.status).toBe(200);
     expect(await getUser(u.id)).toBeNull();
-    const s = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1").bind(u.id).first();
+    const s = await env.DB.prepare("SELECT COUNT(*) c FROM sessions WHERE user_id=?1")
+      .bind(u.id)
+      .first<any>();
     expect(s.c).toBe(0);
   });
 });

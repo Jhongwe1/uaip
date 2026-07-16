@@ -4,13 +4,13 @@
     "module": "es2022",
     "moduleResolution": "bundler",
     "lib": ["es2022"],
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types/2023-07-01", "@cloudflare/vitest-pool-workers"],
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "tools/**/*.mjs"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "tools/**/*.mjs"],
   "exclude": ["src/lib/vendor/**", "node_modules", ".wrangler"]
 }

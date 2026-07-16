@@ -7,9 +7,10 @@ import { onRequestPost as vpnPost } from "../../src/routes/api/account/vpn-token
 import { onRequestPost as logoutAll } from "../../src/routes/api/account/logout-all.js";
 import { createSession, getSessionUser, sha256hex, userFromKey } from "../../src/lib/auth.js";
 import { makeCtx, seedUser, ORIGIN } from "../helpers.js";
+import type { UserRow } from "../../src/types.js";
 
 // 帶登入 cookie＋同源 Origin 的 POST/DELETE
-async function authed(user, path, method) {
+async function authed(user: UserRow, path: string, method: string) {
   const s = await createSession(env, user, new URL(ORIGIN + "/"));
   return makeCtx({
     url: ORIGIN + path,
@@ -17,7 +18,7 @@ async function authed(user, path, method) {
   });
 }
 // 帶登入但 Origin 是外站（模擬 CSRF）
-async function crossOrigin(user, path, method) {
+async function crossOrigin(user: UserRow, path: string, method: string) {
   const s = await createSession(env, user, new URL(ORIGIN + "/"));
   return makeCtx({
     url: ORIGIN + path,
@@ -30,25 +31,25 @@ describe("/api/account/key", () => {
     const u = await seedUser({ status: "approved" });
     const r = await keyPost(await authed(u, "/api/account/key", "POST"));
     expect(r.status).toBe(200);
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.key).toMatch(/^uak-[a-z2-7]{26}$/);
-    const row = await env.DB.prepare("SELECT api_key_hash FROM users WHERE id=?1").bind(u.id).first();
+    const row = await env.DB.prepare("SELECT api_key_hash FROM users WHERE id=?1").bind(u.id).first<any>();
     expect(row.api_key_hash).toBe(await sha256hex(j.key)); // 庫內只有雜湊
-    expect((await userFromKey(env, j.key)).id).toBe(u.id); // 明文能換回本人
+    expect((await userFromKey(env, j.key))!.id).toBe(u.id); // 明文能換回本人
   });
 
   it("POST 再產生：舊金鑰立即失效", async () => {
     const u = await seedUser({ status: "approved" });
-    const k1 = (await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()).key;
-    const k2 = (await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()).key;
+    const k1 = ((await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()) as any).key;
+    const k2 = ((await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()) as any).key;
     expect(k2).not.toBe(k1);
     expect(await userFromKey(env, k1)).toBeNull(); // 舊的死了
-    expect((await userFromKey(env, k2)).id).toBe(u.id);
+    expect((await userFromKey(env, k2))!.id).toBe(u.id);
   });
 
   it("DELETE 撤銷：金鑰欄清空", async () => {
     const u = await seedUser({ status: "approved" });
-    const k = (await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()).key;
+    const k = ((await (await keyPost(await authed(u, "/api/account/key", "POST"))).json()) as any).key;
     const r = await keyDelete(await authed(u, "/api/account/key", "DELETE"));
     expect(r.status).toBe(200);
     expect(await userFromKey(env, k)).toBeNull();
@@ -82,10 +83,10 @@ describe("/api/account/vpn-token", () => {
     const u = await seedUser({ status: "approved", vpn_token: "uvt" + "a".repeat(20) });
     const r = await vpnPost(await authed(u, "/api/account/vpn-token", "POST"));
     expect(r.status).toBe(200);
-    const j = await r.json();
+    const j: any = await r.json();
     expect(j.vpn_token).toMatch(/^uvt[a-z2-7]{20}$/);
     expect(j.vpn_token).not.toBe("uvt" + "a".repeat(20));
-    const row = await env.DB.prepare("SELECT vpn_token FROM users WHERE id=?1").bind(u.id).first();
+    const row = await env.DB.prepare("SELECT vpn_token FROM users WHERE id=?1").bind(u.id).first<any>();
     expect(row.vpn_token).toBe(j.vpn_token);
   });
 
