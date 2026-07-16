@@ -2,8 +2,8 @@
 // checkQuota 的個人覆寫／全域設定／內建預設三層優先序。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { scanUsage, checkQuota, logReq, QUOTA_DEFAULTS, utcDayStart } from "../../lib/quota.js";
-import { extractUsage } from "../../lib/playground.js";
+import { scanUsage, checkQuota, logReq, QUOTA_DEFAULTS, utcDayStart } from "../../src/lib/quota.js";
+import { extractUsage } from "../../src/lib/playground.js";
 import { seedUser, seedAdmin } from "../helpers.js";
 
 describe("scanUsage（relay 回應掃描：SSE 或 JSON 原文）", () => {

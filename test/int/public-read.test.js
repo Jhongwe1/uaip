@@ -2,14 +2,14 @@
 // 這些是「不需登入就該通」的面，遷移後要維持同樣的 content-type 與內容形狀。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestGet as feed } from "../../functions/feed.js";
-import { onRequestGet as sitemap } from "../../functions/sitemap.js";
-import { onRequestGet as img } from "../../functions/img/[id].js";
-import { onRequestGet as health } from "../../functions/api/health.js";
-import { onRequestGet as whoami } from "../../functions/api/whoami.js";
-import { onRequestGet as menu } from "../../functions/api/menu.js";
-import { onRequestGet as articleApi } from "../../functions/api/articles/[id].js";
-import { onRequestGet as pageApi } from "../../functions/api/pages/[slug].js";
+import { onRequestGet as feed } from "../../src/routes/feed.js";
+import { onRequestGet as sitemap } from "../../src/routes/sitemap.js";
+import { onRequestGet as img } from "../../src/routes/img/[id].js";
+import { onRequestGet as health } from "../../src/routes/api/health.js";
+import { onRequestGet as whoami } from "../../src/routes/api/whoami.js";
+import { onRequestGet as menu } from "../../src/routes/api/menu.js";
+import { onRequestGet as articleApi } from "../../src/routes/api/articles/[id].js";
+import { onRequestGet as pageApi } from "../../src/routes/api/pages/[slug].js";
 import { makeCtx, ORIGIN } from "../helpers.js";
 
 async function pubArticle(over) {

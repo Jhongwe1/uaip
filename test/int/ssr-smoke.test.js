@@ -2,17 +2,17 @@
 // 遷移到 Workers 後這些頁要一字不差地照常出，這層網先立在遷移之前。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestGet as newsList } from "../../functions/news/index.js";
-import { onRequestGet as articlesList } from "../../functions/articles/index.js";
-import { onRequestGet as newsItem } from "../../functions/news/[id].js";
-import { onRequestGet as customPage } from "../../functions/p/[slug].js";
-import { onRequestGet as adminPage } from "../../functions/admin.js";
-import { onRequestGet as logsPage } from "../../functions/logs.js";
-import { onRequestGet as membersPage } from "../../functions/members.js";
-import { onRequest as relayRoute } from "../../functions/relay/[[path]].js";
-import { onRequestGet as playgroundPage } from "../../functions/playground.js";
+import { onRequestGet as newsList } from "../../src/routes/news/index.js";
+import { onRequestGet as articlesList } from "../../src/routes/articles/index.js";
+import { onRequestGet as newsItem } from "../../src/routes/news/[id].js";
+import { onRequestGet as customPage } from "../../src/routes/p/[slug].js";
+import { onRequestGet as adminPage } from "../../src/routes/admin.js";
+import { onRequestGet as logsPage } from "../../src/routes/logs.js";
+import { onRequestGet as membersPage } from "../../src/routes/members.js";
+import { onRequest as relayRoute } from "../../src/routes/relay/[[path]].js";
+import { onRequestGet as playgroundPage } from "../../src/routes/playground.js";
 import { makeCtx, seedAdmin, ORIGIN } from "../helpers.js";
-import { createSession } from "../../lib/auth.js";
+import { createSession } from "../../src/lib/auth.js";
 
 async function adminHeaders() {
   const adm = await seedAdmin();

@@ -1,7 +1,7 @@
 // session 生命週期：建立→取回→過期→登出。核心安全性質：庫內只存 sid 的 SHA-256。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { createSession, getSessionUser, deleteSession, sha256hex } from "../../lib/auth.js";
+import { createSession, getSessionUser, deleteSession, sha256hex } from "../../src/lib/auth.js";
 import { seedUser, ORIGIN } from "../helpers.js";
 
 const URL_ = new URL(ORIGIN + "/");

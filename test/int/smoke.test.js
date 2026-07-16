@@ -3,7 +3,7 @@
 //   2. migrations 已套用（D1 有表）、helpers 的 makeCtx 能驅動 handler
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequest } from "../../functions/relay/[[path]].js";
+import { onRequest } from "../../src/routes/relay/[[path]].js";
 import { makeCtx, ORIGIN } from "../helpers.js";
 
 describe("工具鏈冒煙", () => {

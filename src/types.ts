@@ -1,0 +1,79 @@
+// src/types.ts — v2.0.0 Phase F 的共用型別。
+// 定位：把「到處在用」的形狀集中定義（Env 綁定、D1 資料列、Pages 形 context）。
+// 過渡期哲學：handler 由 .js 轉來、邏輯不動，型別以「夠用、不擋路」為準 —— 資料列多半
+// 直接取自 D1（欄位型別鬆），所以 Row 型別是描述性的、允許 index 存取。
+
+// wrangler.toml 綁定 + secrets。functions/handler 只碰得到這些。
+export interface Env {
+  DB: D1Database;
+  ASSETS: { fetch: (req: Request) => Promise<Response> };
+  SITE_ORIGIN?: string;
+  ADMIN_EMAILS?: string;
+  LOGS_TOKEN?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  [key: string]: unknown;
+}
+
+// Pages 形 EventContext（router 建、handler 收）。params 是路由參數（:id→string、*path→string[]）。
+export interface RouteCtx<P = Record<string, string | string[]>> {
+  request: Request;
+  env: Env;
+  params: P;
+  data: Record<string, unknown>;
+  waitUntil: (p: Promise<unknown>) => void;
+  passThroughOnException: () => void;
+  next: () => Promise<Response>;
+}
+
+// D1 資料列（migrations/0001_baseline.sql）。欄位鬆綁：D1 回來的值型別不保證，允許 index 存取。
+export interface UserRow {
+  id: number;
+  google_sub: string;
+  email: string;
+  name: string;
+  picture: string;
+  status: string; // pending | approved | blocked
+  services: string; // 逗號分隔：relay,vpn,playground
+  is_admin: number;
+  api_key_hash: string;
+  api_key_hint: string;
+  api_key_at: string | null;
+  vpn_token: string;
+  relay_calls: number;
+  vpn_pulls: number;
+  created_at: string;
+  last_login: string | null;
+  [key: string]: unknown;
+}
+
+export interface ChannelRow {
+  id: number;
+  slug: string;
+  name: string;
+  kind: string; // openai | anthropic | gemini | custom
+  base_url: string;
+  api_key: string;
+  models: string;
+  enabled: number;
+  created_at: string;
+  [key: string]: unknown;
+}
+
+export interface ArticleRow {
+  id: number;
+  category: string;
+  title: string;
+  summary: string;
+  cover: string;
+  body_md: string;
+  status: string;
+  views: number;
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  [key: string]: unknown;
+}
+
+// 未知形狀的 D1 資料列泛稱（handler 內大量 .map/.first 的對象）。
+export type Row = Record<string, unknown>;

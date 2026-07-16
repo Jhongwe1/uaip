@@ -1,37 +1,23 @@
-// src/router.ts — Workers 版路由器（v2.0.0 Phase D，取代 Cloudflare Pages 檔案系統路由）。
+// src/router.ts — Workers 版路由器（v2.0.0 Phase D 建立，取代 Cloudflare Pages 檔案系統路由；
+// Phase F 起 handler 住在 src/routes/、共用型別統一在 src/types.ts）。
 //
-// 設計：把 functions/ 既有的 onRequestGet/Post/… handler 掛到一張「註冊順序即優先序」的
-// 路由表上（見 src/routes.ts）。functions/ 檔案原地不動 —— 同一個 commit 隨時能把部署
-// 回滾到 Pages（wrangler.pages.toml）。線性掃描；樣式段 :name＝單段、*name＝餘段陣列
+// 設計：把 src/routes/ 的 onRequestGet/Post/… handler 掛到一張「註冊順序即優先序」的
+// 路由表上（見 src/routes.ts）。線性掃描；樣式段 :name＝單段、*name＝餘段陣列
 // （與 Pages 的 params 同形，例如 relay 的 params.path 是 string[]，relay handler 零改動）。
 //
-// 流程：visitLog（頁面瀏覽紀錄，與 Pages _middleware 共用同一支）→ 比對路由 →
+// 流程：visitLog（頁面瀏覽紀錄，與 Pages 時代的 _middleware 同一支）→ 比對路由 →
 // 建 Pages 形 context 分派 → 全程 errorBoundary（未捕捉例外 → reportError＋500）→
 // 無匹配 → env.ASSETS.fetch（靜態檔或 SPA fallback，吃 /ip /ua 這些前端路由）。
 
-import { visitLog } from "../functions/_middleware.js";
-import { reportErrorNow } from "../lib/observe.js";
+import { visitLog } from "./routes/_middleware.js";
+import { reportErrorNow } from "./lib/observe.js";
 import { ROUTES } from "./routes.js";
+import type { Env, RouteCtx } from "./types.js";
+
+export type { Env, RouteCtx } from "./types.js";
 
 export type Handler = (ctx: RouteCtx) => Response | Promise<Response>;
 export type MethodMap = Record<string, Handler>;
-
-export interface Env {
-  DB: D1Database;
-  ASSETS: { fetch: (req: Request) => Promise<Response> };
-  [key: string]: unknown;
-}
-
-// 傳給 handler 的 context：與 Pages 的 EventContext 同形（request/env/params/waitUntil/…）
-export interface RouteCtx {
-  request: Request;
-  env: Env;
-  params: Record<string, string | string[]>;
-  data: Record<string, unknown>;
-  waitUntil: (p: Promise<unknown>) => void;
-  passThroughOnException: () => void;
-  next: () => Promise<Response>;
-}
 
 interface CompiledRoute {
   segs: string[]; // ["api","articles",":id"]
@@ -117,10 +103,8 @@ export async function handle(request: Request, env: Env, exec: ExecutionContext)
     next: () => env.ASSETS.fetch(request)
   };
 
-  // 1) 頁面瀏覽紀錄（背景、永不影響回應）——與 Pages _middleware 同一支
-  visitLog(
-    ctx as unknown as { request: Request; env: { DB?: D1Database }; waitUntil: (p: Promise<unknown>) => void }
-  );
+  // 1) 頁面瀏覽紀錄（背景、永不影響回應）——與 Pages 時代的 _middleware 同一支
+  visitLog(ctx);
 
   // 2) 線性掃描路由表（註冊順序即優先序）
   for (let i = 0; i < COMPILED.length; i++) {

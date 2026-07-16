@@ -2,9 +2,9 @@
 // Phase F 會加「無 vpn 權限者省略 vpn 欄位」矩陣；Phase C 會加 usage 區塊。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestGet } from "../../functions/api/me.js";
-import { createSession } from "../../lib/auth.js";
-import { logReq } from "../../lib/quota.js";
+import { onRequestGet } from "../../src/routes/api/me.js";
+import { createSession } from "../../src/lib/auth.js";
+import { logReq } from "../../src/lib/quota.js";
 import { makeCtx, seedUser, seedAdmin, giveKey, ORIGIN } from "../helpers.js";
 
 async function meCtx(user) {

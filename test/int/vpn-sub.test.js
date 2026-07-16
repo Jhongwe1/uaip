@@ -1,7 +1,7 @@
 // GET /vpn/sub/<token> — token 即驗證；矩陣＋多渠道合併去重＋計數。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { onRequestGet } from "../../functions/vpn/sub/[token].js";
+import { onRequestGet } from "../../src/routes/vpn/sub/[token].js";
 import { makeCtx, drainWaits, seedUser, ORIGIN } from "../helpers.js";
 
 beforeAll(() => {

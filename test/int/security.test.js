@@ -1,10 +1,10 @@
 // Phase E 安全強化：logout-all、revoke_sessions、audit_log 落庫、miniPage CSP。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestPost as logoutAll } from "../../functions/api/account/logout-all.js";
-import { onRequestPut as usersPut } from "../../functions/api/admin/users/[id].js";
-import { onRequestPut as settingsPut } from "../../functions/api/admin/settings.js";
-import { createSession, miniPage } from "../../lib/auth.js";
+import { onRequestPost as logoutAll } from "../../src/routes/api/account/logout-all.js";
+import { onRequestPut as usersPut } from "../../src/routes/api/admin/users/[id].js";
+import { onRequestPut as settingsPut } from "../../src/routes/api/admin/settings.js";
+import { createSession, miniPage } from "../../src/lib/auth.js";
 import { makeCtx, drainWaits, seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
 
 const TOK = "admintok";

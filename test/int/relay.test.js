@@ -3,7 +3,7 @@
 // 特別是會員身分標頭有沒有被剝乾淨、金鑰有沒有換成管理員的上游金鑰。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { onRequest } from "../../functions/relay/[[path]].js";
+import { onRequest } from "../../src/routes/relay/[[path]].js";
 import { makeCtx, drainWaits, seedUser, giveKey, seedChannel, ORIGIN } from "../helpers.js";
 
 const UP = "https://api.example.com";

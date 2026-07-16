@@ -22,31 +22,14 @@ export default [
     ignores: [
       "node_modules/**",
       ".wrangler/**",
-      "lib/vendor/**", // 第三方 vendored（marked）— 不碰
-      "lib/apidoc.js", // 由 API.md 產生的生成檔
+      "src/lib/vendor/**", // 第三方 vendored（marked）— 不碰
+      "src/lib/apidoc.ts", // 由 API.md 產生的生成檔
       "public/**" // 前端資產手工調校＋index.html 的 CSP sha256 釘死，不 lint 不格式化
     ]
   },
   js.configs.recommended,
 
-  // 後端 .js（lib/ 與 functions/）
-  {
-    files: ["lib/**/*.js", "functions/**/*.js"],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: "module",
-      globals: workerGlobals
-    },
-    rules: {
-      // catch (e) {} 是全站慣用的「失敗就算了」— caughtErrors:none 不把它當未用變數
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }],
-      "no-empty": ["warn", { allowEmptyCatch: true }], // 觀測性程式大量「失敗就算了」的空 catch
-      "no-control-regex": "off", // sanitize.js 的 URL 控制字元過濾是刻意的
-      "no-useless-escape": "off" // <\/script> 是 HTML-in-JS 的刻意防護（防提早關 script）
-    }
-  },
-
-  // 後端 .ts（src/）
+  // 後端 .ts（src/，Phase F 起全面 TypeScript）
   ...tseslint.configs.recommended.map((c) => ({
     ...c,
     files: ["src/**/*.ts"]
@@ -55,12 +38,15 @@ export default [
     files: ["src/**/*.ts"],
     languageOptions: { globals: workerGlobals },
     rules: {
-      "@typescript-eslint/no-explicit-any": "off", // 橋接寬鬆型別的 .js handler，過渡期允許
+      // 邊界處（request.json()、上游 JSON、D1 整列）允許 any — 各處都有行內註解說明
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }
       ],
-      "no-empty": ["warn", { allowEmptyCatch: true }]
+      "no-empty": ["warn", { allowEmptyCatch: true }], // 觀測性程式大量「失敗就算了」的空 catch
+      "no-control-regex": "off", // sanitize.ts 的 URL 控制字元過濾是刻意的
+      "no-useless-escape": "off" // <\/script> 是 HTML-in-JS 的刻意防護（防提早關 script）
     }
   },
 

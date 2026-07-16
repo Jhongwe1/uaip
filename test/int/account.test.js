@@ -2,10 +2,10 @@
 // 重點：要登入、要過 Origin（CSRF）、金鑰明文只出現一次且庫內只存雜湊。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestPost as keyPost, onRequestDelete as keyDelete } from "../../functions/api/account/key.js";
-import { onRequestPost as vpnPost } from "../../functions/api/account/vpn-token.js";
-import { onRequestPost as logoutAll } from "../../functions/api/account/logout-all.js";
-import { createSession, getSessionUser, sha256hex, userFromKey } from "../../lib/auth.js";
+import { onRequestPost as keyPost, onRequestDelete as keyDelete } from "../../src/routes/api/account/key.js";
+import { onRequestPost as vpnPost } from "../../src/routes/api/account/vpn-token.js";
+import { onRequestPost as logoutAll } from "../../src/routes/api/account/logout-all.js";
+import { createSession, getSessionUser, sha256hex, userFromKey } from "../../src/lib/auth.js";
 import { makeCtx, seedUser, ORIGIN } from "../helpers.js";
 
 // 帶登入 cookie＋同源 Origin 的 POST/DELETE

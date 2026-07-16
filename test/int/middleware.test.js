@@ -2,7 +2,7 @@
 // shouldLog 沒對外 export，所以透過 onRequest 驅動：用一顆「記錄型」假 DB 觀測
 // 到底有沒有寫入 visits（順便驗 logVisit 的 SQL 綁定不會炸）。
 import { describe, it, expect } from "vitest";
-import { onRequest } from "../../functions/_middleware.js";
+import { onRequest } from "../../src/routes/_middleware.js";
 import { ORIGIN } from "../helpers.js";
 
 // 假 DB：只認 INSERT INTO visits，記下呼叫次數；其餘語句照樣回傳 no-op。

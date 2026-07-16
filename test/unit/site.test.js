@@ -1,6 +1,6 @@
 // lib/site.js 純函式（esc／json／fmtDate）＋ html() 的 CSP nonce 蓋章。
 import { describe, it, expect } from "vitest";
-import { esc, json, fmtDate, html } from "../../lib/site.js";
+import { esc, json, fmtDate, html } from "../../src/lib/site.js";
 
 describe("esc（HTML 跳脫）", () => {
   it("五個危險字元全跳", () => {

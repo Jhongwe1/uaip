@@ -4,8 +4,8 @@ import { env } from "cloudflare:test";
 import {
   onRequestPut as rawPut,
   onRequestDelete as rawDelete
-} from "../../functions/api/admin/users/[id].js";
-import { createSession } from "../../lib/auth.js";
+} from "../../src/routes/api/admin/users/[id].js";
+import { createSession } from "../../src/lib/auth.js";
 import { makeCtx, drainWaits, seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
 
 // 每次變更都會掛 audit 的背景寫入（waitUntil）— 包一層自動排水，測試結束前收乾淨

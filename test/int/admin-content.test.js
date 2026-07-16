@@ -5,17 +5,17 @@ import { env } from "cloudflare:test";
 import {
   onRequestGet as artList,
   onRequestPost as artCreate
-} from "../../functions/api/admin/articles/index.js";
+} from "../../src/routes/api/admin/articles/index.js";
 import {
   onRequestPut as artUpdate,
   onRequestDelete as artDelete
-} from "../../functions/api/admin/articles/[id].js";
-import { onRequestPost as pageCreate } from "../../functions/api/admin/pages/index.js";
+} from "../../src/routes/api/admin/articles/[id].js";
+import { onRequestPost as pageCreate } from "../../src/routes/api/admin/pages/index.js";
 import {
   onRequestPut as pageUpdate,
   onRequestDelete as pageDelete
-} from "../../functions/api/admin/pages/[key].js";
-import { onRequestPut as menuPut } from "../../functions/api/admin/menu.js";
+} from "../../src/routes/api/admin/pages/[key].js";
+import { onRequestPut as menuPut } from "../../src/routes/api/admin/menu.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
 
 const TOK = "admintok";

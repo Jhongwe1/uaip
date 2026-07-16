@@ -2,8 +2,8 @@
 // 這是「任何人能不能變成會員／管理員」的信任邊界，遷移前一定要有網。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { onRequestGet as callback } from "../../functions/auth/callback.js";
-import { getSessionUser } from "../../lib/auth.js";
+import { onRequestGet as callback } from "../../src/routes/auth/callback.js";
+import { getSessionUser } from "../../src/lib/auth.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
 
 const CID = "test-client-id.apps.googleusercontent.com";

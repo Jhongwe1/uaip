@@ -2,8 +2,8 @@
 // 且 CSP nonce 只蓋外殼標記（data-nonce）的 script — 內容層 script 拿不到 nonce。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestGet as newsPage } from "../../functions/news/[id].js";
-import { onRequestGet as articleApi } from "../../functions/api/articles/[id].js";
+import { onRequestGet as newsPage } from "../../src/routes/news/[id].js";
+import { onRequestGet as articleApi } from "../../src/routes/api/articles/[id].js";
 import { makeCtx, ORIGIN } from "../helpers.js";
 
 async function seedArticle(body_md) {

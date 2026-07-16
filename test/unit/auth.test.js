@@ -8,7 +8,7 @@ import {
   goodOrigin,
   userServices,
   memberKeyFrom
-} from "../../lib/auth.js";
+} from "../../src/lib/auth.js";
 
 describe("randToken", () => {
   it("前綴＋預設 26 字、只用小寫 base32（a-z2-7）", () => {

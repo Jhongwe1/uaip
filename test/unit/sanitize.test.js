@@ -1,6 +1,6 @@
 // lib/sanitize.js 的 XSS 語料測試 — 這是文章內容進頁面前的最後一道閘門。
 import { describe, it, expect } from "vitest";
-import { sanitizeHtml } from "../../lib/sanitize.js";
+import { sanitizeHtml } from "../../src/lib/sanitize.js";
 
 describe("sanitizeHtml：危險內容全擋", () => {
   it("<script> 連內容整段丟棄", () => {

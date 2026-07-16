@@ -2,13 +2,13 @@
 // 以及 relay／playground 的 errlog 埋點有真的寫進去。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { onRequestGet as healthGet } from "../../functions/api/health.js";
-import { onRequestGet as errsGet, onRequestDelete as errsDel } from "../../functions/api/admin/errors.js";
-import { onRequestGet as statsGet } from "../../functions/api/admin/stats.js";
-import { onRequestPost as cspPost } from "../../functions/api/csp-report.js";
-import { onRequest as relayHandler } from "../../functions/relay/[[path]].js";
-import { reportErrorNow } from "../../lib/observe.js";
-import { logReq } from "../../lib/quota.js";
+import { onRequestGet as healthGet } from "../../src/routes/api/health.js";
+import { onRequestGet as errsGet, onRequestDelete as errsDel } from "../../src/routes/api/admin/errors.js";
+import { onRequestGet as statsGet } from "../../src/routes/api/admin/stats.js";
+import { onRequestPost as cspPost } from "../../src/routes/api/csp-report.js";
+import { onRequest as relayHandler } from "../../src/routes/relay/[[path]].js";
+import { reportErrorNow } from "../../src/lib/observe.js";
+import { logReq } from "../../src/lib/quota.js";
 import { makeCtx, drainWaits, seedUser, giveKey, seedChannel, envWith, ORIGIN } from "../helpers.js";
 
 const TOK = "admintok";

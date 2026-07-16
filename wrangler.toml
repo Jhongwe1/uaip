@@ -1,6 +1,6 @@
 # Cloudflare Workers 設定（uaip → https://uaip.cc.cd）。v2.0.0 Phase D 起從 Pages 遷來。
 # 部署：npx wrangler deploy　｜　本機：npx wrangler dev
-# 回滾到 Pages：把 wrangler.pages.toml 複製回這個檔名，改用 `wrangler pages deploy`。
+#（Phase F 目錄重整後 Pages 版設定已退役 — functions/ 不存在了，回滾單位是 git commit。）
 name = "uaip"
 main = "src/index.ts"
 compatibility_date = "2026-07-01"

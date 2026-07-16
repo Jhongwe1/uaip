@@ -7,7 +7,7 @@ import {
   extractFull,
   chModels,
   PG_LIMITS
-} from "../../lib/playground.js";
+} from "../../src/lib/playground.js";
 
 describe("cleanChat（聊天請求驗證）", () => {
   const good = () => ({ channel: "Demo", model: "m1", messages: [{ role: "user", content: "hi" }] });

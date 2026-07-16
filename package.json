@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Edge-native LLM gateway + personal portal on Cloudflare Pages (zero framework, zero runtime deps, D1 only).",
+  "description": "Edge-native LLM gateway + personal portal on Cloudflare Workers (zero framework, zero runtime deps, D1 only).",
   "scripts": {
     "dev": "wrangler dev",
     "test": "vitest run",

@@ -5,7 +5,7 @@ import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
 import worker from "../../src/index.js";
 import { envWith, seedUser, seedAdmin, giveKey, ORIGIN } from "../helpers.js";
-import { createSession } from "../../lib/auth.js";
+import { createSession } from "../../src/lib/auth.js";
 
 // stub ASSETS：回一個可辨識的「index.html」，讓我們斷言 SPA fallback 真的被叫到。
 // exec.waitUntil 收集背景 promise（visitLog 的 D1 寫入）並在回傳前排水 —

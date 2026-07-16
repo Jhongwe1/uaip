@@ -1,11 +1,11 @@
 // Phase F VPN 隱形：filterMenu 純函式、getChromeFor 四種身分、/vpn 頁的 ASSETS 偽裝。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { filterMenu, getChromeFor, canSeeVpn } from "../../lib/chrome.js";
-import { onRequestGet as vpnPage } from "../../functions/vpn/index.js";
-import { onRequestGet as meGet } from "../../functions/api/me.js";
-import { DEFAULT_MENU } from "../../lib/site.js";
-import { createSession } from "../../lib/auth.js";
+import { filterMenu, getChromeFor, canSeeVpn } from "../../src/lib/chrome.js";
+import { onRequestGet as vpnPage } from "../../src/routes/vpn/index.js";
+import { onRequestGet as meGet } from "../../src/routes/api/me.js";
+import { DEFAULT_MENU } from "../../src/lib/site.js";
+import { createSession } from "../../src/lib/auth.js";
 import { makeCtx, seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
 
 async function reqAs(user, path) {

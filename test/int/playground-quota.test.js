@@ -1,9 +1,9 @@
 // playground 配額與計量（Phase C）：429 在任何 D1 寫入之前、三家 usage 解析進 req_log。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { onRequestPost } from "../../functions/api/playground/chat.js";
-import { createSession } from "../../lib/auth.js";
-import { logReq } from "../../lib/quota.js";
+import { onRequestPost } from "../../src/routes/api/playground/chat.js";
+import { createSession } from "../../src/lib/auth.js";
+import { logReq } from "../../src/lib/quota.js";
 import { makeCtx, drainWaits, seedUser, seedChannel, readAll, ORIGIN } from "../helpers.js";
 
 const UP = "https://api.example.com";

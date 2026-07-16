@@ -2,7 +2,7 @@
 // Bearer 對/錯/缺 × LOGS_TOKEN 有/無、管理員 cookie、跨站 Origin 拒斥。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { adminOk, createSession } from "../../lib/auth.js";
+import { adminOk, createSession } from "../../src/lib/auth.js";
 import { seedUser, seedAdmin, envWith, ORIGIN } from "../helpers.js";
 
 const URL_ = new URL(ORIGIN + "/api/admin/x");

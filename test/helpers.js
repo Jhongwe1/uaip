@@ -1,9 +1,9 @@
 // test/helpers.js — 測試共用工具。
 // 測試「直接 import Pages Function 的 handler」（例：import { onRequest } from
-// "../../functions/relay/[[path]].js"），再用 makeCtx() 手造 EventContext 呼叫 —
+// "../../src/routes/relay/[[path]].js"），再用 makeCtx() 手造 EventContext 呼叫 —
 // 不經 wrangler build，跑得快、又能對 D1／回應做細部斷言。
 import { env as testEnv } from "cloudflare:test";
-import { sha256hex } from "../lib/auth.js";
+import { sha256hex } from "../src/lib/auth.js";
 
 export const ORIGIN = "https://uaip.cc.cd";
 

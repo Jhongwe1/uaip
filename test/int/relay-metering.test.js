@@ -1,8 +1,8 @@
 // relay 計量與配額（Phase C）：429、req_log、usage 掃描、直通開關、斷線停抓。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { onRequest } from "../../functions/relay/[[path]].js";
-import { logReq } from "../../lib/quota.js";
+import { onRequest } from "../../src/routes/relay/[[path]].js";
+import { logReq } from "../../src/lib/quota.js";
 import { makeCtx, drainWaits, seedUser, seedAdmin, giveKey, seedChannel, ORIGIN } from "../helpers.js";
 
 const UP = "https://api.example.com";

@@ -1,8 +1,8 @@
 // POST /api/playground/chat — SSE 快樂路徑、D1 持久化、錯誤淨化（會員看不到上游身分）。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { onRequestPost } from "../../functions/api/playground/chat.js";
-import { createSession } from "../../lib/auth.js";
+import { onRequestPost } from "../../src/routes/api/playground/chat.js";
+import { createSession } from "../../src/lib/auth.js";
 import {
   makeCtx,
   drainWaits,
