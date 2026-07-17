@@ -101,6 +101,7 @@ curl -X POST https://uaip.cc.cd/api/admin/articles ^
 | `DELETE /api/admin/pages/{id或slug}` | 刪除頁面（不可復原） |
 | `POST /api/admin/media` | 上傳圖片 |
 | `PUT /api/admin/menu` | 覆蓋側邊欄選單 |
+| `GET /api/admin/settings` | 目前存的網站設定原況（給 /settings 管理頁當編輯初值；數字鍵沒設過回 `null`，另附 `defaults`） |
 | `PUT /api/admin/settings` | 改網站設定（站名、Playground 全員開放、配額全域預設、計量開關） |
 | `GET /api/logs` | 訪客紀錄查詢 |
 | `GET /api/admin/errors` | 站內錯誤日誌（`?limit&offset&src`；relay/playground/OAuth/CSP 埋點） |
@@ -242,7 +243,7 @@ curl -X POST "https://uaip.cc.cd/api/admin/media?w=1400&h=788" ^
 - 每項規則：`label` 必填最長 60 字；`label_en` 選填最長 60 字；link 的 `url` 必填最長 300 字，**必須以 `/` 或 `http://` 或 `https://` 開頭**；最多 60 項。
 - 傳 **`{ "items": [] }`（空陣列）＝清掉自訂選單＝還原內建預設**。
 - 回 `{ ok, count, custom }`。
-- 側邊欄的「管理員區」（文章管理、訪客紀錄、API 文件）不在選單資料裡 — 那是登入過的裝置由前端動態長出來的，改不到也不用管。
+- 側邊欄的「管理員區」（管理員設定、訪客紀錄、API 文件）不在選單資料裡 — 那是登入過的裝置由前端動態長出來的，改不到也不用管。
 
 標準流程（先拿現況、改完整包放回）：
 
@@ -255,9 +256,11 @@ curl -X PUT https://uaip.cc.cd/api/admin/menu ^
   -H "content-type: application/json; charset=utf-8" --data-binary @menu.json
 ```
 
-### 網站設定：PUT /api/admin/settings
+### 網站設定：GET / PUT /api/admin/settings
 
-**本體帶哪個鍵就改哪個鍵，沒帶的不動**（2026-07-14 起；跟文章／選單的整包覆蓋不同）。回 `{ ok, brand, custom, contact_url, pg_open, quota_relay_day, quota_pg_day, rl_per_min, relay_meter }`（改完的現況；配額鍵沒設過時顯示內建預設）。
+**GET**（2026-07-17，/settings 管理頁的數據源）回目前**存的**原況：`{ ok, brand, custom, contact_url, pg_open, relay_meter, quota_relay_day, quota_pg_day, rl_per_min, demo_mode, demo_active, demo_channel, demo_models, demo_per_min, demo_per_ip_day, demo_global_day, demo_max_tokens, defaults }` — 數字鍵沒設過回 `null`（不是內建預設值），內建預設放在 `defaults` 物件；`demo_mode` 是開關本身的儲存值、`demo_active` 才是真正生效與否（開關＋`demo_channel` 都要有）。
+
+**PUT：本體帶哪個鍵就改哪個鍵，沒帶的不動**（2026-07-14 起；跟文章／選單的整包覆蓋不同）。回 `{ ok, brand, custom, contact_url, pg_open, quota_relay_day, quota_pg_day, rl_per_min, relay_meter, demo_* }`（改完的現況；配額鍵沒設過時顯示內建預設）。
 
 | 鍵 | 說明 |
 |---|---|
@@ -464,7 +467,7 @@ Authorization: Bearer uak-你的金鑰
 | 暫停某渠道 | GET /api/admin/vpn/channels 找 id → PUT `{ name, kind, enabled:false }`（會員訂閱立刻少掉那些節點） |
 
 轉貼別站新聞的原則：**用自己的話改寫＋文末附資料來源連結**，不要整篇照抄。
-這些操作在網頁上也都能做：文章後台 /admin、☰ 側邊欄「管理員」區（改選單、改站名、成員管理）、訪客紀錄 /logs、中轉站 /relay、VPN /vpn（自訂頁面目前只有 API）。
+這些操作在網頁上也都能做：**管理員設定 /settings**（站名、聯絡連結、Playground 與體驗模式、配額、計量開關、模型定價、自訂頁面）、文章後台 /admin、☰ 側邊欄（選單編輯 — 打開選單按「選單」旁的 ✎）、成員管理 /members、訪客紀錄 /logs、中轉站 /relay、VPN /vpn。
 
 ## 7. 錯誤回應
 

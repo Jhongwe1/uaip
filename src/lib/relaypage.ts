@@ -269,8 +269,8 @@ const RELAY_JS = `
   }
   function editChannel(c,box){
     var isNew=!c;c=c||{kind:"openai",enabled:1};
-    var ov=el("div");ov.className="ab-ov";ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:16px";
-    var dlg=el("div","card");dlg.style.cssText="max-width:420px;width:100%;margin:0;max-height:90vh;overflow:auto";
+    var ov=el("div","mu-ov");
+    var dlg=el("div","card mu-dlg");dlg.style.maxWidth="420px";
     dlg.appendChild(el("h2",null,isNew?tx("新增管道","New channel"):tx("編輯管道","Edit channel")));
     function field(label,id,val,ph){
       var f=el("div","field");f.appendChild(el("label",null,label));

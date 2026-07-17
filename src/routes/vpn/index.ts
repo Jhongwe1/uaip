@@ -190,8 +190,8 @@ const VPN_JS = `
   }
   function editChannel(c,box){
     var isNew=!c;c=c||{kind:"sub",enabled:1,nodes:""};
-    var ov=el("div");ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:16px";
-    var dlg=el("div","card");dlg.style.cssText="max-width:440px;width:100%;margin:0;max-height:90vh;overflow:auto";
+    var ov=el("div","mu-ov");
+    var dlg=el("div","card mu-dlg");
     dlg.appendChild(el("h2",null,isNew?tx("新增渠道","New channel"):tx("編輯渠道","Edit channel")));
     var fN=el("div","field");fN.appendChild(el("label",null,tx("顯示名稱（只有你看得到）","Name (admin only)")));
     var fName=el("input");fName.value=c.name||"";fName.placeholder=tx("例：某機場 月付3元","e.g. cheap airport");fName.autocomplete="off";

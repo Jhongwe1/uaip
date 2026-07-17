@@ -1,4 +1,8 @@
-// PUT /api/admin/settings — 管理員專用：改網站設定。**本體帶哪個鍵就改哪個鍵**（沒帶的不動）：
+// /api/admin/settings — 管理員專用：網站設定。
+// GET（2026-07-17 管理員設定頁 /settings 上線時加）：回目前**存的**設定原況 —
+//   數字鍵沒設過回 null（不是內建預設值），另附 defaults 物件讓前端當 placeholder；
+//   demo_mode 回開關本身的儲存值、demo_active 回真正生效與否（開關＋demo_channel 都要有）。
+// PUT — 改網站設定。**本體帶哪個鍵就改哪個鍵**（沒帶的不動）：
 //   brand:   新站名（最長 60 字）；空字串＝刪掉自訂站名＝還原預設（正式網址主機名）。
 //   contact_url: 管理員對外聯絡連結（http/https，最長 300 字；顯示在會員頁登入閘門的「聯絡我」鈕）。
 //            空字串或 null＝刪鍵＝不顯示聯絡鈕。
@@ -34,6 +38,61 @@ const ALL_KEYS = [
 ]
   .concat(QUOTA_KEYS)
   .concat(DEMO_NUM_KEYS);
+
+// 設定表目前的原況（給 /settings 管理頁當編輯初值）。數字鍵沒設過＝null；
+// 前端拿 defaults 當 placeholder，空欄送 null＝清掉覆寫、回到內建預設。
+export async function onRequestGet(context: RouteCtx): Promise<Response> {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  if (!(await adminOk(request, env, url))) return json({ error: "unauthorized" }, 401);
+  if (!env.DB) return json({ error: "no-db" }, 500);
+  try {
+    const res = await env.DB.prepare(
+      "SELECT k,v FROM settings WHERE k IN ('brand','contact_url','pg_open','relay_meter'," +
+        "'quota_relay_day','quota_pg_day','rl_per_min'," +
+        "'demo_mode','demo_channel','demo_models','demo_per_min','demo_per_ip_day','demo_global_day','demo_max_tokens')"
+    ).all();
+    const st: Record<string, string> = {};
+    ((res.results || []) as { k: string; v: string }[]).forEach(function (r) {
+      st[r.k] = r.v;
+    });
+    const numOrNull = function (v: string | undefined): number | null {
+      const n = parseInt(v || "", 10);
+      return Number.isFinite(n) ? n : null;
+    };
+    return json({
+      ok: true,
+      brand: st.brand || siteBrand(env, request),
+      custom: !!st.brand,
+      contact_url: st.contact_url || "",
+      pg_open: st.pg_open === "1",
+      relay_meter: st.relay_meter !== "0",
+      quota_relay_day: numOrNull(st.quota_relay_day),
+      quota_pg_day: numOrNull(st.quota_pg_day),
+      rl_per_min: numOrNull(st.rl_per_min),
+      demo_mode: st.demo_mode === "1",
+      demo_active: st.demo_mode === "1" && !!String(st.demo_channel || "").trim(),
+      demo_channel: st.demo_channel || "",
+      demo_models: st.demo_models || "",
+      demo_per_min: numOrNull(st.demo_per_min),
+      demo_per_ip_day: numOrNull(st.demo_per_ip_day),
+      demo_global_day: numOrNull(st.demo_global_day),
+      demo_max_tokens: numOrNull(st.demo_max_tokens),
+      // 只放「可用 PUT 設定」的數字鍵（DEMO_DEFAULTS 另含內部用的 maxInputChars，不外流）
+      defaults: {
+        quota_relay_day: QUOTA_DEFAULTS.quota_relay_day,
+        quota_pg_day: QUOTA_DEFAULTS.quota_pg_day,
+        rl_per_min: QUOTA_DEFAULTS.rl_per_min,
+        demo_per_min: DEMO_DEFAULTS.demo_per_min,
+        demo_per_ip_day: DEMO_DEFAULTS.demo_per_ip_day,
+        demo_global_day: DEMO_DEFAULTS.demo_global_day,
+        demo_max_tokens: DEMO_DEFAULTS.demo_max_tokens
+      }
+    });
+  } catch (e: any) {
+    return json({ error: "query-failed", detail: String((e && e.message) || e) }, 500);
+  }
+}
 
 export async function onRequestPut(context: RouteCtx): Promise<Response> {
   const { request, env } = context;

@@ -9,6 +9,7 @@ import { onRequestGet as customPage } from "../../src/routes/p/[slug].js";
 import { onRequestGet as adminPage } from "../../src/routes/admin.js";
 import { onRequestGet as logsPage } from "../../src/routes/logs.js";
 import { onRequestGet as membersPage } from "../../src/routes/members.js";
+import { onRequestGet as settingsPage } from "../../src/routes/settings.js";
 import { onRequest as relayRoute } from "../../src/routes/relay/[[path]].js";
 import { onRequestGet as playgroundPage } from "../../src/routes/playground.js";
 import { makeCtx, seedAdmin, ORIGIN } from "../helpers.js";
@@ -104,6 +105,13 @@ describe("管理員／會員頁（noindex）", () => {
       await membersPage(makeCtx({ url: ORIGIN + "/members", init: { headers: await adminHeaders() } }))
     );
     expect(text).toContain("noindex");
+  });
+  it("/settings：200＋noindex（2026-07-17 管理員設定頁）", async () => {
+    const text = await expectPage(
+      await settingsPage(makeCtx({ url: ORIGIN + "/settings", init: { headers: await adminHeaders() } }))
+    );
+    expect(text).toContain("noindex");
+    expect(text).toContain("管理員設定");
   });
   it("/relay：匿名也 200（catch-all 零段落＝操作頁，頁內自帶登入閘門）＋nonce", async () => {
     await expectPage(await relayRoute(makeCtx({ url: ORIGIN + "/relay", params: { path: [] } })));

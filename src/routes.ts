@@ -15,6 +15,7 @@ import { onRequestGet as adminPage } from "./routes/admin.js";
 import { onRequestGet as apiDocs } from "./routes/api-docs.js";
 import { onRequestGet as logsPage } from "./routes/logs.js";
 import { onRequestGet as membersPage } from "./routes/members.js";
+import { onRequestGet as settingsPage } from "./routes/settings.js";
 import { onRequestGet as playgroundPage } from "./routes/playground.js";
 
 // —— 內容頁 ——
@@ -70,7 +71,7 @@ import { onRequestGet as admApidoc } from "./routes/api/admin/apidoc.js";
 import { onRequestGet as admErrorsGet, onRequestDelete as admErrorsDel } from "./routes/api/admin/errors.js";
 import { onRequestPost as admMedia } from "./routes/api/admin/media.js";
 import { onRequestPut as admMenu } from "./routes/api/admin/menu.js";
-import { onRequestPut as admSettings } from "./routes/api/admin/settings.js";
+import { onRequestGet as admSettingsGet, onRequestPut as admSettings } from "./routes/api/admin/settings.js";
 import { onRequestGet as admStats } from "./routes/api/admin/stats.js";
 import { onRequestGet as admPricesGet, onRequestPut as admPricesPut } from "./routes/api/admin/prices.js";
 import {
@@ -116,7 +117,7 @@ export const ROUTES: Array<[string, MethodMap]> = [
   ["/api/admin/errors", { GET: admErrorsGet, DELETE: admErrorsDel }],
   ["/api/admin/media", { POST: admMedia }],
   ["/api/admin/menu", { PUT: admMenu }],
-  ["/api/admin/settings", { PUT: admSettings }],
+  ["/api/admin/settings", { GET: admSettingsGet, PUT: admSettings }],
   ["/api/admin/stats", { GET: admStats }],
   ["/api/admin/prices", { GET: admPricesGet, PUT: admPricesPut }],
   ["/api/admin/articles", { GET: admArtList, POST: admArtCreate }],
@@ -167,6 +168,7 @@ export const ROUTES: Array<[string, MethodMap]> = [
   ["/api-docs", { GET: apiDocs }],
   ["/logs", { GET: logsPage }],
   ["/members", { GET: membersPage }],
+  ["/settings", { GET: settingsPage }],
   ["/playground", { GET: playgroundPage }],
 
   // 內容頁（單段動態）

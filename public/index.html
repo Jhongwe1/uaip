@@ -2,7 +2,7 @@
 <html lang="zh-Hant" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <meta name="description" content="查詢 IP 位址與地理位置、User Agent、瀏覽器指紋 — IP address &amp; User Agent lookup.">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0b">
@@ -118,6 +118,11 @@
   footer a{color:var(--muted);}
   @media(max-width:480px){.k{flex-basis:80px;}h1{font-size:17px;}body{padding:20px 13px 48px;}#menuBtn{top:20px;}}
 
+  /* 觸控裝置：表單控制項字級 ≥16px — iOS 在 <16px 的欄位聚焦（鍵盤彈出）會自動放大整頁（與 SSR 外殼同處方） */
+  @media(hover:none){
+    input,select,textarea{font-size:16px!important;}
+  }
+
   /* ===== 廣告版位：貼上聯播網代碼前是空的，正式站不顯示任何東西 ===== */
   .ad-slot{display:none;}
   /* 寬螢幕右下角 300×250。1400px 斷點：廣告左緣 vw-316 與內容右緣 vw/2+360 至少留 24px，永不壓到內容 */
@@ -139,7 +144,7 @@
      載入後由 loadMenu() 從 /api/menu 取得管理員自訂選單覆蓋（管理員可在 ✎ 編輯模式改選單）。
      /ip、/ua 是本頁分頁：renderMenu 會補 data-nav，點了走前端 showTab 切換（不重新載入）。
      #sbAdmin 是管理員區容器 — 一般訪客永遠是空的；登入過後台的裝置由 adminbar.js 動態長出
-     「文章管理 / 訪客紀錄 / API 文件」，選單重繪（只動 #sbMenu）不會把它洗掉。 -->
+     「管理員設定 / 訪客紀錄 / API 文件」，選單重繪（只動 #sbMenu）不會把它洗掉。 -->
 <button id="menuBtn" class="ctrl" aria-label="選單 / Menu" aria-expanded="false" aria-controls="sidebar">
   <svg width="16" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M1 1h14M1 7h14M1 13h14"/></svg>
 </button>
@@ -922,7 +927,7 @@
       showTab(a.getAttribute("data-nav"), true);
       setOpen(false);
     });
-    // 管理員區（文章管理/訪客紀錄/API 文件）不在這裡 — 由 adminbar.js 注入 #sbAdmin，
+    // 管理員區（管理員設定/訪客紀錄/API 文件）不在這裡 — 由 adminbar.js 注入 #sbAdmin，
     // 一般訪客（localStorage 沒金鑰）根本不會載入那支程式。
   }
 
@@ -1043,7 +1048,7 @@
     try{
       if(localStorage.getItem("ipua-logs-token") || /^(localhost|127\.)/.test(location.hostname)){
         var abs = document.createElement("script");
-        abs.src = "/assets/adminbar.js?v=20260714";
+        abs.src = "/assets/adminbar.js?v=20260717";
         document.head.appendChild(abs);
       }
     }catch(e){}
@@ -1053,6 +1058,6 @@
   else start();
 })();
 </script>
-<script src="/assets/account.js?v=20260715a"></script>
+<script src="/assets/account.js?v=20260717a"></script>
 </body>
 </html>

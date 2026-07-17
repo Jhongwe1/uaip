@@ -210,7 +210,8 @@ export function pageShell(o: PageShellOpts): string {
   const menu = (o.chrome && o.chrome.menu) || DEFAULT_MENU;
   return (
     '<!DOCTYPE html>\n<html lang="zh-Hant" data-theme="light">\n<head>\n' +
-    '<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+    // interactive-widget=resizes-content：Android Chrome 鍵盤彈出時縮排版而不是蓋住/亂捲（其他瀏覽器忽略）
+    '<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">\n' +
     "<title>" +
     esc(o.title) +
     " · " +
@@ -259,7 +260,7 @@ export function pageShell(o: PageShellOpts): string {
     SHELL_JS +
     "</script>\n" +
     // ?v= 版本參數：assets 有 4 小時邊緣/瀏覽器快取，改了 account.js/adminbar.js 要一起把這裡的版本號調大
-    '<script data-nonce src="/assets/account.js?v=20260715a"></script>\n</body>\n</html>\n'
+    '<script data-nonce src="/assets/account.js?v=20260717a"></script>\n</body>\n</html>\n'
   );
 }
 
@@ -353,6 +354,18 @@ const SHELL_CSS = `
   @media(max-width:560px){.anav{grid-template-columns:1fr}.anav a.nx{text-align:left}}
   .backrow{margin-top:16px}
   @media(max-width:480px){h1{font-size:17px}body{padding:20px 13px 48px}#menuBtn{top:20px}.art h1.t{font-size:20px}.prose{font-size:15.5px}}
+  /* ===== 共用彈窗（relay/vpn/members 的渠道編輯、/settings 的頁面編輯等）=====
+     overlay 本身可捲＋dialog margin:auto：內容矮＝置中、高（或手機鍵盤彈出）＝順順捲動，
+     不會像以前 align-items:center 那樣被鍵盤蓋住看不到下半截。 */
+  .mu-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto;overscroll-behavior:contain}
+  .mu-dlg{max-width:440px;width:100%;margin:auto}
+  /* ===== 觸控裝置：表單控制項字級一律 ≥16px =====
+     iOS Safari 在 input/select/textarea 字級 <16px 時，聚焦（鍵盤彈出）會自動把整頁放大 —
+     這就是「手機點欄位頁面莫名變大」的元凶。!important 是刻意的：要壓過各頁面
+     較晚注入的 <style> 與元素上的 inline style（playground 已自帶同款處方，此為全站版）。 */
+  @media(hover:none){
+    input,select,textarea{font-size:16px!important}
+  }
 `;
 
 // ===== 管理頁共用樣式（/logs、/admin 的卡片、表單、表格元件；接在 SHELL_CSS 之後使用） =====
@@ -513,7 +526,7 @@ const SHELL_JS = `
          或本機開發才載入 /assets/adminbar.js；一般訪客完全不會下載這支程式 --- */
   try{
     if(localStorage.getItem("ipua-logs-token")||location.hostname==="localhost"||location.hostname==="127.0.0.1"){
-      var abs=document.createElement("script");abs.src="/assets/adminbar.js?v=20260714";document.head.appendChild(abs);
+      var abs=document.createElement("script");abs.src="/assets/adminbar.js?v=20260717";document.head.appendChild(abs);
     }
   }catch(e){}
   applyI18n();

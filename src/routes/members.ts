@@ -205,8 +205,8 @@ const MEMBERS_JS = `
   // 個人配額編輯（overlay dialog，樣式沿用 /vpn 渠道編輯框）：
   // 空欄＝用全域預設（settings 的 quota_* 鍵，沒設時是程式內建 500/200/30）。
   function quotaDialog(r){
-    var ov=el("div");ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:16px";
-    var dlg=el("div","card");dlg.style.cssText="max-width:420px;width:100%;margin:0;padding:18px;max-height:90vh;overflow:auto";
+    var ov=el("div","mu-ov");
+    var dlg=el("div","card mu-dlg");dlg.style.cssText="max-width:420px;padding:18px";
     dlg.appendChild(el("div","nm",tx("配額 — ","Quota — ")+(r.name||r.email)));
     dlg.appendChild(el("div","em",tx("空欄＝跟著全域預設；填 0 ＝ 直接停用該服務的配額。","Blank = global default; 0 = shut off that service.")));
     var fields=[["quota_relay_day",tx("中轉每日請求數","Relay requests / day")],

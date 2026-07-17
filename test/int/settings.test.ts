@@ -1,7 +1,8 @@
-// PUT /api/admin/settings —「帶哪個鍵就改哪個鍵」語意（沒帶的絕不動）。
+// /api/admin/settings — PUT「帶哪個鍵就改哪個鍵」語意（沒帶的絕不動）＋
+// GET 原況（2026-07-17 /settings 管理頁的數據源：沒設的數字鍵回 null、附 defaults）。
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { onRequestPut as rawPut } from "../../src/routes/api/admin/settings.js";
+import { onRequestPut as rawPut, onRequestGet } from "../../src/routes/api/admin/settings.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
 import type { TestCtx } from "../helpers.js";
 
@@ -90,6 +91,39 @@ describe("settings 帶哪鍵改哪鍵", () => {
     j = await (await onRequestPut(ctx({ relay_meter: true }))).json();
     expect(j.relay_meter).toBe(true);
     expect(await getKey("relay_meter")).toBeNull();
+  });
+
+  it("GET：沒設過＝null＋defaults；設過＝原值；demo_active 要開關＋渠道都齊", async () => {
+    const getCtx = (auth?: boolean) =>
+      makeCtx({
+        url: ORIGIN + "/api/admin/settings",
+        init: { headers: auth === false ? {} : { authorization: "Bearer " + TOK } },
+        env: envWith({ LOGS_TOKEN: TOK })
+      });
+    let j: any = await (await onRequestGet(getCtx())).json();
+    expect(j.ok).toBe(true);
+    expect(j.custom).toBe(false);
+    expect(j.quota_relay_day).toBeNull(); // 沒設＝null（不是內建預設值）
+    expect(j.demo_per_min).toBeNull();
+    expect(j.defaults.quota_relay_day).toBe(500);
+    expect(j.defaults.demo_per_min).toBe(3);
+    expect(j.demo_mode).toBe(false);
+    expect(j.demo_active).toBe(false);
+
+    // 設幾個鍵再讀：原值照回；demo 只開開關（沒渠道）＝ mode true 但 active false
+    await onRequestPut(ctx({ brand: "站名A", quota_relay_day: 42, demo_mode: true }));
+    j = await (await onRequestGet(getCtx())).json();
+    expect(j.brand).toBe("站名A");
+    expect(j.custom).toBe(true);
+    expect(j.quota_relay_day).toBe(42);
+    expect(j.demo_mode).toBe(true);
+    expect(j.demo_active).toBe(false);
+    await onRequestPut(ctx({ demo_channel: "demo-ch" }));
+    j = await (await onRequestGet(getCtx())).json();
+    expect(j.demo_active).toBe(true);
+    expect(j.demo_channel).toBe("demo-ch");
+
+    expect((await onRequestGet(getCtx(false))).status).toBe(401); // 沒授權 → 401
   });
 
   it("站名截斷 60 字；一個鍵都沒帶 → 400；沒授權 → 401", async () => {
