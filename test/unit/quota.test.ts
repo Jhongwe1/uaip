@@ -88,6 +88,41 @@ describe("checkQuota 三層優先序＋豁免", () => {
     expect(j.used).toBe(1);
     expect(j.limit).toBe(1);
     expect(j.reset).toContain("T00:00:00");
+    // contact_url 沒設過＝文案維持原樣，不會出現空的「：」尾巴
+    expect(j.hint).toContain("請聯絡管理員");
+    expect(j.hint.endsWith("請聯絡管理員")).toBe(true);
+    expect(j.contact_url).toBeUndefined();
+  });
+
+  // 額度爆掉時要把管理員聯絡連結一起給出去 —「請聯絡管理員」卻不給聯絡方式沒有用。
+  // 同一條 settings.contact_url（未登入閘門那顆「聯絡我」鈕也是它）。
+  it("設了 contact_url：429 的 hint 接上連結，另回 contact_url 欄位給前端做成可點的", async () => {
+    const URL_ = "https://www.facebook.com/share/abc123/";
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('quota_do','0'),('contact_url',?1)")
+      .bind(URL_)
+      .run();
+    const u = await seedUser({ status: "approved", services: "relay", quota_relay_day: 1 });
+    await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
+    await env.DB.prepare("UPDATE users SET rl_per_min=999 WHERE id=?1").bind(u.id).run();
+    const fresh = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first<any>();
+    const q = await checkQuota(env, fresh, "relay");
+    expect(q.ok).toBe(false);
+    const j: any = await q.resp!.json();
+    expect(j.hint).toBe("今日額度用完了（1/1），UTC 午夜重置；需要更多請聯絡管理員：" + URL_);
+    expect(j.contact_url).toBe(URL_);
+  });
+
+  it("每分鐘 rate-limited 的文案不接連結（那是等一下就好，不必找人）", async () => {
+    await env.DB.prepare(
+      "INSERT INTO settings (k,v) VALUES ('quota_do','0'),('contact_url','https://example.com/me')"
+    ).run();
+    const u = await seedUser({ status: "approved", services: "relay", rl_per_min: 1 });
+    await logReq(env, { user_id: u.id, svc: "relay", status: 200 });
+    const fresh = await env.DB.prepare("SELECT * FROM users WHERE id=?1").bind(u.id).first<any>();
+    const q = await checkQuota(env, fresh, "relay");
+    const j: any = await q.resp!.json();
+    expect(j.error).toBe("rate-limited");
+    expect(j.hint).not.toContain("example.com");
   });
   it("滾動 60 秒 rate limit：個人 rl_per_min=1、剛用 1 次 → 429 rate-limited", async () => {
     await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('quota_do','0')").run();

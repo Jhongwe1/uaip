@@ -26,19 +26,37 @@ export function utcDayStart(): string {
 export type QuotaResult = { ok: true; resp?: undefined } | { ok: false; resp: Response };
 
 // 429 組裝（DO 路徑與 D1 降級路徑共用同一套文案／形狀 — 對外契約不因 Phase H 改變）
-function dayDenied(used: number, limit: number, now: number, dayStart: string): QuotaResult {
+// contact：管理員聯絡連結（settings.contact_url，跟未登入閘門那顆「聯絡我」鈕同一條）。
+//   「請聯絡管理員」卻不給聯絡方式等於叫人自己想辦法 — 有設就把網址接在後面。
+//   跟 hint 走同一個字串（不另開欄位）是為了讓 /relay 的 API 使用者也看得到：
+//   他們拿到的就是這包 JSON，沒有前端可以幫忙渲染按鈕。
+function dayDenied(
+  used: number,
+  limit: number,
+  now: number,
+  dayStart: string,
+  contact?: string
+): QuotaResult {
   const reset = new Date(dayStart);
   reset.setUTCDate(reset.getUTCDate() + 1);
   const secs = Math.max(1, Math.ceil((reset.getTime() - now) / 1000));
+  const c = String(contact || "").trim();
   return {
     ok: false,
     resp: json(
       {
         error: "quota-exceeded",
-        hint: "今日額度用完了（" + used + "/" + limit + "），UTC 午夜重置；需要更多請聯絡管理員",
+        hint:
+          "今日額度用完了（" +
+          used +
+          "/" +
+          limit +
+          "），UTC 午夜重置；需要更多請聯絡管理員" +
+          (c ? "：" + c : ""),
         used: used,
         limit: limit,
-        reset: reset.toISOString()
+        reset: reset.toISOString(),
+        contact_url: c || undefined // 前端要做成可點的連結時用這欄，不必從 hint 裡撈
       },
       429,
       { "retry-after": String(secs) }
@@ -78,7 +96,9 @@ export async function checkQuota(env: Env, user: UserRow, svc: "relay" | "pg"): 
     const now = Date.now();
     const dayStart = utcDayStart();
     const rs = await env.DB.prepare(
-      "SELECT k,v FROM settings WHERE k IN ('quota_relay_day','quota_pg_day','rl_per_min','quota_do')"
+      // contact_url 一起撈（額度爆掉的 429 要附聯絡方式）— 塞進這句本來就要跑的查詢，
+      // 不另開一次 D1 往返；沒設過就是空的，文案自動退回原本那句。
+      "SELECT k,v FROM settings WHERE k IN ('quota_relay_day','quota_pg_day','rl_per_min','quota_do','contact_url')"
     ).all();
     const st: Record<string, string> = {};
     for (const r of (rs.results || []) as { k: string; v: string }[]) st[r.k] = r.v;
@@ -97,7 +117,9 @@ export async function checkQuota(env: Env, user: UserRow, svc: "relay" | "pg"): 
         const stub = env.RATE_LIMITER.get(env.RATE_LIMITER.idFromName("u:" + user.id));
         const r = await stub.check({ svc: svc, perMin: rlLimit, perDay: dayLimit });
         if (r.ok) return { ok: true };
-        return r.kind === "day" ? dayDenied(r.used, r.limit, now, dayStart) : minDenied(r.used, r.limit, now);
+        return r.kind === "day"
+          ? dayDenied(r.used, r.limit, now, dayStart, st.contact_url)
+          : minDenied(r.used, r.limit, now);
       } catch (e) {
         await reportErrorNow(env, "quota.do", e, { user_id: user.id }); // 降級要留痕（告警掃 errlog）
       }
@@ -117,7 +139,7 @@ export async function checkQuota(env: Env, user: UserRow, svc: "relay" | "pg"): 
     ]);
     const usedDay = Number(((res[0].results || [{ c: 0 }])[0] as { c?: unknown }).c) || 0;
     const usedMin = Number(((res[1].results || [{ c: 0 }])[0] as { c?: unknown }).c) || 0;
-    if (usedDay >= dayLimit) return dayDenied(usedDay, dayLimit, now, dayStart);
+    if (usedDay >= dayLimit) return dayDenied(usedDay, dayLimit, now, dayStart, st.contact_url);
     if (usedMin >= rlLimit) return minDenied(usedMin, rlLimit, now);
     return { ok: true };
   } catch (e) {

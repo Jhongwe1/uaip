@@ -62,6 +62,9 @@ const PG_CSS = `
        font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
   .mab:hover{border-color:var(--line2);color:var(--fg)}
   .m-err{color:#c33;font-size:13px;border:1px solid rgba(204,51,51,.5);border-radius:8px;padding:8px 12px;margin-top:8px}
+  /* 錯誤訊息裡的連結（額度用完時附的管理員聯絡連結）：沿用紅字、只加底線，
+     不然瀏覽器預設藍連結配紅框很難讀。長網址一定要 anywhere，否則手機會把整個框撐爆。 */
+  .m-err a{color:inherit;text-decoration:underline;overflow-wrap:anywhere}
   /* Markdown（AI 回覆） */
   .md p{margin:0 0 .85em}
   .md>:last-child{margin-bottom:0}
@@ -609,8 +612,21 @@ const PG_JS = `
       finishStream(node,got,model);
     });
   }
+  // 錯誤訊息裡若含 http(s) 網址就做成可點的連結（額度爆掉的 429 會附管理員聯絡連結）。
+  // 一律走 DOM 組裝（createTextNode ＋ a.href），絕不 innerHTML —— 這段字是伺服器給的沒錯，
+  // 但錯誤文案的來源太雜（上游供應商的錯誤訊息也會流到這裡），不值得為了偷懶開一個注入面。
+  // 只認 http/https 開頭：javascript: 那類根本進不了這個正則。
   function showErr(node,msg){
-    var er=el("div","m-err",msg);
+    var er=el("div","m-err");
+    var s=String(msg==null?"":msg),re=/https?:\/\/[^\s，。）)]+/g,last=0,m;
+    while((m=re.exec(s))){
+      if(m.index>last)er.appendChild(document.createTextNode(s.slice(last,m.index)));
+      var a=document.createElement("a");
+      a.href=m[0];a.textContent=m[0];a.target="_blank";a.rel="noopener noreferrer";
+      er.appendChild(a);
+      last=m.index+m[0].length;
+    }
+    er.appendChild(document.createTextNode(s.slice(last)));
     node.box.appendChild(er);
   }
   function finishStream(node,got,model){

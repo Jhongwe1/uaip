@@ -419,7 +419,8 @@ Authorization: Bearer uak-你的金鑰
 - 金鑰放哪都收：`Authorization: Bearer`、`x-api-key`、`x-goog-api-key`、`?key=`（配合各家 SDK）。
 - 路徑照上游原本的填（中轉只換金鑰不改路徑）；回應串流直通。`model` 參數也原樣轉發 — 填管道 `models` 清單裡的名稱即可。
 - 未帶金鑰 401、金鑰無效 401、帳號未被批准 relay 服務 403、管道不存在或停用 404、上游連不上 502。
-- **配額（2026-07-14）**：超過每日額度回 `429 { error:"quota-exceeded", hint, used, limit, reset }`、請求太快回 `429 { error:"rate-limited", … }`，都帶 `Retry-After` 標頭（秒）。額度＝個人覆寫 → 全域設定 → 內建預設（中轉 500/日、每分鐘 30）；**管理員完全豁免**。今日用量顯示在 /relay 頁與 `GET /api/me` 的 `usage`。
+- **配額（2026-07-14）**：超過每日額度回 `429 { error:"quota-exceeded", hint, used, limit, reset, contact_url? }`、請求太快回 `429 { error:"rate-limited", … }`，都帶 `Retry-After` 標頭（秒）。額度＝個人覆寫 → 全域設定 → 內建預設（中轉 500/日、每分鐘 30）；**管理員完全豁免**。今日用量顯示在 /relay 頁與 `GET /api/me` 的 `usage`。
+  - **`contact_url`（2026-07-21）**：管理員有設聯絡連結（`PUT /api/admin/settings` 的 `contact_url`，跟未登入閘門那顆「聯絡我」鈕同一條）時，日額度 429 的 `hint` 尾端會接上該網址，並多回一個 `contact_url` 欄位給前端做成可點的連結（沒設＝兩者都不出現，文案維持原樣）。「請聯絡管理員」卻不給聯絡方式等於叫人自己想辦法。**每分鐘的 `rate-limited` 不接** — 那是等一下就好、不必找人。
 - **計量**：伺服器順流掃「回應」尾端的 `usage`／`model` 記進 req_log（延遲、token 數；研究數據用）— 只看上游回應、絕不緩衝或解析你送出的內容；會員中斷連線時上游立即取消。
 
 ## 5e. VPN 訂閱（多渠道）
@@ -514,7 +515,7 @@ Authorization: Bearer uak-你的金鑰
 | 403 | bad-origin / not-approved / blocked / protected | 跨站被擋／該服務未被批准或帳號被封鎖／受保護的管理員帳號 |
 | 404 | not-found / unknown-channel | 內容不存在（或公開 API 查到的是草稿）／中轉管道不存在 |
 | 409 | slug-taken | 自訂頁面或管道的 slug 已被使用 |
-| 429 | quota-exceeded / rate-limited | 超過每日額度／請求太快（中轉與 Playground；帶 `Retry-After` 標頭與 `used`/`limit`/`reset` 欄位；管理員豁免） |
+| 429 | quota-exceeded / rate-limited | 超過每日額度／請求太快（中轉與 Playground；帶 `Retry-After` 標頭與 `used`/`limit`/`reset` 欄位；日額度另附 `contact_url`；管理員豁免） |
 | 502 | upstream-unreachable / upstream-error / no-upstream-key | 中轉／VPN／Playground 上游連不上或回錯；渠道沒設上游金鑰 |
 | 413 | too-large | 圖片超過 1.8MB |
 | 415 | bad-type | 圖片格式不是 webp / jpeg / png / gif |

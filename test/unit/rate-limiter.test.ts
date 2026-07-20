@@ -104,6 +104,16 @@ describe("checkQuota 三層降級（DO → D1 COUNT → 放行）", () => {
     expect(j.error).toBe("rate-limited");
     expect(j.limit).toBe(2);
   });
+  // 正式站預設走的就是這條 DO 路徑 — 聯絡連結在這裡也要接上（不能只有 D1 降級路徑有）
+  it("第一層 DO：日配額 429 也接上 contact_url", async () => {
+    const URL_ = "https://www.facebook.com/share/abc123/";
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('contact_url',?1)").bind(URL_).run();
+    const u = await seedUser({ status: "approved", services: "relay", quota_relay_day: 1, rl_per_min: 999 });
+    expect((await checkQuota(env, u, "relay")).ok).toBe(true);
+    const j: any = await (await checkQuota(env, u, "relay")).resp!.json();
+    expect(j.hint.endsWith("請聯絡管理員：" + URL_)).toBe(true);
+    expect(j.contact_url).toBe(URL_);
+  });
   it("第一層 DO：日配額 429 的回應形狀與 v1 相同（reset＝UTC 午夜、Retry-After 秒數）", async () => {
     const u = await seedUser({ status: "approved", services: "relay", quota_relay_day: 1, rl_per_min: 999 });
     expect((await checkQuota(env, u, "relay")).ok).toBe(true);
