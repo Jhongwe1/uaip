@@ -311,8 +311,13 @@ const RELAY_JS = `
     // 額外請求參數（選填）：合併進 playground 送給上游的請求本體，處理各家專屬參數。
     // 灰字放 Venice 那個實例 — 它會在我們的系統提示詞後面偷接自己的（含身分覆寫），要這個才關得掉。
     // 伺服器存檔時會驗 JSON 合法性；model/stream/messages/contents 擋著不給覆寫。
+    //
+    // ⚠ 標籤一定要寫明「留空＝不套用，灰字只是範例」：這格的灰字跟上面那格語意「相反」—
+    // 系統提示詞的灰字是留空時真的會送出的預設值，這格的灰字只是範例、留空什麼都不加。
+    // 兩格相鄰又都是灰字，不寫死的話會被當成同一種行為，然後以為 Venice 那段設定自動生效
+    // 而其實沒有（管道會有身分洩漏卻看不出來）。2026-07-20 使用者實際問過這個問題。
     var ef=el("div","field");
-    ef.appendChild(el("label",null,tx("額外請求參數 JSON（選填，不影響 API 中轉）","Extra request params JSON (optional — not applied to API relay)")));
+    ef.appendChild(el("label",null,tx("額外請求參數 JSON（留空＝不套用，灰字只是範例；不影響 API 中轉）","Extra request params JSON (blank = none applied, grey text is only an example; not applied to API relay)")));
     var fExtra=el("textarea");fExtra.rows=3;
     fExtra.placeholder='{"venice_parameters":{"include_venice_system_prompt":false}}';
     fExtra.value=c.extra_body||"";

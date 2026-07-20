@@ -363,7 +363,7 @@ curl -X PUT https://uaip.cc.cd/api/admin/prices ^
 | `api_key` | 上游金鑰（只有管理員 API 摸得到，回讀一律遮罩） |
 | `models` | **必填** 這個管道可用的模型名稱（陣列，或逗號／換行分隔的字串；限英數與 `. _ / : -`、上限 40 個）。會員頁與 LLM Playground 都靠這份清單 |
 | `system_prompt` | **選填** 這個管道在 **LLM Playground** 的系統提示詞（上限 8000 字，超過回 400、不截斷）。**留空＝套用內建預設**（程式裡的 `PG_DEFAULT_SYSTEM`，管理員視窗那格的灰字就是它）；填了就**整段取代**預設。**只作用在 `/playground`**：`/relay` API 中轉是透明代理，一律不注入任何提示詞 — 會員自己送什麼就轉什麼 |
-| `extra_body` | **選填** 合併進 **LLM Playground** 上游請求本體的額外參數，必須是 **JSON 物件字串**（上限 4000 字；存檔當下就驗，不合法回 400）。用來處理各家專屬參數，例 `{"venice_parameters":{"include_venice_system_prompt":false}}`、OpenAI 的 `reasoning_effort`、Anthropic 的 `thinking`。`model`／`stream`／`messages`／`contents` 擋著**不給覆寫**。**只作用在 `/playground`**，`/relay` 中轉不注入 |
+| `extra_body` | **選填** 合併進 **LLM Playground** 上游請求本體的額外參數，必須是 **JSON 物件字串**（上限 4000 字；存檔當下就驗，不合法回 400）。**留空＝不合併任何東西**（注意：跟 `system_prompt` 的「留空＝套預設」相反，網頁上那格的灰字只是範例）。用來處理各家專屬參數，例 `{"venice_parameters":{"include_venice_system_prompt":false}}`、OpenAI 的 `reasoning_effort`、Anthropic 的 `thinking`。`model`／`stream`／`messages`／`contents` 擋著**不給覆寫**。**只作用在 `/playground`**，`/relay` 中轉不注入 |
 | `enabled` | 預設 true |
 
 - `GET` → `{ rows }`，每筆含 `models`（陣列）、`has_key`、`key_hint`（金鑰一律遮罩）。
