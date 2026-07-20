@@ -243,12 +243,46 @@ export function extractDelta(kind: string, j: any): string {
     let out = "";
     const parts =
       (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
-    for (let i = 0; i < parts.length; i++) if (typeof parts[i].text === "string") out += parts[i].text;
+    // 標了 thought 的 part 是思考過程，歸 extractReasoning 管 — 這裡略過才不會重複計入正文
+    for (let i = 0; i < parts.length; i++)
+      if (!parts[i].thought && typeof parts[i].text === "string") out += parts[i].text;
     return out;
   }
   if (j.error) throw new Error((j.error && j.error.message) || String(j.error));
   const d = j.choices && j.choices[0] && j.choices[0].delta;
   return d && typeof d.content === "string" ? d.content : "";
+}
+
+// 從上游 SSE 的一筆 JSON 取出「思考過程」增量（推理模型專用；2026-07-21）。
+//
+// 為什麼要有這個：推理模型不把思考放在正文欄位，各家擺法還都不一樣。以前只讀正文
+// 的結果是——思考階段整段被丟掉，瀏覽器一個字都收不到，畫面空白幾十秒像當機；
+// 模型若把輸出預算全花在思考上，正文是空的，串流就這樣無聲結束（實測 GLM-4.7：
+// 691 筆 delta 裡 627 筆是 reasoning_content，946 字思考 vs 79 字正文）。
+//
+// 各家欄位：GLM／DeepSeek 系＝delta.reasoning_content；OpenRouter 轉出來＝delta.reasoning；
+// anthropic＝thinking_delta 的 delta.thinking；gemini＝parts[].thought 標記的 part。
+// 取不到一律回空字串 — 非推理模型走這裡不會有任何副作用。
+// 不丟 Error：錯誤一律留給 extractDelta 判（同一筆 JSON 兩邊都會經過，避免重複拋）。
+export function extractReasoning(kind: string, j: any): string {
+  if (kind === "anthropic") {
+    if (j.type === "content_block_delta" && j.delta && typeof j.delta.thinking === "string")
+      return j.delta.thinking;
+    return "";
+  }
+  if (kind === "gemini") {
+    let out = "";
+    const parts =
+      (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+    for (let i = 0; i < parts.length; i++)
+      if (parts[i].thought && typeof parts[i].text === "string") out += parts[i].text;
+    return out;
+  }
+  const d = j.choices && j.choices[0] && j.choices[0].delta;
+  if (!d) return "";
+  if (typeof d.reasoning_content === "string") return d.reasoning_content;
+  if (typeof d.reasoning === "string") return d.reasoning;
+  return "";
 }
 
 // 上游不支援串流、直接回一整包 JSON 時的取文字（備援路徑）

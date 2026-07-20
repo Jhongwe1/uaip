@@ -18,6 +18,7 @@ import {
   cleanChat,
   buildUpstream,
   extractDelta,
+  extractReasoning,
   extractFull,
   extractUsage,
   chModels
@@ -217,7 +218,38 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
   context.waitUntil(
     (async function () {
       let full = "",
-        errMsg: string | null = null;
+        errMsg: string | null = null,
+        sawReasoning = false, // 這趟有沒有收到思考增量（決定空回覆時的提示怎麼寫）
+        emptyOut = false; // 上游有回應、但整趟沒給出任何正式內容
+
+      // ── 增量批次送出（2026-07-21，這是 CPU 上限的解法，不是效能微調）──
+      // 免費方案每次呼叫只有 10ms CPU。以前每收到一筆上游增量就 JSON.stringify＋編碼＋
+      // 寫一次串流，CPU 消耗跟回覆長度成正比 — 回覆一長就撞上限，isolate 直接被殺，
+      // 串流無聲中斷（瀏覽器沒有錯誤、D1 也來不及寫，連 req_log 都沒有）。
+      // 實測 GLM-4.7 一次回答有 691 筆增量；合併後只剩幾十次寫入。
+      // 註：Workers 的 Date.now() 只在 I/O 後前進，而每次 reader.read() 都是 I/O，
+      //     所以時間門檻會照常生效；字數門檻是保險。
+      let pend = "",
+        pendKind: "r" | "d" | null = null,
+        lastFlush = Date.now();
+      async function flush() {
+        if (!pend || !pendKind) return;
+        const payload = pendKind === "r" ? { r: pend } : { d: pend };
+        pend = "";
+        lastFlush = Date.now();
+        await send(payload);
+      }
+      // 思考與正文分開累積，型別一換就先送出 — 兩者的先後順序不會被打亂
+      async function push(kind: "r" | "d", text: string) {
+        if (pendKind !== kind) {
+          await flush();
+          pendKind = kind;
+        }
+        pend += text;
+        // 100ms／1000 字：約每秒 10 次更新，肉眼仍是流暢的逐字浮現，
+        // 但送出次數比逐筆轉推少一個數量級 — 長回覆才不會把 CPU 額度用完。
+        if (pend.length >= 1000 || Date.now() - lastFlush >= 100) await flush();
+      }
       try {
         // demo 沒有對話編號 — 第一筆事件改標 demo，前端不做任何對話列表動作
         await send(demo ? { demo: true } : newTitle ? { conv: convId, title: newTitle } : { conv: convId });
@@ -257,13 +289,21 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
                 errMsg = String((e && e.message) || e);
                 break readLoop;
               }
+              // 思考增量走獨立事件（前端畫成可摺疊的「思考中…」區塊）。
+              // 不併進 full — 存進 D1 的只有正式回覆，思考過程不落地。
+              const rd = extractReasoning(ch.kind, j);
+              if (rd) {
+                sawReasoning = true;
+                await push("r", rd);
+              }
               if (t) {
                 full += t;
-                await send({ d: t });
+                await push("d", t);
               }
               if (gone) break readLoop;
             }
           }
+          await flush(); // 收尾：把還沒滿門檻的殘量送出去
           if (gone || errMsg) {
             try {
               reader.cancel();
@@ -273,6 +313,14 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
       } catch (e: any) {
         errMsg = errMsg || String((e && e.message) || e);
       }
+      // 例外路徑會跳過迴圈尾端的 flush — 這裡再保險一次（沒殘量就是 no-op）
+      try {
+        await flush();
+      } catch (e) {}
+      // 上游正常結束、卻連一個字的正文都沒有 → 不能靜默收場。
+      // 以前這裡直接送 done，會員看到的就是「沒回覆、沒報錯、就這樣沒了」。
+      // 會員自己按停止（gone）不算異常。
+      if (!full && !errMsg && !gone) emptyOut = true;
       // 存回 D1（部分回應也存 — 按「停止」時已生成的內容留著）。
       // demo 只寫 req_log（記帳／限流觀測），對話內容一個字都不落地。
       try {
@@ -321,6 +369,16 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
           path: "/playground/" + v.channel
         });
         await send({ error: "upstream-error", hint: isAdm ? errMsg : "上游發生錯誤，請稍後再試" });
+      } else if (emptyOut) {
+        // 這兩句都不含上游身分（沒有提供商名稱、網址、原始錯誤），會員看得到全文
+        const hint = sawReasoning
+          ? "模型只輸出了思考過程，沒有給出正式回覆 — 請再問一次，或換一個模型"
+          : "上游沒有回覆內容，請再試一次";
+        await reportErrorNow(env, "pg.empty", sawReasoning ? "只有思考內容、沒有正式回覆" : "上游沒有回覆內容", {
+          user_id: user.id,
+          path: "/playground/" + v.channel
+        });
+        await send({ error: "empty-output", hint: hint });
       }
       await send({ done: true });
       try {

@@ -81,7 +81,13 @@ describe("demo 模式", () => {
     const events = sseEvents(await readAll(resp));
     await drainWaits(ctx);
     expect(events[0].demo).toBe(true); // 不回 conv 編號
-    expect(events.some((e) => e.d === "你好")).toBe(true);
+    // 增量會批次合併（CPU 上限的解法），切分點是實作細節 → 驗合起來的內容
+    expect(
+      events
+        .filter((e) => e.d)
+        .map((e) => e.d)
+        .join("")
+    ).toBe("你好！");
     expect(events[events.length - 1].done).toBe(true);
     expect(upBody.max_tokens).toBe(512); // 預設強制值
 

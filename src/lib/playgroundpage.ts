@@ -89,6 +89,16 @@ const PG_CSS = `
   .dots i:nth-child(2){animation-delay:.15s}
   .dots i:nth-child(3){animation-delay:.3s}
   @keyframes pgb{0%,60%,100%{opacity:.25;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+  /* 推理模型的思考過程：串流中自動展開（畫面才不會空白），正文一開始吐就自動收合 */
+  .think{border:1px solid var(--pgline);border-radius:10px;margin:0 0 9px;background:var(--field);overflow:hidden}
+  .think>summary{cursor:pointer;list-style:none;padding:7px 11px;font-size:11.5px;color:var(--muted);
+    letter-spacing:.03em;user-select:none;display:flex;align-items:center;gap:6px}
+  .think>summary::-webkit-details-marker{display:none}
+  .think>summary::before{content:"▸";font-size:9px;transition:transform .15s;flex:0 0 auto}
+  .think[open]>summary::before{transform:rotate(90deg)}
+  .think>summary:hover{color:var(--fg)}
+  .think-body{padding:0 11px 9px;font-size:12.5px;line-height:1.75;color:var(--muted);
+    white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow-y:auto}
   /* 空狀態（只剩「還沒設定模型」的提醒會用到） */
   .pg-hero{margin:auto;text-align:center;padding:22px 16px;max-width:520px}
   .pg-hero p{font-size:13.5px;color:var(--muted);line-height:1.75;margin:0}
@@ -493,6 +503,39 @@ const PG_JS = `
       scrollBottom();
     });
   }
+  /* ---- 思考過程（推理模型的 reasoning_content）---- */
+  // 第一筆思考增量到才建區塊 — 非推理模型完全不會看到這個東西
+  function ensureThink(node){
+    if(node.think)return node.think;
+    var d=el("details","think");d.open=true;
+    var s=el("summary",null,tx("思考中…","Thinking…"));
+    var b=el("div","think-body");
+    d.appendChild(s);d.appendChild(b);
+    node.box.insertBefore(d,node.md);
+    node.think={box:d,sum:s,body:b,t0:Date.now(),text:"",done:false};
+    return node.think;
+  }
+  function thinkSecs(t){return Math.round((Date.now()-t.t0)/1000);}
+  var trafOn=false,trafT=null;
+  function thinkPaint(t){
+    trafT=t;
+    if(trafOn)return;trafOn=true;
+    requestAnimationFrame(function(){
+      trafOn=false;
+      // textContent — 思考內容一律當純文字，不進 markdown、不會被當 HTML 解析
+      trafT.body.textContent=trafT.text;
+      trafT.sum.textContent=tx("思考中… ","Thinking… ")+thinkSecs(trafT)+"s";
+      trafT.body.scrollTop=trafT.body.scrollHeight;
+      scrollBottom();
+    });
+  }
+  // 思考結束（正文開始吐、或整串結束）→ 收合並把標題改成最終秒數
+  function thinkDone(node){
+    var t=node&&node.think;
+    if(!t||t.done)return;
+    t.done=true;t.box.open=false;
+    t.sum.textContent=tx("已思考 ","Thought for ")+thinkSecs(t)+"s";
+  }
 
   /* ================= 送出與串流 ================= */
   function setStreaming(on){
@@ -551,8 +594,10 @@ const PG_JS = `
               convs.unshift({id:j.conv,title:j.title||text.slice(0,60),channel:channel,model:model,updated_at:new Date().toISOString()});
               renderConvList();
             }
-            if(j.d){got+=j.d;streamPaint(node,got);}
-            if(j.error){showErr(node,j.hint||j.error);}
+            if(j.r){var th=ensureThink(node);th.text+=j.r;thinkPaint(th);}
+            // 正文第一個字＝思考階段結束（沒思考過的話這是 no-op）
+            if(j.d){thinkDone(node);got+=j.d;streamPaint(node,got);}
+            if(j.error){thinkDone(node);showErr(node,j.hint||j.error);}
           }
           return pump();
         });
@@ -570,6 +615,7 @@ const PG_JS = `
   }
   function finishStream(node,got,model){
     setStreaming(false);aborter=null;
+    thinkDone(node); // 只思考沒正文時，這裡才會是結束思考的時機
     if(got){
       msgs.push({role:"assistant",content:got,model:model});
       node.md.innerHTML=mdRender(got);

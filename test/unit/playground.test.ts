@@ -6,6 +6,7 @@ import {
   cleanChat,
   buildUpstream,
   extractDelta,
+  extractReasoning,
   extractFull,
   chModels,
   mergeExtraBody,
@@ -277,6 +278,54 @@ describe("extractDelta（SSE 一筆 JSON → 增量文字）", () => {
     expect(extractDelta("openai", { choices: [{ delta: { content: "哈" } }] })).toBe("哈");
     expect(extractDelta("openai", { choices: [{ delta: {} }] })).toBe("");
     expect(() => extractDelta("openai", { error: { message: "bad" } })).toThrow("bad");
+  });
+  it("推理模型的思考欄位不算正文（否則思考會混進回覆裡）", () => {
+    expect(extractDelta("openai", { choices: [{ delta: { reasoning_content: "想…" } }] })).toBe("");
+    expect(extractDelta("openai", { choices: [{ delta: { reasoning: "想…" } }] })).toBe("");
+    expect(extractDelta("anthropic", { type: "content_block_delta", delta: { thinking: "想…" } })).toBe("");
+    expect(
+      extractDelta("gemini", { candidates: [{ content: { parts: [{ text: "想…", thought: true }] } }] })
+    ).toBe("");
+  });
+  it("gemini：同一筆裡思考與正文並存 → 只取正文", () => {
+    expect(
+      extractDelta("gemini", {
+        candidates: [{ content: { parts: [{ text: "想…", thought: true }, { text: "答" }] } }]
+      })
+    ).toBe("答");
+  });
+});
+
+// 2026-07-21 的回歸：以前只讀正文欄位，推理模型的思考整段被丟掉 —
+// 瀏覽器收不到任何東西，畫面空白幾十秒像當機（實測 GLM-4.7 有 92% 的輸出是思考）。
+describe("extractReasoning（SSE 一筆 JSON → 思考增量）", () => {
+  it("openai 相容：reasoning_content（GLM／DeepSeek）與 reasoning（OpenRouter）都認", () => {
+    expect(extractReasoning("openai", { choices: [{ delta: { reasoning_content: "先看整數位" } }] })).toBe(
+      "先看整數位"
+    );
+    expect(extractReasoning("openai", { choices: [{ delta: { reasoning: "嗯" } }] })).toBe("嗯");
+  });
+  it("正文欄位不算思考（兩邊不重複計）", () => {
+    expect(extractReasoning("openai", { choices: [{ delta: { content: "答案" } }] })).toBe("");
+  });
+  it("anthropic：thinking_delta", () => {
+    expect(extractReasoning("anthropic", { type: "content_block_delta", delta: { thinking: "嗯…" } })).toBe(
+      "嗯…"
+    );
+    expect(extractReasoning("anthropic", { type: "content_block_delta", delta: { text: "答" } })).toBe("");
+  });
+  it("gemini：只取標了 thought 的 part", () => {
+    expect(
+      extractReasoning("gemini", {
+        candidates: [{ content: { parts: [{ text: "想…", thought: true }, { text: "答" }] } }]
+      })
+    ).toBe("想…");
+  });
+  it("非推理模型／格式意外 → 一律空字串，不丟例外", () => {
+    expect(extractReasoning("openai", {})).toBe("");
+    expect(extractReasoning("openai", { choices: [] })).toBe("");
+    expect(extractReasoning("gemini", { candidates: [] })).toBe("");
+    expect(extractReasoning("openai", { error: { message: "bad" } })).toBe("");
   });
 });
 

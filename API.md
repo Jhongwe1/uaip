@@ -450,7 +450,10 @@ Authorization: Bearer uak-你的金鑰
   - `messages` 是完整上下文（最後一則要是 `user`；`role` 收 user/assistant/system）。
   - **不帶 `conv_id`＝自動開新對話**（標題取第一句 user 訊息），對話編號由 SSE 第一筆事件回傳。
   - `model` 一定要在該渠道的 `models` 清單裡，否則 400 `bad-model`。
-  - 回應是 SSE（`text/event-stream`），每筆 `data:` 都是 JSON：`{conv,title?}` →（多筆）`{d:"增量文字"}` → `{done:true}`；中途出錯是 `{error,hint}`（已生成的部分照存）。上游一開始就失敗則直接回 JSON 錯誤（會帶 `conv`）。
+  - 回應是 SSE（`text/event-stream`），每筆 `data:` 都是 JSON：`{conv,title?}` →（多筆）`{r:"思考增量"}`／`{d:"增量文字"}` → `{done:true}`；中途出錯是 `{error,hint}`（已生成的部分照存）。上游一開始就失敗則直接回 JSON 錯誤（會帶 `conv`）。
+  - **`{r:…}` 是推理模型的思考過程**（2026-07-21）：GLM／DeepSeek 系的 `reasoning_content`、OpenRouter 的 `reasoning`、anthropic 的 `thinking_delta`、gemini 標了 `thought` 的 part，一律轉成 `r` 事件。思考內容**不寫進 `pg_messages`**（存的只有正式回覆），重新載入舊對話時不會再出現。非推理模型完全不會有 `r` 事件。
+    > 這個欄位以前被丟掉，導致推理模型在思考期間瀏覽器收不到任何東西 — 畫面空白數十秒像當機，模型若把輸出預算全花在思考上更是「沒回覆、沒報錯」就結束。
+  - **整趟沒有任何正式內容**（`d` 一次都沒來）→ 回 `{error:"empty-output", hint}`，不會靜默送 `done`。有收過思考的話 `hint` 會說明是「只輸出思考過程」。此錯誤不含上游身分，**會員看得到全文**。
   - 中斷連線（前端按「停止」）＝停止生成，已生成的內容照樣存進對話。
   - 伺服器依渠道 kind 自動轉換請求／串流格式：openai、custom → `/v1/chat/completions`；anthropic → `/v1/messages`；gemini → `/v1beta/models/{model}:streamGenerateContent?alt=sse`。
   - **錯誤訊息對會員做了消毒**（2026-07-14）：上游的原始錯誤內容（錯誤格式、文件連結、專案編號）會洩漏真實提供商身分，所以會員只看得到安全分類字（401/403→「渠道憑證可能失效」、429→「上游流量限制」、5xx→「上游暫時故障」…），`detail` 原文**只有管理員**（is_admin 或管理金鑰）看得到。

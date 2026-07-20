@@ -43,6 +43,13 @@ const openaiSSE = (chunks: string[]) =>
   chunks.map((c: any) => 'data: {"choices":[{"delta":{"content":' + JSON.stringify(c) + "}}]}").join("\n\n") +
   "\n\ndata: [DONE]\n\n";
 
+// 推理模型的串流：先一串 reasoning_content（思考），再一串 content（正文）
+const reasoningSSE = (think: string[], answer: string[]) =>
+  think
+    .map((c) => 'data: {"choices":[{"delta":{"reasoning_content":' + JSON.stringify(c) + "}}]}")
+    .concat(answer.map((c) => 'data: {"choices":[{"delta":{"content":' + JSON.stringify(c) + "}}]}"))
+    .join("\n\n") + "\n\ndata: [DONE]\n\n";
+
 describe("playground chat", () => {
   it("未登入 → 401；沒 playground 服務 → 403", async () => {
     const ctx = makeCtx({
@@ -98,6 +105,69 @@ describe("playground chat", () => {
     const conv = await env.DB.prepare("SELECT * FROM pg_conversations WHERE id=?1").bind(convId).first<any>();
     expect(conv.user_id).toBe(user.id);
     expect(conv.model).toBe("gpt-t");
+  });
+
+  // 2026-07-21 的回歸：思考欄位以前被整段丟掉（畫面空白像當機），
+  // 而每筆增量各送一次 SSE 會燒穿免費方案 10ms CPU（isolate 被殺、串流無聲中斷）。
+  it("推理模型：思考走 {r}、正文走 {d}、思考不進 D1，且增量有批次合併", async () => {
+    const user = await seedUser({ status: "approved", services: "playground" });
+    await seedChannel({ slug: "pg", kind: "openai", base_url: UP, models: "glm-t" });
+    fetchMock
+      .get(UP)
+      .intercept({ path: "/v1/chat/completions", method: "POST" })
+      .reply(200, reasoningSSE(["先看", "整數位", "都是 9"], ["9.9", " 比較大"]), {
+        headers: { "content-type": "text/event-stream" }
+      });
+
+    const ctx = await chatCtx(user, {
+      channel: "pg",
+      model: "glm-t",
+      messages: [{ role: "user", content: "9.11 和 9.9 哪個大" }]
+    });
+    const resp = await onRequestPost(ctx);
+    const events = sseEvents(await readAll(resp));
+    await drainWaits(ctx);
+
+    const rs = events.filter((e: any) => e.r).map((e: any) => e.r);
+    const ds = events.filter((e: any) => e.d).map((e: any) => e.d);
+    expect(rs.join("")).toBe("先看整數位都是 9");
+    expect(ds.join("")).toBe("9.9 比較大");
+    // 5 筆上游增量 → 合併後遠少於 5 筆事件（思考與正文各自成塊，順序不混）
+    expect(rs.length + ds.length).toBeLessThan(5);
+    expect(events.findIndex((e: any) => e.r)).toBeLessThan(events.findIndex((e: any) => e.d));
+    expect(events[events.length - 1].done).toBe(true);
+
+    // 存進 D1 的只有正式回覆 — 思考過程一個字都不落地
+    const msgs = await env.DB.prepare(
+      "SELECT role,content FROM pg_messages WHERE conv_id=?1 ORDER BY id"
+    )
+      .bind(events[0].conv)
+      .all();
+    expect(msgs.results[1].content).toBe("9.9 比較大");
+  });
+
+  it("只有思考、沒有正文 → 回 empty-output 錯誤，不會靜默送 done", async () => {
+    const user = await seedUser({ status: "approved", services: "playground" });
+    await seedChannel({ slug: "pg", kind: "openai", base_url: UP, models: "glm-t" });
+    fetchMock
+      .get(UP)
+      .intercept({ path: "/v1/chat/completions", method: "POST" })
+      .reply(200, reasoningSSE(["想了很久"], []), {
+        headers: { "content-type": "text/event-stream" }
+      });
+
+    const ctx = await chatCtx(user, {
+      channel: "pg",
+      model: "glm-t",
+      messages: [{ role: "user", content: "嗨" }]
+    });
+    const events = sseEvents(await readAll(await onRequestPost(ctx)));
+    await drainWaits(ctx);
+
+    const err = events.find((e: any) => e.error);
+    expect(err.error).toBe("empty-output");
+    expect(err.hint).toContain("思考"); // 會員看得到成因，不是一句「發生錯誤」
+    expect(events[events.length - 1].done).toBe(true);
   });
 
   it("模型不在渠道清單 → 400；渠道不存在 → 404", async () => {
