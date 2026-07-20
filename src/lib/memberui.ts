@@ -90,9 +90,11 @@ export const MEMBER_JS = `
     return fetch("/api/settings",{cache:"no-store"}).then(function(r){return r.json();})
       .then(function(d){setCache=d||{};return setCache;});
   }
-  function contactBtn(){
+  // url：呼叫端已經知道網址時直接給（例額度 429 回的 contact_url）— 省掉一次 /api/settings。
+  function contactBtn(url){
     var a=el("a","gcontact",tx("聯絡我","Contact me"));
     a.target="_blank";a.rel="noopener noreferrer";a.style.display="none";
+    if(url){a.href=url;a.style.display="";return a;}
     siteSettings().then(function(s){
       if(s&&s.contact_url){a.href=s.contact_url;a.style.display="";}
     }).catch(function(){});
@@ -143,6 +145,7 @@ export const MEMBER_JS = `
     });
   }
   window.MU={$:$,el:el,esc:esc,tx:tx,onLang:onLang,me:me,statusText:statusText,badge:badge,acctCard:acctCard,
-             gateLogin:gateLogin,gatePending:gatePending,flash:flash,copy:copy,copyBtn:copyBtn,origin:origin};
+             gateLogin:gateLogin,gatePending:gatePending,flash:flash,copy:copy,copyBtn:copyBtn,origin:origin,
+             contactBtn:contactBtn};
 })();
 `;

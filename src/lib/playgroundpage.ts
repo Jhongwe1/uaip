@@ -62,9 +62,9 @@ const PG_CSS = `
        font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
   .mab:hover{border-color:var(--line2);color:var(--fg)}
   .m-err{color:#c33;font-size:13px;border:1px solid rgba(204,51,51,.5);border-radius:8px;padding:8px 12px;margin-top:8px}
-  /* 錯誤訊息裡的連結（額度用完時附的管理員聯絡連結）：沿用紅字、只加底線，
-     不然瀏覽器預設藍連結配紅框很難讀。長網址一定要 anywhere，否則手機會把整個框撐爆。 */
-  .m-err a{color:inherit;text-decoration:underline;overflow-wrap:anywhere}
+  /* 額度用完時附在錯誤框裡的「聯絡我」鈕：自己一行（gcontact 本身是 inline-flex，
+     不改成 flex 會黏在文字尾巴），margin 收窄一點免得框太空。 */
+  .m-err .gcontact{display:flex;width:fit-content;margin-top:8px}
   /* Markdown（AI 回覆） */
   .md p{margin:0 0 .85em}
   .md>:last-child{margin-bottom:0}
@@ -577,7 +577,10 @@ const PG_JS = `
       if(!r.ok){
         return r.json().catch(function(){return{};}).then(function(d){
           if(!demoMode&&d.conv&&!cur){cur=d.conv;refreshList();}
-          throw new Error(d.hint||d.error||("HTTP "+r.status));
+          // 額度 429 會附 contact_url — 掛在 Error 上帶到 catch，那裡才有 node 可以畫
+          var er=new Error(d.hint||d.error||("HTTP "+r.status));
+          er.contactUrl=d.contact_url||"";
+          throw er;
         });
       }
       var reader=r.body.getReader(),dec=new TextDecoder(),buf="";
@@ -600,33 +603,35 @@ const PG_JS = `
             if(j.r){var th=ensureThink(node);th.text+=j.r;thinkPaint(th);}
             // 正文第一個字＝思考階段結束（沒思考過的話這是 no-op）
             if(j.d){thinkDone(node);got+=j.d;streamPaint(node,got);}
-            if(j.error){thinkDone(node);showErr(node,j.hint||j.error);}
+            if(j.error){thinkDone(node);showErr(node,j.hint||j.error,j.contact_url);}
           }
           return pump();
         });
       }
       return pump();
     }).catch(function(e){
-      if(!(e&&e.name==="AbortError"))showErr(node,String(e&&e.message||e));
+      if(!(e&&e.name==="AbortError"))showErr(node,String(e&&e.message||e),e&&e.contactUrl);
     }).then(function(){
       finishStream(node,got,model);
     });
   }
-  // 錯誤訊息裡若含 http(s) 網址就做成可點的連結（額度爆掉的 429 會附管理員聯絡連結）。
-  // 一律走 DOM 組裝（createTextNode ＋ a.href），絕不 innerHTML —— 這段字是伺服器給的沒錯，
-  // 但錯誤文案的來源太雜（上游供應商的錯誤訊息也會流到這裡），不值得為了偷懶開一個注入面。
-  // 只認 http/https 開頭：javascript: 那類根本進不了這個正則。
-  function showErr(node,msg){
-    var er=el("div","m-err");
-    var s=String(msg==null?"":msg),re=/https?:\/\/[^\s，。）)]+/g,last=0,m;
-    while((m=re.exec(s))){
-      if(m.index>last)er.appendChild(document.createTextNode(s.slice(last,m.index)));
-      var a=document.createElement("a");
-      a.href=m[0];a.textContent=m[0];a.target="_blank";a.rel="noopener noreferrer";
-      er.appendChild(a);
-      last=m.index+m[0].length;
+  // 額度用完之類的錯誤，伺服器會附 contact_url — 直接放一顆跟登入閘門同款的「聯絡我」鈕，
+  // 比丟一長串網址叫人自己複製好按。
+  //
+  // ⚠ 這整段是「樣板字串裡的 JS」：反斜線會先被樣板字串吃掉一層，正則要寫成 \\s、\\/ 才對。
+  // 少跳一次的話這包腳本會整個解析失敗 → /playground 永遠停在轉圈圈，而且 console 之外
+  // 完全看不出來（頁面沒有任何錯誤畫面）。2026-07-21 實際踩過一次。
+  // 所以這裡刻意只用字串操作，連正則都不碰。
+  function showErr(node,msg,contact){
+    var s=String(msg==null?"":msg);
+    // hint 尾端那份網址是給 /relay 的 API 使用者看的（他們沒有前端可以渲染按鈕）；
+    // 網頁這邊已經有按鈕了，把它切掉免得同一條網址在同一格出現兩次。
+    if(contact){
+      var tail="："+contact;
+      if(s.length>tail.length&&s.slice(-tail.length)===tail)s=s.slice(0,s.length-tail.length);
     }
-    er.appendChild(document.createTextNode(s.slice(last)));
+    var er=el("div","m-err",s);
+    if(contact)er.appendChild(MU.contactBtn(contact));
     node.box.appendChild(er);
   }
   function finishStream(node,got,model){

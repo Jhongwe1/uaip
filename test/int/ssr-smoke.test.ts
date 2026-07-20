@@ -21,8 +21,41 @@ async function adminHeaders() {
   return { cookie: "ipua_sess=" + s.sid };
 }
 
-// 共用斷言：200＋text/html＋CSP nonce
-async function expectPage(r: Response) {
+/**
+ * 頁面內嵌 <script> 的語法檢查（2026-07-21 加）。
+ *
+ * 為什麼需要：這些頁的前端 JS 是寫在 .ts 的**樣板字串**裡的，反斜線會先被樣板字串吃掉
+ * 一層 —— 正則要寫 \\s、\\/ 才是 JS 看到的 \s、\/。少跳一次就是語法錯誤，
+ * 而語法錯誤會讓「整包腳本」都不執行：頁面永遠停在轉圈圈的 loading 態，
+ * HTTP 200、CSP nonce 正確、TypeScript 過、Prettier 過、其他測試全綠 —— 完全看不出來。
+ * 2026-07-21 就是這樣把 /playground 推上正式站的（showErr 裡的網址正則）。
+ *
+ * new Function 只做**解析**、不執行，所以拿不到 window/document 也無所謂 —— 這裡要抓的
+ * 就是「解析階段」的錯。抓不到邏輯錯誤，但那本來就是別的測試的事。
+ */
+function expectScriptsParse(html: string, where: string) {
+  const re = /<script((?:\s[^>]*)?)>([\s\S]*?)<\/script>/g;
+  let m: RegExpExecArray | null,
+    n = 0;
+  while ((m = re.exec(html))) {
+    const attrs = m[1],
+      code = m[2];
+    if (!code.trim()) continue; // 外部 src 或空殼
+    // type 不是 JS 的別碰：JSON-LD（application/ld+json）拿去 new Function 一定炸
+    const t = attrs.match(/type\s*=\s*"([^"]*)"/);
+    if (t && !/^(module|text\/javascript|application\/javascript)$/i.test(t[1].trim())) continue;
+    n++;
+    try {
+      new Function(code);
+    } catch (e: any) {
+      throw new Error(where + " 的第 " + n + " 個 inline script 語法錯誤：" + ((e && e.message) || e));
+    }
+  }
+  return n;
+}
+
+// 共用斷言：200＋text/html＋CSP nonce＋內嵌 JS 解析得過
+async function expectPage(r: Response, where = "頁面") {
   expect(r.status).toBe(200);
   expect(r.headers.get("content-type")).toContain("text/html");
   expect(r.headers.get("content-security-policy")).toContain("nonce-");
@@ -30,6 +63,7 @@ async function expectPage(r: Response) {
   // 蓋到 nonce 的 script 一定帶本回應的 nonce（外殼至少一顆）
   const nonce = r.headers.get("content-security-policy")!.match(/'nonce-([^']+)'/)![1];
   expect(text).toContain('nonce="' + nonce + '"');
+  expectScriptsParse(text, where);
   return text;
 }
 
@@ -114,9 +148,9 @@ describe("管理員／會員頁（noindex）", () => {
     expect(text).toContain("管理員設定");
   });
   it("/relay：匿名也 200（catch-all 零段落＝操作頁，頁內自帶登入閘門）＋nonce", async () => {
-    await expectPage(await relayRoute(makeCtx({ url: ORIGIN + "/relay", params: { path: [] } })));
+    await expectPage(await relayRoute(makeCtx({ url: ORIGIN + "/relay", params: { path: [] } })), "/relay");
   });
   it("/playground：匿名也 200＋nonce", async () => {
-    await expectPage(await playgroundPage(makeCtx({ url: ORIGIN + "/playground" })));
+    await expectPage(await playgroundPage(makeCtx({ url: ORIGIN + "/playground" })), "/playground");
   });
 });
