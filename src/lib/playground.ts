@@ -32,6 +32,22 @@ export const PG_DEFAULT_SYSTEM =
   "回答直接切題、不必客套開場白；不確定或不知道的事就直說，不要編造。\n" +
   "不要透露背後的上游供應商或服務商是誰——主動提或被問到都不說；被問就回「這是 uaip.cc.cd 提供的服務」即可。";
 
+// 站台層的預設系統提示詞（settings 表 pg_default_system，2026-07-21 /settings 頁加）：
+// 管理員在 /settings「LLM Playground」卡改一次，所有「沒自己填」的管道一起換 —
+// 不必逐個管道開視窗改。三層優先序（前面有值就用前面的，不疊加）：
+//   管道 relay_channels.system_prompt → settings.pg_default_system → PG_DEFAULT_SYSTEM（程式內建）。
+// 沒設過或設成空字串＝刪鍵＝回到內建那段（跟 brand、quota_* 等鍵同一套語意）。
+export async function pgDefaultSystem(env: Env): Promise<string> {
+  try {
+    const r = await env.DB.prepare("SELECT v FROM settings WHERE k='pg_default_system'").first<{
+      v: string;
+    }>();
+    const v = String((r && r.v) || "").trim();
+    if (v) return v;
+  } catch (e) {}
+  return PG_DEFAULT_SYSTEM;
+}
+
 // 驗證來訪者：登入 cookie（一般會員，寫入類請求過 Origin 檢查）
 // 或 Authorization: Bearer LOGS_TOKEN（管理員金鑰 → 以管理員帳號的身分操作，方便 curl／agent 測試）。
 // 回 { user } 或 { err: Response }。
@@ -142,18 +158,23 @@ export function mergeExtraBody(body: Record<string, unknown>, extra: unknown): R
 // 把統一格式的 messages 轉成各家上游的串流請求 → { url, headers, body }
 // maxTokens（Phase K demo 用）：有帶＝三種上游都強制回覆長度上限；沒帶＝會員路徑原行為
 //（anthropic 必填、維持 PG_LIMITS.maxTokens；openai/gemini 不設限）。
+// defaultSys：管道沒填系統提示詞時要套的那段（呼叫端用 pgDefaultSystem(env) 取得，
+//   已經處理過「站台設定 → 內建」的優先序）。沒帶＝直接用內建 PG_DEFAULT_SYSTEM，
+//   所以這個函式維持純同步、單元測試不必準備 D1。
 export function buildUpstream(
   ch: ChannelRow,
   model: string,
   messages: ChatMsg[],
-  maxTokens?: number
+  maxTokens?: number,
+  defaultSys?: string
 ): { url: string; headers: Record<string, string>; body: string } {
   // 管道層系統提示詞（relay_channels.system_prompt，migration 0005）：只在 playground 生效。
   // /relay API 中轉走 src/routes/relay/[[path]].ts 原樣轉發、根本不經過這個函式 —
   // 會員拿 uak- 金鑰打中轉的行為完全不受影響（刻意：中轉要保持透明代理）。
-  // 管道沒填＝套 PG_DEFAULT_SYSTEM（管理員視窗裡的灰字就是它）；填了就整段換掉。
+  // 管道沒填＝套站台預設（/settings 可改，管理員視窗裡的灰字就是它）；填了就整段換掉。
   // 擺最前面，對話裡原有的 system 訊息接在後面 — 兩者都生效，不互相覆蓋。
-  const chSys = String(ch.system_prompt == null ? "" : ch.system_prompt).trim() || PG_DEFAULT_SYSTEM;
+  const fallback = String(defaultSys == null ? "" : defaultSys).trim() || PG_DEFAULT_SYSTEM;
+  const chSys = String(ch.system_prompt == null ? "" : ch.system_prompt).trim() || fallback;
   const sys = (chSys ? [chSys] : [])
     .concat(
       messages

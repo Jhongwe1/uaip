@@ -14,6 +14,7 @@
 | 上傳圖片 | `POST /api/admin/media` |
 | 改側邊欄選單、改站名 | `PUT /api/admin/menu`、`PUT /api/admin/settings` |
 | Playground 開放給所有登入會員 | `PUT /api/admin/settings {"pg_open":true}`（false＝關閉，回到逐人批准） |
+| 改 Playground 的預設系統提示詞（一次管全部沒自己填的渠道） | `PUT /api/admin/settings {"pg_default_system":"…"}`（空字串＝還原程式內建那段；單一渠道要不一樣就改該渠道的 `system_prompt`） |
 | 看流量 | `GET /api/logs` |
 | 看站內錯誤／用量（v1.0.0） | `GET /api/admin/errors`、`GET /api/admin/stats?days=7`；健康檢查 `GET /api/health`（公開） |
 | 看全站會員的 Playground 對話 | `GET /api/admin/conversations`（`?q=` 找人）→ `GET /api/admin/conversations/{id}` 讀內容（唯讀） |

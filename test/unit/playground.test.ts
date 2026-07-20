@@ -213,6 +213,54 @@ describe("buildUpstream — 管道系統提示詞（只作用在 playground）",
     const b = JSON.parse(buildUpstream(chan("anthropic", "  管道的  "), "claude-x", plain).body);
     expect(b.system).toBe("管道的");
   });
+
+  // 站台預設（settings.pg_default_system，/settings 可改）＝第五個參數。
+  // 優先序：管道自己填的 → 站台預設 → 程式內建 PG_DEFAULT_SYSTEM。
+  describe("站台預設系統提示詞（第 5 參數 defaultSys）", () => {
+    it("管道沒填＝套站台預設，不是內建那段", () => {
+      for (const kind of ["openai", "custom"]) {
+        const o = JSON.parse(buildUpstream(chan(kind, ""), "gpt-x", plain, undefined, "站台的").body);
+        expect(o.messages[0]).toEqual({ role: "system", content: "站台的" });
+      }
+      const a = JSON.parse(
+        buildUpstream(chan("anthropic", null), "claude-x", plain, undefined, "站台的").body
+      );
+      expect(a.system).toBe("站台的");
+      const g = JSON.parse(
+        buildUpstream(chan("gemini", undefined), "gemini-x", plain, undefined, "站台的").body
+      );
+      expect(g.systemInstruction.parts[0].text).toBe("站台的");
+    });
+
+    it("管道自己填了＝管道優先，站台預設完全不出現", () => {
+      const a = JSON.parse(
+        buildUpstream(chan("anthropic", "管道的"), "claude-x", plain, undefined, "站台的").body
+      );
+      expect(a.system).toBe("管道的");
+      expect(a.system).not.toContain("站台的");
+    });
+
+    it("站台預設空／空白／沒帶＝退回程式內建 PG_DEFAULT_SYSTEM", () => {
+      for (const d of ["", "   ", undefined, null as unknown as undefined]) {
+        const a = JSON.parse(buildUpstream(chan("anthropic", ""), "claude-x", plain, undefined, d).body);
+        expect(a.system).toBe(PG_DEFAULT_SYSTEM);
+      }
+    });
+
+    it("站台預設前後空白會被修掉", () => {
+      const a = JSON.parse(
+        buildUpstream(chan("anthropic", ""), "claude-x", plain, undefined, "  站台的  ").body
+      );
+      expect(a.system).toBe("站台的");
+    });
+
+    it("對話自己的 system 照樣接在站台預設後面（兩者都留著）", () => {
+      const a = JSON.parse(
+        buildUpstream(chan("anthropic", ""), "claude-x", withSys, undefined, "站台的").body
+      );
+      expect(a.system).toBe("站台的\n\n對話自己的");
+    });
+  });
 });
 
 describe("mergeExtraBody — 管道額外請求參數（只作用在 playground）", () => {

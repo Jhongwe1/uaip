@@ -146,6 +146,18 @@ const BODY = `
     </div>
   </div>
 
+  <!-- Playground 預設系統提示詞（2026-07-21）：一次管全部渠道 -->
+  <div class="card">
+    <div class="card-title">Playground 預設系統提示詞</div>
+    <p class="hint">所有<b>沒有自己填</b>系統提示詞的渠道都套這一段 — 改這裡等於一次改完全部渠道，不必逐個開視窗。某個渠道要不一樣的人設，就到 /relay 的「渠道管理」單獨填，那個渠道以自己填的為準（不會兩段疊加）。</p>
+    <div class="field">
+      <label for="fPgSys">預設系統提示詞</label>
+      <textarea id="fPgSys" rows="6" autocomplete="off"></textarea>
+      <p class="hint" style="margin-bottom:0">留空＝還原程式內建的那段（欄位裡的灰字就是它）。最長 4000 字。<b>只作用在 /playground</b>；API 中轉（/relay）是透明代理，不會注入任何提示詞。</p>
+    </div>
+    <div class="saverow"><button id="savePgSys" class="primary" type="button">儲存</button><span id="msgPgSys" class="savemsg"></span></div>
+  </div>
+
   <!-- 配額與限流 -->
   <div class="card">
     <div class="card-title">配額與限流（全域預設）</div>
@@ -317,6 +329,9 @@ const PAGE_JS = `
       sel.appendChild(o2);
     }
     $("fDemoModels").value=st.demo_models||"";
+    // 預設系統提示詞：欄位放「有沒有自訂」，灰字放程式內建那段（留空時實際會送出的內容）
+    $("fPgSys").value=st.pg_default_system||"";
+    $("fPgSys").placeholder=(st.defaults||{}).pg_default_system||"";
     var D=st.defaults||{};
     [["fDemoPerMin","demo_per_min"],["fDemoPerIpDay","demo_per_ip_day"],
      ["fDemoGlobalDay","demo_global_day"],["fDemoMaxTokens","demo_max_tokens"],
@@ -405,6 +420,13 @@ const PAGE_JS = `
     saving($("saveDemo"),$("msgDemo"),
       api("/api/admin/settings",{method:"PUT",json:body}),
       function(){st.demo_channel=body.demo_channel;st.demo_models=body.demo_models;demoStateNote();});
+  });
+
+  // 預設系統提示詞：空字串照送（伺服器收到空＝刪鍵＝還原內建），存完把回傳值寫回 st
+  $("savePgSys").addEventListener("click",function(){
+    saving($("savePgSys"),$("msgPgSys"),
+      api("/api/admin/settings",{method:"PUT",json:{pg_default_system:$("fPgSys").value.trim()}}),
+      function(d){st.pg_default_system=d.pg_default_system||"";$("fPgSys").value=st.pg_default_system;});
   });
 
   $("saveTg").addEventListener("click",function(){

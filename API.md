@@ -260,15 +260,16 @@ curl -X PUT https://uaip.cc.cd/api/admin/menu ^
 
 ### 網站設定：GET / PUT /api/admin/settings
 
-**GET**（2026-07-17，/settings 管理頁的數據源）回目前**存的**原況：`{ ok, brand, custom, contact_url, pg_open, relay_meter, quota_relay_day, quota_pg_day, rl_per_min, demo_mode, demo_active, demo_channel, demo_models, demo_per_min, demo_per_ip_day, demo_global_day, demo_max_tokens, tg_chat_id, tg_token_set, tg_token_hint, tg_env_set, tg_active, defaults }` — 數字鍵沒設過回 `null`（不是內建預設值），內建預設放在 `defaults` 物件；`demo_mode` 是開關本身的儲存值、`demo_active` 才是真正生效與否（開關＋`demo_channel` 都要有）；Telegram bot token **絕不回明文**（只回 `tg_token_set` 與尾 4 碼 `tg_token_hint`）。
+**GET**（2026-07-17，/settings 管理頁的數據源）回目前**存的**原況：`{ ok, brand, custom, contact_url, pg_open, pg_default_system, relay_meter, quota_relay_day, quota_pg_day, rl_per_min, demo_mode, demo_active, demo_channel, demo_models, demo_per_min, demo_per_ip_day, demo_global_day, demo_max_tokens, tg_chat_id, tg_token_set, tg_token_hint, tg_env_set, tg_active, defaults }` — 數字鍵沒設過回 `null`（不是內建預設值），內建預設放在 `defaults` 物件；`demo_mode` 是開關本身的儲存值、`demo_active` 才是真正生效與否（開關＋`demo_channel` 都要有）；Telegram bot token **絕不回明文**（只回 `tg_token_set` 與尾 4 碼 `tg_token_hint`）。
 
-**PUT：本體帶哪個鍵就改哪個鍵，沒帶的不動**（2026-07-14 起；跟文章／選單的整包覆蓋不同）。回 `{ ok, brand, custom, contact_url, pg_open, quota_relay_day, quota_pg_day, rl_per_min, relay_meter, demo_* }`（改完的現況；配額鍵沒設過時顯示內建預設）。
+**PUT：本體帶哪個鍵就改哪個鍵，沒帶的不動**（2026-07-14 起；跟文章／選單的整包覆蓋不同）。回 `{ ok, brand, custom, contact_url, pg_open, pg_default_system, quota_relay_day, quota_pg_day, rl_per_min, relay_meter, demo_* }`（改完的現況；配額鍵沒設過時顯示內建預設）。
 
 | 鍵 | 說明 |
 |---|---|
 | `brand` | 站名，最長 60 字；**傳空字串＝還原內建預設**（＝正式網址主機名）。改完立即生效（分頁標題、og:site_name、JSON-LD、RSS 頻道名；主站首頁的「IP·UA 查詢」標題不受影響） |
 | `contact_url` | 管理員對外聯絡連結（`http(s)://` 開頭，最長 300 字）；顯示在會員頁登入閘門的「聯絡我」鈕。**空字串＝移除＝不顯示聯絡鈕** |
 | `pg_open` | `true`／`false` — **Playground 開放給所有登入會員**：開啟後任何登入會員不用逐一批准就能用 LLM Playground（被封鎖的帳號照樣擋；只影響 playground，relay 與 vpn 照舊看個人批准）。`false`＝回到逐人批准。網頁上在 /members 頁最上方也有這顆開關 |
+| `pg_default_system` | **Playground 的預設系統提示詞**（2026-07-21；最長 4000 字，超過截斷）：所有**沒有自己填** `system_prompt` 的渠道共用這一段 — 改一次等於一次換掉全部渠道，不必逐個開視窗。渠道自己填了就以渠道為準（不疊加）。**空字串＝刪鍵＝還原程式內建的 `PG_DEFAULT_SYSTEM`**；GET 的 `defaults.pg_default_system` 就是那段內建值（網頁上拿它當灰字）。**只作用在 `/playground`**，`/relay` 中轉照樣不注入任何東西。網頁在 /settings 的「Playground 預設系統提示詞」卡 |
 | `quota_relay_day` | 中轉每日請求數的**全域預設**（正整數）；`null` ＝ 回到內建預設 500。個人覆寫（§5c 的 `set_quota`）優先於這個值；**管理員完全不吃配額** |
 | `quota_pg_day` | Playground 每日訊息數的全域預設；`null` ＝ 內建預設 200 |
 | `rl_per_min` | 每分鐘請求數上限（滾動 60 秒、中轉＋Playground 合併計）；`null` ＝ 內建預設 30 |
@@ -384,7 +385,7 @@ curl -X PUT https://uaip.cc.cd/api/admin/prices ^
 | `base_url` | **必填** 上游根網址，例 `https://api.openai.com` |
 | `api_key` | 上游金鑰（只有管理員 API 摸得到，回讀一律遮罩） |
 | `models` | **必填** 這個管道可用的模型名稱（陣列，或逗號／換行分隔的字串；限英數與 `. _ / : -`、上限 40 個）。會員頁與 LLM Playground 都靠這份清單 |
-| `system_prompt` | **選填** 這個管道在 **LLM Playground** 的系統提示詞（上限 8000 字，超過回 400、不截斷）。**留空＝套用內建預設**（程式裡的 `PG_DEFAULT_SYSTEM`，管理員視窗那格的灰字就是它）；填了就**整段取代**預設。**只作用在 `/playground`**：`/relay` API 中轉是透明代理，一律不注入任何提示詞 — 會員自己送什麼就轉什麼 |
+| `system_prompt` | **選填** 這個管道在 **LLM Playground** 的系統提示詞（上限 8000 字，超過回 400、不截斷）。**留空＝套用站台預設**（`PUT /api/admin/settings` 的 `pg_default_system`，沒設過就是程式內建的 `PG_DEFAULT_SYSTEM`；管理員視窗那格的灰字顯示的就是當下實際會套的那段）；填了就**整段取代**預設。要一次改掉全部渠道的人設就改站台預設，不必逐個渠道填。**只作用在 `/playground`**：`/relay` API 中轉是透明代理，一律不注入任何提示詞 — 會員自己送什麼就轉什麼 |
 | `extra_body` | **選填** 合併進 **LLM Playground** 上游請求本體的額外參數，必須是 **JSON 物件字串**（上限 4000 字；存檔當下就驗，不合法回 400）。**留空＝不合併任何東西**（注意：跟 `system_prompt` 的「留空＝套預設」相反，網頁上那格的灰字只是範例）。用來處理各家專屬參數，例 `{"venice_parameters":{"include_venice_system_prompt":false}}`、OpenAI 的 `reasoning_effort`、Anthropic 的 `thinking`。`model`／`stream`／`messages`／`contents` 擋著**不給覆寫**。**只作用在 `/playground`**，`/relay` 中轉不注入 |
 | `enabled` | 預設 true |
 

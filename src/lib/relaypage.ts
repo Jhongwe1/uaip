@@ -5,7 +5,7 @@
 import { html, pageShell } from "./site.js";
 import { getChromeFor } from "./chrome.js";
 import { MEMBER_CSS, MEMBER_JS } from "./memberui.js";
-import { PG_DEFAULT_SYSTEM } from "./playground.js";
+import { PG_DEFAULT_SYSTEM, pgDefaultSystem } from "./playground.js";
 import type { Env } from "../types.js";
 
 const PAGE_CSS = `
@@ -37,8 +37,16 @@ const PAGE_CSS = `
 
 export async function relayPageResponse(env: Env, request: Request): Promise<Response> {
   const { chrome } = await getChromeFor(env, request); // 選單依身分過濾（VPN 隱形）
+  // 渠道視窗「系統提示詞」欄的灰字＝這個渠道留空時伺服器實際會送出的那段。
+  // 站台預設可在 /settings 改（settings.pg_default_system），所以要每次請求現查、
+  // 不能像以前那樣把 PG_DEFAULT_SYSTEM 直接烤進 RELAY_JS — 烤進去的話管理員改了站台預設，
+  // 這裡的灰字還停在舊值，就會出現「灰字說一套、實際送另一套」。
+  const defSys = await pgDefaultSystem(env);
   const body =
     '<div id="root"><div class="gate"><div class="spin"></div></div></div>\n' +
+    "<script data-nonce>window.__pgDefSys=" +
+    JSON.stringify(defSys).replace(/</g, "\\u003c") +
+    ";</script>\n" +
     "<script data-nonce>" +
     MEMBER_JS +
     "</script>\n" +
@@ -302,10 +310,11 @@ const RELAY_JS = `
     // Playground 系統提示詞（選填）：只作用在 /playground；/relay API 中轉是透明代理，
     // 不會注入這段（會員送什麼就轉什麼）。標籤寫明，免得以為中轉那邊也會套用。
     var sf=el("div","field");
-    sf.appendChild(el("label",null,tx("Playground 系統提示詞（留空＝套用灰字預設；不影響 API 中轉）","Playground system prompt (blank = the grey default; not applied to API relay)")));
+    sf.appendChild(el("label",null,tx("Playground 系統提示詞（留空＝套用灰字的站台預設，可在 /settings 改；不影響 API 中轉）","Playground system prompt (blank = the grey site default, editable in /settings; not applied to API relay)")));
     var fSys=el("textarea");fSys.rows=4;
-    // 灰字＝留空時伺服器實際會送出的那段（PG_DEFAULT_SYSTEM，從 playground.ts import — 單一真相來源）
-    fSys.placeholder=${JSON.stringify(PG_DEFAULT_SYSTEM)};
+    // 灰字＝這個渠道留空時伺服器實際會送出的那段。站台預設由伺服器每次請求現查後
+    // 塞進 window.__pgDefSys（/settings 可改）；真的沒拿到才退回程式內建值。
+    fSys.placeholder=window.__pgDefSys||${JSON.stringify(PG_DEFAULT_SYSTEM)};
     fSys.value=c.system_prompt||"";
     sf.appendChild(fSys);dlg.appendChild(sf);
     // 額外請求參數（選填）：合併進 playground 送給上游的請求本體，處理各家專屬參數。

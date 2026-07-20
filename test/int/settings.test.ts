@@ -3,6 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
 import { onRequestPut as rawPut, onRequestGet } from "../../src/routes/api/admin/settings.js";
+import { pgDefaultSystem, PG_DEFAULT_SYSTEM } from "../../src/lib/playground.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
 import type { TestCtx } from "../helpers.js";
 
@@ -167,6 +168,33 @@ describe("settings 帶哪鍵改哪鍵", () => {
     expect(await getKey("tg_chat_id")).toBeNull();
   });
 
+  // 2026-07-21：Playground 預設系統提示詞（一次管全部沒自己填的渠道）
+  it("pg_default_system：存得下、GET 附內建值當灰字、空字串＝刪鍵＝還原內建", async () => {
+    const j: any = await (await onRequestPut(ctx({ pg_default_system: "  你是站台助手  " }))).json();
+    expect(j.pg_default_system).toBe("你是站台助手"); // 前後空白修掉
+    expect((await getKey("pg_default_system")).v).toBe("你是站台助手");
+
+    const getCtx = makeCtx({
+      url: ORIGIN + "/api/admin/settings",
+      init: { headers: { authorization: "Bearer " + TOK } },
+      env: envWith({ LOGS_TOKEN: TOK })
+    });
+    const g: any = await (await onRequestGet(getCtx)).json();
+    expect(g.pg_default_system).toBe("你是站台助手");
+    expect(g.defaults.pg_default_system).toContain("uaip.cc.cd"); // 灰字＝程式內建那段
+
+    const j2: any = await (await onRequestPut(ctx({ pg_default_system: "" }))).json();
+    expect(j2.pg_default_system).toBe("");
+    expect(await getKey("pg_default_system")).toBeNull();
+  });
+
+  it("pg_default_system 截斷 4000 字；只帶它不動別的鍵", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('brand','舊站名')").run();
+    const j: any = await (await onRequestPut(ctx({ pg_default_system: "字".repeat(5000) }))).json();
+    expect(j.pg_default_system.length).toBe(4000);
+    expect(j.brand).toBe("舊站名");
+  });
+
   it("站名截斷 60 字；一個鍵都沒帶 → 400；沒授權 → 401", async () => {
     const j: any = await (await onRequestPut(ctx({ brand: "x".repeat(100) }))).json();
     expect(j.brand.length).toBe(60);
@@ -177,5 +205,23 @@ describe("settings 帶哪鍵改哪鍵", () => {
       env: envWith({ LOGS_TOKEN: TOK })
     });
     expect((await onRequestPut(anon)).status).toBe(401);
+  });
+});
+
+// pgDefaultSystem(env)：Playground 送出前查的那一步（settings 有值就用，否則程式內建）。
+// 這是 /settings 那格設定「真的會生效」的關鍵接點 — 沒有它，UI 改了也不會影響聊天。
+describe("pgDefaultSystem — 站台預設系統提示詞的讀取", () => {
+  it("settings 沒設過＝回程式內建 PG_DEFAULT_SYSTEM", async () => {
+    expect(await pgDefaultSystem(env as any)).toBe(PG_DEFAULT_SYSTEM);
+  });
+
+  it("settings 有值＝回那個值", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('pg_default_system','站台的')").run();
+    expect(await pgDefaultSystem(env as any)).toBe("站台的");
+  });
+
+  it("值是空白字串＝當作沒設，回內建（不會送出一段空提示詞）", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('pg_default_system','   ')").run();
+    expect(await pgDefaultSystem(env as any)).toBe(PG_DEFAULT_SYSTEM);
   });
 });

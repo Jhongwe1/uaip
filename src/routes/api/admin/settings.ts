@@ -8,6 +8,10 @@
 //            空字串或 null＝刪鍵＝不顯示聯絡鈕。
 //   pg_open: true/false — Playground 對所有登入會員開放（不必逐人批准；封鎖者照擋）。
 //            存 settings 表 pg_open='1'；false＝刪鍵＝回到逐人批准。
+//   pg_default_system（2026-07-21）：Playground 的**預設**系統提示詞 — 所有「沒自己填」的
+//            管道共用這一段（改一次全部換，不必逐個管道開視窗）。管道自己填了就以管道為準。
+//            最長 4000 字；空字串或 null＝刪鍵＝回到程式內建那段（PG_DEFAULT_SYSTEM）。
+//            只作用在 /playground；/relay API 中轉是透明代理，一個字都不注入。
 //   quota_relay_day / quota_pg_day / rl_per_min（2026-07-14 配額全域預設）：
 //            正整數＝覆寫程式內建預設（src/lib/quota.ts QUOTA_DEFAULTS）；null 或空字串＝刪鍵＝回到內建。
 //   relay_meter: true/false — 中轉計量 pump 的總開關（false 存 '0'＝退回純直通；true＝刪鍵＝預設開）。
@@ -25,6 +29,7 @@ import { json, siteBrand } from "../../../lib/site.js";
 import { adminOk, pgOpenAll } from "../../../lib/auth.js";
 import { QUOTA_DEFAULTS } from "../../../lib/quota.js";
 import { DEMO_DEFAULTS, demoCfg } from "../../../lib/demo.js";
+import { PG_DEFAULT_SYSTEM } from "../../../lib/playground.js";
 import { audit } from "../../../lib/observe.js";
 import type { RouteCtx } from "../../../types.js";
 
@@ -34,6 +39,7 @@ const ALL_KEYS = [
   "brand",
   "contact_url",
   "pg_open",
+  "pg_default_system",
   "relay_meter",
   "demo_mode",
   "demo_channel",
@@ -61,7 +67,7 @@ export async function onRequestGet(context: RouteCtx): Promise<Response> {
   if (!env.DB) return json({ error: "no-db" }, 500);
   try {
     const res = await env.DB.prepare(
-      "SELECT k,v FROM settings WHERE k IN ('brand','contact_url','pg_open','relay_meter'," +
+      "SELECT k,v FROM settings WHERE k IN ('brand','contact_url','pg_open','pg_default_system','relay_meter'," +
         "'quota_relay_day','quota_pg_day','rl_per_min','tg_bot_token','tg_chat_id'," +
         "'demo_mode','demo_channel','demo_models','demo_per_min','demo_per_ip_day','demo_global_day','demo_max_tokens')"
     ).all();
@@ -79,6 +85,8 @@ export async function onRequestGet(context: RouteCtx): Promise<Response> {
       custom: !!st.brand,
       contact_url: st.contact_url || "",
       pg_open: st.pg_open === "1",
+      // 沒設過回空字串（不是內建那段）— 前端把內建放 placeholder，空欄就代表「用內建」。
+      pg_default_system: st.pg_default_system || "",
       relay_meter: st.relay_meter !== "0",
       quota_relay_day: numOrNull(st.quota_relay_day),
       quota_pg_day: numOrNull(st.quota_pg_day),
@@ -99,7 +107,9 @@ export async function onRequestGet(context: RouteCtx): Promise<Response> {
       tg_env_set: !!(env.TG_BOT_TOKEN && env.TG_CHAT_ID),
       tg_active: !!(st.tg_bot_token || env.TG_BOT_TOKEN) && !!(st.tg_chat_id || env.TG_CHAT_ID),
       // 只放「可用 PUT 設定」的數字鍵（DEMO_DEFAULTS 另含內部用的 maxInputChars，不外流）
+      // ＋ pg_default_system 的內建值（前端拿去當灰字，管理員看得到「留空會送出什麼」）
       defaults: {
+        pg_default_system: PG_DEFAULT_SYSTEM,
         quota_relay_day: QUOTA_DEFAULTS.quota_relay_day,
         quota_pg_day: QUOTA_DEFAULTS.quota_pg_day,
         rl_per_min: QUOTA_DEFAULTS.rl_per_min,
@@ -167,6 +177,14 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
     if ("pg_open" in body) {
       if (body.pg_open) await put("pg_open", "1");
       else await del("pg_open");
+    }
+    if ("pg_default_system" in body) {
+      const ps = String(body.pg_default_system == null ? "" : body.pg_default_system)
+        .trim()
+        .slice(0, 4000);
+      if (!ps)
+        await del("pg_default_system"); // 空＝回到內建 PG_DEFAULT_SYSTEM
+      else await put("pg_default_system", ps);
     }
     for (const k of QUOTA_KEYS) {
       if (!(k in body)) continue;
@@ -275,7 +293,7 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
 
     // 回傳改完的現況（settings 沒鍵時顯示內建預設）
     const res = await env.DB.prepare(
-      "SELECT k,v FROM settings WHERE k IN ('brand','contact_url','quota_relay_day','quota_pg_day','rl_per_min','relay_meter','demo_channel','demo_models','tg_bot_token','tg_chat_id')"
+      "SELECT k,v FROM settings WHERE k IN ('brand','contact_url','pg_default_system','quota_relay_day','quota_pg_day','rl_per_min','relay_meter','demo_channel','demo_models','tg_bot_token','tg_chat_id')"
     ).all();
     const st: Record<string, string> = {};
     ((res.results || []) as { k: string; v: string }[]).forEach(function (r) {
@@ -288,6 +306,7 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
       custom: !!st.brand,
       contact_url: st.contact_url || "",
       pg_open: await pgOpenAll(env),
+      pg_default_system: st.pg_default_system || "",
       quota_relay_day: st.quota_relay_day ? parseInt(st.quota_relay_day, 10) : QUOTA_DEFAULTS.quota_relay_day,
       quota_pg_day: st.quota_pg_day ? parseInt(st.quota_pg_day, 10) : QUOTA_DEFAULTS.quota_pg_day,
       rl_per_min: st.rl_per_min ? parseInt(st.rl_per_min, 10) : QUOTA_DEFAULTS.rl_per_min,
