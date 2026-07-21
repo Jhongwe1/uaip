@@ -420,7 +420,7 @@ Authorization: Bearer uak-你的金鑰
 - 路徑照上游原本的填（中轉只換金鑰不改路徑）；回應串流直通。`model` 參數也原樣轉發 — 填管道 `models` 清單裡的名稱即可。
 - 未帶金鑰 401、金鑰無效 401、帳號未被批准 relay 服務 403、管道不存在或停用 404、上游連不上 502。
 - **配額（2026-07-14）**：超過每日額度回 `429 { error:"quota-exceeded", hint, used, limit, reset, contact_url? }`、請求太快回 `429 { error:"rate-limited", … }`，都帶 `Retry-After` 標頭（秒）。額度＝個人覆寫 → 全域設定 → 內建預設（中轉 500/日、每分鐘 30）；**管理員完全豁免**。今日用量顯示在 /relay 頁與 `GET /api/me` 的 `usage`。
-  - **`contact_url`（2026-07-21）**：管理員有設聯絡連結（`PUT /api/admin/settings` 的 `contact_url`，跟未登入閘門那顆「聯絡我」鈕同一條）時，日額度 429 的 `hint` 尾端會接上該網址，並多回一個 `contact_url` 欄位給前端做成可點的連結（沒設＝兩者都不出現，文案維持原樣）。「請聯絡管理員」卻不給聯絡方式等於叫人自己想辦法。**每分鐘的 `rate-limited` 不接** — 那是等一下就好、不必找人。
+  - **`contact_url`（2026-07-21）**：管理員有設聯絡連結（`PUT /api/admin/settings` 的 `contact_url`，跟未登入閘門那顆「聯絡我」鈕同一條）時，日額度 429 的 `hint` 尾端會接上該網址，並多回一個 `contact_url` 欄位給前端做成可點的連結（沒設＝兩者都不出現，文案維持原樣）。「請聯絡管理員」卻不給聯絡方式等於叫人自己想辦法。**每分鐘的 `rate-limited` 不接** — 那是等一下就好、不必找人。體驗模式的日額度 429（`demo-rate-limited`／`demo-quota-exceeded`）2026-07-21 起照同一套，每分鐘那條同樣不接。
 - **計量**：伺服器順流掃「回應」尾端的 `usage`／`model` 記進 req_log（延遲、token 數；研究數據用）— 只看上游回應、絕不緩衝或解析你送出的內容；會員中斷連線時上游立即取消。
 
 ## 5e. VPN 訂閱（多渠道）
@@ -458,7 +458,7 @@ Authorization: Bearer uak-你的金鑰
 上游金鑰全程留在伺服器，會員只帶登入 cookie。對話存 D1、綁帳號、跨裝置同步。
 驗證：登入 cookie（要有 `playground` 服務，**或**管理員開了 `pg_open` 全員開放，見 §5）**或** `Authorization: Bearer <管理金鑰>`（以管理員帳號的身分操作，方便 curl／agent 測試）。
 
-**體驗模式（2026-07-17 v2.0.0，ADR-0009）**：管理員開 `demo_mode`＋設 `demo_channel` 後，**完全未登入**的訪客也能打 `GET /api/playground/models`（只回 demo 那一組、渠道顯示名固定「體驗模式」）與 `POST /api/playground/chat`（SSE 第一筆事件是 `{conv,title?,demo:true}` — `demo:true` 是給前端的旗標「別去動對話列表」，`conv` 照給，前端靠它把同一頁的後續訊息串成同一則）。限制：渠道與模型鎖白名單、輸入整包 4000 字、`demo_max_tokens` 有填才壓回覆長度；**對話會存進資料庫**（2026-07-21 起）但掛在 `demo:public` 名下、**只有管理員的 `/api/admin/conversations` 看得到**，訪客沒有任何讀取管道；fail-closed 限流（每 IP 分鐘/日＋全站日；超額 429 `demo-rate-limited`／`demo-quota-exceeded`，限流器故障 503 `demo-unavailable`）。
+**體驗模式（2026-07-17 v2.0.0，ADR-0009）**：管理員開 `demo_mode`＋設 `demo_channel` 後，**完全未登入**的訪客也能打 `GET /api/playground/models`（只回 demo 那一組、渠道顯示名固定「體驗模式」）與 `POST /api/playground/chat`（SSE 第一筆事件是 `{conv,title?,demo:true}` — `demo:true` 是給前端的旗標「別去動對話列表」，`conv` 照給，前端靠它把同一頁的後續訊息串成同一則）。限制：渠道與模型鎖白名單、輸入整包 4000 字、`demo_max_tokens` 有填才壓回覆長度；**對話會存進資料庫**（2026-07-21 起）但掛在 `demo:public` 名下、**只有管理員的 `/api/admin/conversations` 看得到**，訪客沒有任何讀取管道；fail-closed 限流（每 IP 分鐘/日＋全站日；超額 429 `demo-rate-limited`／`demo-quota-exceeded`，限流器故障 503 `demo-unavailable`）。**日額度用完的兩種 429 會附 `contact_url`**（管理員有設的話；文案不提 IP，`hint` 尾端也接同一條網址）— 跟會員配額同一套，見 §6 的 `contact_url`；每分鐘那條不附（等一下就好）。
 
 - `GET /api/playground/models` → `{ rows:[{ slug, name, models }] }`（只列啟用中且有設模型的渠道；**不含 `kind`** — 那等於標示真實提供商）。
 - `GET /api/playground/conversations` → `{ rows:[{ id, title, channel, model, created_at, updated_at }] }`（自己的，新→舊，最多 100 筆）。**管理員要看全站所有人的對話**看 §5 的 `/api/admin/conversations`（或 /logs 的「總對話紀錄」分頁）。

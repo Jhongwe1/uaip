@@ -208,7 +208,7 @@ describe("demo 模式", () => {
 
   it("IP 日額用完 → 429（第二發被 DO 擋、不打上游）", async () => {
     await seedChannel({ slug: "demo", kind: "openai", base_url: UP, models: "demo-model" });
-    await demoOn("demo", { demo_per_ip_day: "1" });
+    await demoOn("demo", { demo_per_ip_day: "1", contact_url: "https://t.me/site_admin" });
     fetchMock
       .get(UP)
       .intercept({ path: "/v1/chat/completions", method: "POST" })
@@ -220,12 +220,41 @@ describe("demo 模式", () => {
     await drainWaits(c1);
     const r2 = await chatPost(anonChat(MSG, "198.51.100.1"));
     expect(r2.status).toBe(429);
-    expect(((await r2.json()) as any).error).toBe("demo-rate-limited");
+    const b2: any = await r2.json();
+    expect(b2.error).toBe("demo-rate-limited");
+    // 額度用完＝管理員幫得上忙 → 附聯絡方式：欄位給前端畫「聯絡我」鈕、
+    // hint 尾端那份給沒有前端可以畫按鈕的呼叫端（跟會員 quota 429 同一套）
+    expect(b2.contact_url).toBe("https://t.me/site_admin");
+    expect(String(b2.hint).endsWith("：https://t.me/site_admin")).toBe(true);
+  });
+
+  it("每分鐘上限的 429 不附聯絡方式（等一下就好，不必找人）", async () => {
+    await seedChannel({ slug: "demo", kind: "openai", base_url: UP, models: "demo-model" });
+    await demoOn("demo", { demo_per_min: "1", contact_url: "https://t.me/site_admin" });
+    fetchMock
+      .get(UP)
+      .intercept({ path: "/v1/chat/completions", method: "POST" })
+      .reply(200, sse(["ok"]), { headers: { "content-type": "text/event-stream" } });
+    const c1 = anonChat(MSG, "198.51.100.7");
+    const r1 = await chatPost(c1);
+    expect(r1.status).toBe(200);
+    await readAll(r1);
+    await drainWaits(c1);
+    const r2 = await chatPost(anonChat(MSG, "198.51.100.7"));
+    expect(r2.status).toBe(429);
+    const b2: any = await r2.json();
+    expect(b2.error).toBe("demo-rate-limited");
+    expect(b2.contact_url).toBeUndefined();
+    expect(String(b2.hint)).toContain("請稍等再試");
   });
 
   it("全站日額用完 → 換 IP 也 429", async () => {
     await seedChannel({ slug: "demo", kind: "openai", base_url: UP, models: "demo-model" });
-    await demoOn("demo", { demo_global_day: "1", demo_per_ip_day: "99" });
+    await demoOn("demo", {
+      demo_global_day: "1",
+      demo_per_ip_day: "99",
+      contact_url: "https://t.me/site_admin"
+    });
     fetchMock
       .get(UP)
       .intercept({ path: "/v1/chat/completions", method: "POST" })
@@ -237,7 +266,9 @@ describe("demo 模式", () => {
     await drainWaits(c1);
     const r2 = await chatPost(anonChat(MSG, "198.51.100.2")); // 不同 IP
     expect(r2.status).toBe(429);
-    expect(((await r2.json()) as any).error).toBe("demo-quota-exceeded");
+    const b2: any = await r2.json();
+    expect(b2.error).toBe("demo-quota-exceeded");
+    expect(b2.contact_url).toBe("https://t.me/site_admin");
   });
 
   it("DO 沒綁定（模擬故障）→ 503 絕不放行，errlog 留 demo.do", async () => {

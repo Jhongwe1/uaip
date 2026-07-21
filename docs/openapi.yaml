@@ -262,7 +262,8 @@ paths:
         不寫進資料庫、非推理模型不會出現。整趟沒有任何 `d` → `{error:"empty-output",hint}`，不會靜默結束。
         demo 限制：渠道/模型鎖白名單、輸入 4000 字（demo_max_tokens 有填才壓回覆長度）；
         對話存在 demo:public 名下，只有管理員看得到、訪客沒有讀取管道；
-        超額 429（demo-rate-limited / demo-quota-exceeded）、限流器故障 503（demo-unavailable）。
+        超額 429（demo-rate-limited / demo-quota-exceeded；日額度那兩種會附 contact_url，
+        每分鐘那條不附）、限流器故障 503（demo-unavailable）。
       security: [{ sessionCookie: [] }, { adminToken: [] }, {}]
       requestBody:
         required: true

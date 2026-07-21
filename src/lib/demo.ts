@@ -28,6 +28,7 @@ export interface DemoCfg {
   perIpDay: number;
   globalDay: number;
   maxTokens: number; // 0＝不限（buildUpstream 收到 0 就不設 max_tokens）
+  contactUrl: string; // settings.contact_url — 額度用完的 429 附上去（沒設＝空字串）
 }
 
 function intOr(v: unknown, dft: number): number {
@@ -44,12 +45,15 @@ export async function demoCfg(env: Env): Promise<DemoCfg> {
     perMin: 0,
     perIpDay: 0,
     globalDay: 0,
-    maxTokens: 0
+    maxTokens: 0,
+    contactUrl: ""
   };
   try {
     if (!env || !env.DB) return off;
     const rs = await env.DB.prepare(
-      "SELECT k,v FROM settings WHERE k IN ('demo_mode','demo_channel','demo_models','demo_per_min','demo_per_ip_day','demo_global_day','demo_max_tokens')"
+      // contact_url 順道撈：額度用完的 429 要附聯絡方式，塞進這句本來就要跑的查詢，
+      // 比在拒絕路徑另外查一次省（免費方案的子請求與 CPU 都是額度）。
+      "SELECT k,v FROM settings WHERE k IN ('demo_mode','demo_channel','demo_models','demo_per_min','demo_per_ip_day','demo_global_day','demo_max_tokens','contact_url')"
     ).all();
     const st: Record<string, string> = {};
     for (const r of (rs.results || []) as { k: string; v: string }[]) st[r.k] = r.v;
@@ -65,7 +69,8 @@ export async function demoCfg(env: Env): Promise<DemoCfg> {
       perMin: intOr(st.demo_per_min, DEMO_DEFAULTS.demo_per_min),
       perIpDay: intOr(st.demo_per_ip_day, DEMO_DEFAULTS.demo_per_ip_day),
       globalDay: intOr(st.demo_global_day, DEMO_DEFAULTS.demo_global_day),
-      maxTokens: intOr(st.demo_max_tokens, DEMO_DEFAULTS.demo_max_tokens)
+      maxTokens: intOr(st.demo_max_tokens, DEMO_DEFAULTS.demo_max_tokens),
+      contactUrl: String(st.contact_url || "").trim()
     };
   } catch (e) {
     return off;
@@ -105,20 +110,28 @@ export type DemoCheckResult = { ok: true; resp?: undefined } | { ok: false; resp
  * 順序註記：IP 檢查先扣、全站再擋的話 IP 額度會白扣 1 — 對匿名體驗流量無所謂。
  */
 export async function demoCheck(env: Env, cfg: DemoCfg, request: Request): Promise<DemoCheckResult> {
+  // 額度用完的 429 附上管理員聯絡方式 — 跟會員路徑（lib/quota.ts 的 dayDenied）同一套：
+  // hint 尾端接網址是給沒有前端可以畫按鈕的呼叫端看的，contact_url 欄位給 /playground
+  // 做成「聯絡我」鈕（前端會把尾端那份切掉，免得同一條網址在同一格出現兩次）。
+  const c = cfg.contactUrl;
+  const withContact = (s: string) => s + (c ? "，或聯絡管理員：" + c : "");
   try {
     if (!env.RATE_LIMITER) throw new Error("RATE_LIMITER 未綁定");
     const ip = request.headers.get("cf-connecting-ip") || "unknown";
     const ipStub = env.RATE_LIMITER.get(env.RATE_LIMITER.idFromName("demo-ip:" + ip));
     const r1 = await ipStub.check({ svc: "pg", perMin: cfg.perMin, perDay: cfg.perIpDay });
     if (!r1.ok) {
-      const hint =
-        r1.kind === "day"
-          ? "這個 IP 今日的體驗額度用完了（" + r1.used + "/" + r1.limit + "）— 登入成為會員可獲得更高額度"
-          : "請求太快了（體驗模式每分鐘上限 " + r1.limit + "），請稍等再試";
+      const day = r1.kind === "day";
+      const hint = day
+        ? withContact(
+            "今日的體驗額度用完了（" + r1.used + "/" + r1.limit + "）— 登入成為會員可獲得更高額度"
+          )
+        : "請求太快了（體驗模式每分鐘上限 " + r1.limit + "），請稍等再試";
       return {
         ok: false,
-        resp: json({ error: "demo-rate-limited", hint: hint }, 429, {
-          "retry-after": r1.kind === "day" ? "3600" : "60"
+        // 每分鐘那條等 60 秒就好，給聯絡鈕只是讓人白跑一趟 — 只有日額度用完才附
+        resp: json({ error: "demo-rate-limited", hint: hint, contact_url: day && c ? c : undefined }, 429, {
+          "retry-after": day ? "3600" : "60"
         })
       };
     }
@@ -128,7 +141,11 @@ export async function demoCheck(env: Env, cfg: DemoCfg, request: Request): Promi
       return {
         ok: false,
         resp: json(
-          { error: "demo-quota-exceeded", hint: "今天的公共體驗額度整站用完了 — 登入成為會員即可繼續使用" },
+          {
+            error: "demo-quota-exceeded",
+            hint: withContact("今天的公共體驗額度整站用完了 — 登入成為會員即可繼續使用"),
+            contact_url: c || undefined
+          },
           429,
           { "retry-after": "3600" }
         )
