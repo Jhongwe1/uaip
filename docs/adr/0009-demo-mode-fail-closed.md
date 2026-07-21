@@ -21,8 +21,9 @@ path is locked down on every axis:
 - **Channel and model allowlist** (`demo_channel`, `demo_models`; empty list =
   all models of that one channel). The channel lock is checked **before** the DB
   lookup, so anonymous callers cannot probe other channel slugs.
-- **Small inputs, short outputs**: 4k input chars total; `max_tokens` forced to
-  `demo_max_tokens` (default 512) for all three upstream kinds.
+- **Small inputs, optionally capped outputs**: 4k input chars total; `max_tokens`
+  forced to `demo_max_tokens` for all three upstream kinds when the admin sets a
+  value (the default became "unset" on 2026-07-21 — see the update below).
 - **Nothing persists**: no `pg_conversations` / `pg_messages` rows — the chat
   lives only in the visitor's browser. Only `req_log` is written, attributed to a
   lazily-created synthetic user row `google_sub='demo:public'` (which can never
@@ -33,10 +34,9 @@ path is locked down on every axis:
   unbound or throws → **503, never allow** (and an `errlog` row `demo.do`, which
   the Telegram alert cron picks up).
 
-Worst-case daily burn is bounded by `demo_global_day × demo_max_tokens` output
-tokens (~200 × 512 at defaults) regardless of attacker behavior, and the admin
-can kill the whole surface with one settings write (`demo_mode: false`), no
-deploy.
+Worst-case daily burn is bounded by `demo_global_day ×` the per-reply output cap
+regardless of attacker behavior, and the admin can kill the whole surface with
+one settings write (`demo_mode: false`), no deploy.
 
 ## The deliberate asymmetry
 
@@ -58,13 +58,28 @@ Same DO class, opposite failure policy — the policy lives in the caller
 - The demo user row shows up in member lists as a pending, service-less account;
   admins should leave it alone (deleting it just gets it re-created).
 
+## Update (2026-07-21): `demo_max_tokens` defaults to unset
+
+The original default forced every demo reply to 512 output tokens — short enough
+that answers routinely stop mid-sentence, which reads as "broken" rather than
+"limited" to exactly the first-time visitor the demo exists for. The default is
+now **unset = no cap** (`DEMO_DEFAULTS.demo_max_tokens = 0`); an admin who wants
+a hard per-reply ceiling types a number into /settings.
+
+Only the per-reply half of the burn bound moves. The request-count half
+(`demo_global_day`, 200/day, fail-closed) is untouched — and the Consequences
+above already said that global cap, not the per-IP or per-reply limits, is the
+actual financial backstop. Anthropic upstreams still receive
+`PG_LIMITS.maxTokens` (4096) because that API requires the field.
+
 ---
 
 **中文摘要**：體驗模式讓「完全沒登入」的訪客直接試聊，但匿名流量打付費上游＝燒錢面，
 所以限流哲學跟會員配額**刻意相反**：會員 fail-open（配額系統壞了照樣服務熟人）、
 demo **fail-closed**（DO 壞了直接 503，絕不放行陌生人）。鎖渠道＋模型白名單（先擋再查庫，
-探測不到其他渠道）、輸入 4k 字、強制 `demo_max_tokens`（預設 512）；對話**不落地**，
-只寫 req_log、記在懶建的 `demo:public` 合成帳號上（成本記帳自然涵蓋）。雙保險＝每 IP
-一顆 DO（分鐘 3／日 10）＋全站一顆（日 200）；最壞燒錢上限＝全站日上限 × max_tokens，
+探測不到其他渠道）、輸入 4k 字、`demo_max_tokens` 有填才壓回覆長度（2026-07-21 起預設不填
+＝不限，見上面的 Update）；對話**不落地**，只寫 req_log、記在懶建的 `demo:public` 合成帳號上
+（成本記帳自然涵蓋）。雙保險＝每 IP 一顆 DO（分鐘 3／日 10）＋全站一顆（日 200）；
+最壞燒錢上限＝全站日上限 × 每則回覆上限（真正扛住的是前者），
 管理員一鍵 `demo_mode:false` 免部署關閉。同一顆 DO、相反的失效策略 — 策略住在呼叫端，
 DO 本身保持無策略。

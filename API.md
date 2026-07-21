@@ -282,7 +282,7 @@ curl -X PUT https://uaip.cc.cd/api/admin/menu ^
 | `demo_per_min` | 體驗模式每 IP 每分鐘上限；`null`＝內建預設 3 |
 | `demo_per_ip_day` | 每 IP 每日上限；`null`＝內建預設 10 |
 | `demo_global_day` | **全站**每日上限（燒錢保險）；`null`＝內建預設 200 |
-| `demo_max_tokens` | 強制的回覆 token 上限；`null`＝內建預設 512 |
+| `demo_max_tokens` | 體驗模式每則回覆的 token 上限；**`null`（留空）＝不限** — 跟會員路徑一樣不對上游設 `max_tokens`（anthropic 例外：那家必填，維持 4096）。要硬性壓每則成本才填正整數 |
 
 ```bat
 curl -X PUT https://uaip.cc.cd/api/admin/settings ^

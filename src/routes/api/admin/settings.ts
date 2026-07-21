@@ -23,7 +23,7 @@
 //   demo_max_tokens（v2.0.0 Phase K 體驗模式）：
 //            demo_mode true/false；demo_channel＝鎖定的渠道 slug（**沒設＝demo 不生效**）；
 //            demo_models＝逗號分隔模型白名單（空＝該渠道全部）；四個數字鍵 null＝回內建預設
-//            （3／10／200／512，src/lib/demo.ts DEMO_DEFAULTS）。
+//            （3／10／200／不限，src/lib/demo.ts DEMO_DEFAULTS — demo_max_tokens 預設 0＝不壓回覆長度）。
 // 回 { ok, brand, custom, pg_open, quota_*, rl_per_min, relay_meter, demo_* }（改完的現況）。
 import { json, siteBrand } from "../../../lib/site.js";
 import { adminOk, pgOpenAll } from "../../../lib/auth.js";
@@ -243,12 +243,10 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
       }
       const n = parseInt(v, 10);
       if (!Number.isFinite(n) || n < 1) {
+        // 內建預設 0（demo_max_tokens）代表「不限」— 別把 0 直接印給管理員看
+        const d = (DEMO_DEFAULTS as Record<string, number>)[k];
         return json(
-          {
-            error: "bad-input",
-            hint:
-              k + " 要是正整數，或 null＝回到內建預設（" + (DEMO_DEFAULTS as Record<string, number>)[k] + "）"
-          },
+          { error: "bad-input", hint: k + " 要是正整數，或 null＝回到內建預設（" + (d > 0 ? d : "不限") + "）" },
           400
         );
       }

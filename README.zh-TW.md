@@ -10,7 +10,7 @@
 執行期不用打包 — `git push` 就是整條供應鏈。
 
 > **現在就能試**：[uaip.cc.cd/playground](https://uaip.cc.cd/playground) — 體驗模式開啟時
-> 不用註冊就能跟真模型聊（回覆較短、fail-closed 限流、你打的字不會存伺服器）。
+> 不用註冊就能跟真模型聊（fail-closed 限流、你打的字不會存伺服器）。
 
 <p align="center">
   <img src="./docs/assets/playground-demo.png" alt="匿名體驗模式聊天" width="49%">

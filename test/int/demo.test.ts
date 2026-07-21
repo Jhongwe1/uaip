@@ -1,5 +1,5 @@
 // Demo 體驗模式（v2.0.0 Phase K，ADR-0009）測試矩陣：
-// 關→401；開→匿名可聊（不落對話表、req_log 記 demo:public、強制 max_tokens）；
+// 關→401；開→匿名可聊（不落對話表、req_log 記 demo:public、max_tokens 預設不壓、填了才壓）；
 // 渠道／模型鎖定；4k 輸入上限；IP 日額 429；全站日額 429；DO 壞→503（fail-closed）。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
@@ -59,7 +59,7 @@ describe("demo 模式", () => {
     expect(s.demo).toBe(false);
   });
 
-  it("開→匿名可聊：SSE 正常、對話不落地、req_log 記 demo:public、上游被強制 max_tokens", async () => {
+  it("開→匿名可聊：SSE 正常、對話不落地、req_log 記 demo:public、沒填上限就不壓 max_tokens", async () => {
     await seedChannel({ slug: "demo", kind: "openai", base_url: UP, models: "demo-model" });
     await demoOn("demo");
     let upBody: any = null;
@@ -89,7 +89,7 @@ describe("demo 模式", () => {
         .join("")
     ).toBe("你好！");
     expect(events[events.length - 1].done).toBe(true);
-    expect(upBody.max_tokens).toBe(512); // 預設強制值
+    expect(upBody.max_tokens).toBeUndefined(); // demo_max_tokens 沒填＝不限（跟會員路徑一樣）
 
     const convs = (await env.DB.prepare("SELECT * FROM pg_conversations").all()).results as any[];
     const msgs = (await env.DB.prepare("SELECT * FROM pg_messages").all()).results as any[];
@@ -110,6 +110,30 @@ describe("demo 模式", () => {
     expect(m.demo).toBe(true);
     expect(m.rows[0].name).toBe("體驗模式");
     expect(m.rows[0].models).toEqual(["demo-model"]);
+  });
+
+  it("填了 demo_max_tokens 才壓上游回覆長度", async () => {
+    await seedChannel({ slug: "demo", kind: "openai", base_url: UP, models: "demo-model" });
+    await demoOn("demo", { demo_max_tokens: "256" });
+    let upBody: any = null;
+    fetchMock
+      .get(UP)
+      .intercept({
+        path: "/v1/chat/completions",
+        method: "POST",
+        body(b) {
+          upBody = JSON.parse(String(b));
+          return true;
+        }
+      })
+      .reply(200, sse(["ok"]), { headers: { "content-type": "text/event-stream" } });
+
+    const ctx = anonChat(MSG);
+    const resp = await chatPost(ctx);
+    expect(resp.status).toBe(200);
+    await readAll(resp);
+    await drainWaits(ctx);
+    expect(upBody.max_tokens).toBe(256);
   });
 
   it("鎖定：非指定渠道 403（先擋、探測不到）；白名單外的模型 403", async () => {

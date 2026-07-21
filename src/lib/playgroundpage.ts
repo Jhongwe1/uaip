@@ -141,8 +141,8 @@ const PG_CSS = `
            margin-bottom:10px;font-size:13px;color:var(--muted);line-height:1.7;box-shadow:var(--pgshadow)}
   .pg-demo b{color:var(--fg)}
   .pg-demo a{color:var(--fg);font-weight:700;white-space:nowrap}
-  /* 有橫幅時聊天框讓出高度（橫幅約 54px＋間距） */
-  .pg-demo+.pg{height:calc(100vh - 162px);height:calc(100dvh - 162px)}
+  /* 有橫幅時聊天框讓出高度（橫幅剩一行＝44px＋10px 間距；原本文案會折兩行才要 64px） */
+  .pg-demo+.pg{height:calc(100vh - 152px);height:calc(100dvh - 152px)}
 `;
 
 export async function playgroundPageResponse(env: Env, request: Request): Promise<Response> {
@@ -270,11 +270,10 @@ const PG_JS = `
   function buildApp(){
     root.innerHTML="";
     if(demoMode){
-      /* 體驗模式橫幅＋登入 CTA（對話不落伺服器 — 明講給訪客聽） */
+      /* 體驗模式橫幅＋登入 CTA（限制細節不寫這裡 — 真的撞到限流時錯誤訊息才會講） */
       var bn=el("div","pg-demo");
       bn.innerHTML="<b>"+tx("體驗模式","Demo mode")+"</b> · "
-        +tx("回覆較短、次數有限；對話只留在這個瀏覽器，不會上傳。","Short replies with limits; chats stay in this browser only.")
-        +' <a href="/auth/login?next=/playground">'+tx("登入解鎖完整功能 →","Sign in for full access →")+"</a>";
+        +'<a href="/auth/login?next=/playground">'+tx("登入解鎖完整功能 →","Sign in for full access →")+"</a>";
       root.appendChild(bn);
     }
     var app=el("div","pg");UI.app=app;

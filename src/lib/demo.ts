@@ -1,12 +1,13 @@
 // src/lib/demo.ts — Demo 體驗模式（v2.0.0 Phase K，ADR-0009）。
 // 讓「完全沒登入」的訪客在 /playground 直接試聊：鎖定管理員指定的渠道與模型白名單、
-// 輸入 4k 字上限、強制低 max_tokens、對話**不落 D1**（只活在訪客瀏覽器）。
+// 輸入 4k 字上限、選填的回覆長度上限、對話**不落 D1**（只活在訪客瀏覽器）。
 //
 // 限流哲學與會員路徑「刻意相反」（ADR-0009 記載這個不對稱）：
 //   會員配額 fail-open（配額系統壞了照樣放行 — 服務優先）；
 //   demo 配額 **fail-closed**（DO 壞了直接 503 — 匿名流量寧可不服務，也不給人白嫖燒錢）。
 // 雙保險：每 IP 一顆 DO（demo-ip:<ip>，分鐘＋日）＋全站一顆（demo:global，日）。
-// 最壞燒錢上限＝demo_global_day × demo_max_tokens。
+// 最壞燒錢上限＝demo_global_day × demo_max_tokens；demo_max_tokens 沒填（預設）＝不壓長度，
+// 天花板就只剩「則數 × 模型自己的上限」— 要硬性壓成本就去 /settings 填一個數字。
 import { json } from "./site.js";
 import { reportErrorNow } from "./observe.js";
 import type { Env, UserRow } from "../types.js";
@@ -15,7 +16,7 @@ export const DEMO_DEFAULTS = {
   demo_per_min: 3, // 每 IP 每分鐘
   demo_per_ip_day: 10, // 每 IP 每日
   demo_global_day: 200, // 全站每日（燒錢上限的主保險）
-  demo_max_tokens: 512, // 強制的回覆長度上限
+  demo_max_tokens: 0, // 回覆長度上限；0＝不限（沒填就跟會員路徑一樣不對上游設 max_tokens）
   maxInputChars: 4000 // 整包輸入字數上限（不進 settings，硬編碼）
 };
 
@@ -26,7 +27,7 @@ export interface DemoCfg {
   perMin: number;
   perIpDay: number;
   globalDay: number;
-  maxTokens: number;
+  maxTokens: number; // 0＝不限（buildUpstream 收到 0 就不設 max_tokens）
 }
 
 function intOr(v: unknown, dft: number): number {

@@ -337,7 +337,8 @@ const PAGE_JS = `
      ["fDemoGlobalDay","demo_global_day"],["fDemoMaxTokens","demo_max_tokens"],
      ["fQuotaRelay","quota_relay_day"],["fQuotaPg","quota_pg_day"],["fRlMin","rl_per_min"]].forEach(function(p){
       $(p[0]).value=numVal(st[p[1]]);
-      $(p[0]).placeholder=D[p[1]]!=null?("內建預設 "+D[p[1]]):"";
+      // 內建預設 0 的鍵（回覆 token 上限）意思是「不壓長度」— 灰字要說人話，不能印「內建預設 0」
+      $(p[0]).placeholder=D[p[1]]==null?"":(D[p[1]]>0?("內建預設 "+D[p[1]]):"不限");
     });
     fillTg();
     renderPrices();

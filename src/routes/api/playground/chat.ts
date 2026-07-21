@@ -155,11 +155,11 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
       .run();
   }
 
-  // 打上游（demo 強制低 max_tokens — 燒錢上限的另一半）
+  // 打上游（demo 有填 demo_max_tokens 才壓回覆長度；留空＝0＝跟會員路徑一樣不設限）
   // 站台預設系統提示詞只在「這個管道自己沒填」時才需要查 — 有填的話那一查是純浪費，
   // 免費方案的 10ms CPU 與子請求都省一點是一點。
   const defSys = String(ch.system_prompt || "").trim() ? "" : await pgDefaultSystem(env);
-  const up = buildUpstream(ch, v.model, v.messages, demo ? demo.maxTokens : undefined, defSys);
+  const up = buildUpstream(ch, v.model, v.messages, (demo && demo.maxTokens) || undefined, defSys);
   const t0 = Date.now();
   let resp: Response;
   try {

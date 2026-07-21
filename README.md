@@ -11,8 +11,8 @@ Worker, one D1 (SQLite) database, one Durable Object class and two cron schedule
 No servers, no containers, no bundler for the runtime — `git push` is the whole supply chain.
 
 > **Try it right now**: [uaip.cc.cd/playground](https://uaip.cc.cd/playground) — when demo
-> mode is enabled you can chat with a real model without signing in (short replies,
-> fail-closed rate limits, nothing you type is stored server-side).
+> mode is enabled you can chat with a real model without signing in (fail-closed
+> rate limits, nothing you type is stored server-side).
 
 <p align="center">
   <img src="./docs/assets/playground-demo.png" alt="Anonymous demo mode chat" width="49%">
