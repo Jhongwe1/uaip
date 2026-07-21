@@ -186,7 +186,7 @@ const PG_JS = `
   var SEND_ICON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
   var STOP_ICON='<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';
   var me=null,groups=[],convs=[],cur=null,msgs=[];
-  var demoMode=false;  // 體驗模式（未登入＋管理員開 demo）：無側欄、對話只活在本頁記憶體
+  var demoMode=false;  // 體驗模式（未登入＋管理員開 demo）：無側欄、看不到歷史（對話只有管理員看得到）
   var streaming=false,aborter=null;
   var UI={};
   var coarse=!!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);
@@ -279,7 +279,7 @@ const PG_JS = `
     var app=el("div","pg");UI.app=app;
 
     UI.clist=null;
-    if(!demoMode){ /* 體驗模式沒有對話列表（不存伺服器，沒東西可列） */
+    if(!demoMode){ /* 體驗模式沒有對話列表：大家共用同一個匿名身分，歷史只給管理員看 */
       var side=el("aside","pg-side");
       var nw=el("div","pg-new");
       var nb=el("button","pg-newbtn","＋ "+tx("新對話","New chat"));
@@ -575,7 +575,7 @@ const PG_JS = `
     }).then(function(r){
       if(!r.ok){
         return r.json().catch(function(){return{};}).then(function(d){
-          if(!demoMode&&d.conv&&!cur){cur=d.conv;refreshList();}
+          if(d.conv&&!cur){cur=d.conv;if(!demoMode)refreshList();}
           // 額度 429 會附 contact_url — 掛在 Error 上帶到 catch，那裡才有 node 可以畫
           var er=new Error(d.hint||d.error||("HTTP "+r.status));
           er.contactUrl=d.contact_url||"";
@@ -594,10 +594,13 @@ const PG_JS = `
             var p=line.slice(5).trim();
             if(!p)continue;
             var j=null;try{j=JSON.parse(p);}catch(e){continue;}
-            if(!demoMode&&j.conv&&!cur){
+            if(j.conv&&!cur){
               cur=j.conv;
-              convs.unshift({id:j.conv,title:j.title||text.slice(0,60),channel:channel,model:model,updated_at:new Date().toISOString()});
-              renderConvList();
+              /* 體驗模式只留編號把後續訊息串成同一則對話 — 沒有列表可以更新（訪客看不到歷史） */
+              if(!demoMode){
+                convs.unshift({id:j.conv,title:j.title||text.slice(0,60),channel:channel,model:model,updated_at:new Date().toISOString()});
+                renderConvList();
+              }
             }
             if(j.r){var th=ensureThink(node);th.text+=j.r;thinkPaint(th);}
             // 正文第一個字＝思考階段結束（沒思考過的話這是 no-op）

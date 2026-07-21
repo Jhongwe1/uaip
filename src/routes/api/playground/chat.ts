@@ -118,13 +118,13 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
     return json({ error: "no-upstream-key", hint: "渠道還沒設定上游金鑰，請管理員到 /relay 補上" }, 502);
 
   // 對話：沒帶 conv_id＝開新對話（標題自動取第一句 user 訊息）。
-  // demo 不落對話表 — 對話只活在訪客瀏覽器裡（convId 維持 null）。
+  // demo 的對話 2026-07-21 起也落地 —— 全掛在 demo:public 這一列名下，只有管理員在
+  // /logs 的對話紀錄看得到；訪客沒有列表、也讀不到（那兩支端點都要登入，見下面的歸屬檢查）。
+  // 歸屬檢查照走 user_id＝demo:public：匿名者塞會員的 conv_id 進來一樣是 404。
   const now = new Date().toISOString();
   let convId = v.convId,
     newTitle: string | null = null;
-  if (demo) {
-    convId = null;
-  } else if (convId) {
+  if (convId) {
     const conv = await env.DB.prepare("SELECT id FROM pg_conversations WHERE id=?1 AND user_id=?2")
       .bind(convId, user.id)
       .first();
@@ -145,15 +145,13 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
       .run();
     convId = r.meta.last_row_id;
   }
-  if (!demo) {
-    // 先存 user 訊息 — 就算上游掛了，會員的問題也不會消失
-    const lastUser = v.messages[v.messages.length - 1];
-    await env.DB.prepare(
-      "INSERT INTO pg_messages (conv_id,role,content,model,created_at) VALUES (?1,'user',?2,?3,?4)"
-    )
-      .bind(convId, lastUser.content, v.model, now)
-      .run();
-  }
+  // 先存 user 訊息 — 就算上游掛了，問過的問題也不會消失
+  const lastUser = v.messages[v.messages.length - 1];
+  await env.DB.prepare(
+    "INSERT INTO pg_messages (conv_id,role,content,model,created_at) VALUES (?1,'user',?2,?3,?4)"
+  )
+    .bind(convId, lastUser.content, v.model, now)
+    .run();
 
   // 打上游（demo 有填 demo_max_tokens 才壓回覆長度；留空＝0＝跟會員路徑一樣不設限）
   // 站台預設系統提示詞只在「這個管道自己沒填」時才需要查 — 有填的話那一查是純浪費，
@@ -258,8 +256,12 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
         if (pend.length >= 1000 || Date.now() - lastFlush >= 100) await flush();
       }
       try {
-        // demo 沒有對話編號 — 第一筆事件改標 demo，前端不做任何對話列表動作
-        await send(demo ? { demo: true } : newTitle ? { conv: convId, title: newTitle } : { conv: convId });
+        // demo 也拿得到對話編號（前端靠它把同一頁的後續訊息串成同一則對話），
+        // 額外標 demo:true 讓前端知道別去動對話列表 —— 體驗模式根本沒有列表。
+        const first: Record<string, unknown> = { conv: convId };
+        if (newTitle) first.title = newTitle;
+        if (demo) first.demo = true;
+        await send(first);
         if (ct.indexOf("json") >= 0 && ct.indexOf("event-stream") < 0) {
           // 上游不理 stream:true、直接回整包 JSON → 一次送完（相容便宜渠道的怪行為）
           const j: any = await resp.json();
@@ -352,24 +354,25 @@ export async function onRequestPost(context: RouteCtx): Promise<Response> {
       // 會員自己按停止（gone）不算異常。
       if (!full && !errMsg && !gone) emptyOut = true;
       // 存回 D1（部分回應也存 — 按「停止」時已生成的內容留著）。
-      // demo 只寫 req_log（記帳／限流觀測），對話內容一個字都不落地。
+      // demo 的對話同樣落地：管理員要在 /logs 看得到匿名試聊聊了什麼。
       try {
         const t2 = new Date().toISOString();
         const stmts: D1PreparedStatement[] = [];
-        if (!demo && full) {
+        if (full) {
           stmts.push(
             env.DB.prepare(
               "INSERT INTO pg_messages (conv_id,role,content,model,created_at) VALUES (?1,'assistant',?2,?3,?4)"
             ).bind(convId, full, v.model, t2)
           );
         }
-        if (!demo) {
-          stmts.push(
-            env.DB.prepare(
-              "UPDATE pg_conversations SET updated_at=?1, channel=?2, model=?3 WHERE id=?4"
-            ).bind(t2, v.channel, v.model, convId)
-          );
-        }
+        stmts.push(
+          env.DB.prepare("UPDATE pg_conversations SET updated_at=?1, channel=?2, model=?3 WHERE id=?4").bind(
+            t2,
+            v.channel,
+            v.model,
+            convId
+          )
+        );
         // 計量：req_log 併進同一個 batch（配額計數與延遲/成本研究數據共用）
         stmts.push(
           env.DB.prepare(

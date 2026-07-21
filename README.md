@@ -12,7 +12,7 @@ No servers, no containers, no bundler for the runtime — `git push` is the whol
 
 > **Try it right now**: [uaip.cc.cd/playground](https://uaip.cc.cd/playground) — when demo
 > mode is enabled you can chat with a real model without signing in (fail-closed
-> rate limits, nothing you type is stored server-side).
+> rate limits; chats are logged for the site admin only — visitors get no history).
 
 <p align="center">
   <img src="./docs/assets/playground-demo.png" alt="Anonymous demo mode chat" width="49%">

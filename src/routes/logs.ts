@@ -177,10 +177,10 @@ const BODY = `
       <div id="convEmpty" class="tbl-empty hidden">還沒有任何對話紀錄。</div>
     </div>
     <div class="more-row"><button id="convMoreBtn" class="ghost hidden">載入更多</button></div>
-    <p class="pagenote">全站會員在 Playground 存下的對話，新→舊排列 · 點一列展開完整內容 · 體驗模式（未登入試用）的對話不進資料庫，不會出現在這裡</p>
+    <p class="pagenote">全站會員在 Playground 存下的對話，新→舊排列 · 點一列展開完整內容 · 體驗模式（未登入試用）的對話也在這裡，成員顯示「體驗模式（匿名訪客合計）」— 訪客自己看不到任何歷史</p>
   </div>
 </section>
-<script data-nonce src="/assets/logs.js?v=20260720"><\/script>`;
+<script data-nonce src="/assets/logs.js?v=20260721"><\/script>`;
 
 export async function onRequestGet({ request, env }: RouteCtx): Promise<Response> {
   const { chrome } = await getChromeFor(env, request); // 選單依身分過濾（VPN 隱形）

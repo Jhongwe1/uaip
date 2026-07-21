@@ -347,7 +347,7 @@ curl -X PUT https://uaip.cc.cd/api/admin/prices ^
 `GET /api/admin/conversations/{id}` → `{ conv, messages }`：`conv` 是那列（額外帶 `email`、`name`），`messages` 依時間**舊→新**（聊天的閱讀順序）、上限 500 則，每則 `id`、`role`、`content`、`model`、`created_at`。找不到回 404。
 
 > 這兩支**唯讀**——管理員這邊不提供刪除，避免誤刪會員資料；會員自己可以在 /playground 刪自己的對話。
-> 體驗模式（未登入試用）的對話**不落資料庫**，所以不會出現在這裡。
+> 體驗模式（未登入試用）的對話**也在這裡**（2026-07-21 起），成員一律顯示成 `demo:public` 那列「體驗模式（匿名訪客合計）」、`email` 是空字串。訪客自己沒有任何讀取管道 — `/api/playground/conversations` 系列都要登入，這些對話只有管理員看得到。
 
 ## 5b. 會員與帳號 API
 
@@ -458,7 +458,7 @@ Authorization: Bearer uak-你的金鑰
 上游金鑰全程留在伺服器，會員只帶登入 cookie。對話存 D1、綁帳號、跨裝置同步。
 驗證：登入 cookie（要有 `playground` 服務，**或**管理員開了 `pg_open` 全員開放，見 §5）**或** `Authorization: Bearer <管理金鑰>`（以管理員帳號的身分操作，方便 curl／agent 測試）。
 
-**體驗模式（2026-07-17 v2.0.0，ADR-0009）**：管理員開 `demo_mode`＋設 `demo_channel` 後，**完全未登入**的訪客也能打 `GET /api/playground/models`（只回 demo 那一組、渠道顯示名固定「體驗模式」）與 `POST /api/playground/chat`（SSE 第一筆事件是 `{demo:true}` 而非 `{conv}`）。限制：渠道與模型鎖白名單、輸入整包 4000 字、回覆強制 `demo_max_tokens`、**對話不落資料庫**；fail-closed 限流（每 IP 分鐘/日＋全站日；超額 429 `demo-rate-limited`／`demo-quota-exceeded`，限流器故障 503 `demo-unavailable`）。
+**體驗模式（2026-07-17 v2.0.0，ADR-0009）**：管理員開 `demo_mode`＋設 `demo_channel` 後，**完全未登入**的訪客也能打 `GET /api/playground/models`（只回 demo 那一組、渠道顯示名固定「體驗模式」）與 `POST /api/playground/chat`（SSE 第一筆事件是 `{conv,title?,demo:true}` — `demo:true` 是給前端的旗標「別去動對話列表」，`conv` 照給，前端靠它把同一頁的後續訊息串成同一則）。限制：渠道與模型鎖白名單、輸入整包 4000 字、`demo_max_tokens` 有填才壓回覆長度；**對話會存進資料庫**（2026-07-21 起）但掛在 `demo:public` 名下、**只有管理員的 `/api/admin/conversations` 看得到**，訪客沒有任何讀取管道；fail-closed 限流（每 IP 分鐘/日＋全站日；超額 429 `demo-rate-limited`／`demo-quota-exceeded`，限流器故障 503 `demo-unavailable`）。
 
 - `GET /api/playground/models` → `{ rows:[{ slug, name, models }] }`（只列啟用中且有設模型的渠道；**不含 `kind`** — 那等於標示真實提供商）。
 - `GET /api/playground/conversations` → `{ rows:[{ id, title, channel, model, created_at, updated_at }] }`（自己的，新→舊，最多 100 筆）。**管理員要看全站所有人的對話**看 §5 的 `/api/admin/conversations`（或 /logs 的「總對話紀錄」分頁）。

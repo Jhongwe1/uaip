@@ -1,11 +1,14 @@
 // Demo 體驗模式（v2.0.0 Phase K，ADR-0009）測試矩陣：
-// 關→401；開→匿名可聊（不落對話表、req_log 記 demo:public、max_tokens 預設不壓、填了才壓）；
+// 關→401；開→匿名可聊（對話落在 demo:public 名下、訪客讀不到、max_tokens 預設不壓、填了才壓）；
 // 渠道／模型鎖定；4k 輸入上限；IP 日額 429；全站日額 429；DO 壞→503（fail-closed）。
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
 import { onRequestPost as chatPost } from "../../src/routes/api/playground/chat.js";
 import { onRequestGet as modelsGet } from "../../src/routes/api/playground/models.js";
 import { onRequestGet as settingsGet } from "../../src/routes/api/settings.js";
+import { onRequestGet as convListGet } from "../../src/routes/api/playground/conversations/index.js";
+import { onRequestGet as convGet } from "../../src/routes/api/playground/conversations/[id].js";
+import { onRequestDelete as convDel } from "../../src/routes/api/playground/conversations/[id].js";
 import { makeCtx, drainWaits, seedChannel, readAll, sseEvents, envWith, ORIGIN } from "../helpers.js";
 
 const UP = "https://api.example.com";
@@ -59,7 +62,7 @@ describe("demo 模式", () => {
     expect(s.demo).toBe(false);
   });
 
-  it("開→匿名可聊：SSE 正常、對話不落地、req_log 記 demo:public、沒填上限就不壓 max_tokens", async () => {
+  it("開→匿名可聊：SSE 正常、對話落在 demo:public 名下、req_log 也是、沒填上限就不壓 max_tokens", async () => {
     await seedChannel({ slug: "demo", kind: "openai", base_url: UP, models: "demo-model" });
     await demoOn("demo");
     let upBody: any = null;
@@ -80,7 +83,8 @@ describe("demo 模式", () => {
     expect(resp.status).toBe(200);
     const events = sseEvents(await readAll(resp));
     await drainWaits(ctx);
-    expect(events[0].demo).toBe(true); // 不回 conv 編號
+    expect(events[0].demo).toBe(true); // 標 demo：前端別去動對話列表
+    expect(events[0].conv).toBeGreaterThan(0); // 但照樣給編號，後續訊息才串得起來
     // 增量會批次合併（CPU 上限的解法），切分點是實作細節 → 驗合起來的內容
     expect(
       events
@@ -91,10 +95,18 @@ describe("demo 模式", () => {
     expect(events[events.length - 1].done).toBe(true);
     expect(upBody.max_tokens).toBeUndefined(); // demo_max_tokens 沒填＝不限（跟會員路徑一樣）
 
-    const convs = (await env.DB.prepare("SELECT * FROM pg_conversations").all()).results as any[];
-    const msgs = (await env.DB.prepare("SELECT * FROM pg_messages").all()).results as any[];
-    expect(convs.length).toBe(0);
-    expect(msgs.length).toBe(0);
+    // 對話落地了，但擁有者是永遠不可能登入的 demo:public（只有管理員的總表看得到）
+    const convs = (
+      await env.DB.prepare(
+        "SELECT c.*, u.google_sub AS sub FROM pg_conversations c JOIN users u ON u.id=c.user_id"
+      ).all()
+    ).results as any[];
+    expect(convs.length).toBe(1);
+    expect(convs[0].sub).toBe("demo:public");
+    expect(convs[0].id).toBe(events[0].conv);
+    const msgs = (await env.DB.prepare("SELECT * FROM pg_messages ORDER BY id").all()).results as any[];
+    expect(msgs.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(msgs[1].content).toBe("你好！");
     const logs = (
       await env.DB.prepare(
         "SELECT r.*, u.google_sub AS sub FROM req_log r JOIN users u ON u.id=r.user_id"
@@ -110,6 +122,39 @@ describe("demo 模式", () => {
     expect(m.demo).toBe(true);
     expect(m.rows[0].name).toBe("體驗模式");
     expect(m.rows[0].models).toEqual(["demo-model"]);
+  });
+
+  it("同一頁的第二則訊息續在同一則對話；訪客拿不到任何歷史（列表／讀取／刪除都要登入）", async () => {
+    await seedChannel({ slug: "demo", kind: "openai", base_url: UP, models: "demo-model" });
+    await demoOn("demo");
+    const reply = (t: string) =>
+      fetchMock
+        .get(UP)
+        .intercept({ path: "/v1/chat/completions", method: "POST" })
+        .reply(200, sse([t]), { headers: { "content-type": "text/event-stream" } });
+
+    reply("一");
+    const c1 = anonChat(MSG);
+    const ev1 = sseEvents(await readAll(await chatPost(c1)));
+    await drainWaits(c1);
+    const conv = ev1[0].conv;
+
+    // 前端把拿到的編號帶回來 → 續在同一則，不是開新的
+    reply("二");
+    const c2 = anonChat({ ...MSG, conv_id: conv, messages: [...MSG.messages, { role: "user", content: "再問" }] });
+    const ev2 = sseEvents(await readAll(await chatPost(c2)));
+    await drainWaits(c2);
+    expect(ev2[0].conv).toBe(conv);
+    const convs = (await env.DB.prepare("SELECT * FROM pg_conversations").all()).results as any[];
+    expect(convs.length).toBe(1);
+    const msgs = (await env.DB.prepare("SELECT * FROM pg_messages ORDER BY id").all()).results as any[];
+    expect(msgs.map((m) => m.role)).toEqual(["user", "assistant", "user", "assistant"]);
+
+    // 訪客那一側：三支端點全要登入 — 拿到編號也讀不出內容、刪不掉
+    expect((await convListGet(makeCtx({ url: ORIGIN + "/api/playground/conversations" }))).status).toBe(401);
+    const one = { url: ORIGIN + "/api/playground/conversations/" + conv, params: { id: String(conv) } };
+    expect((await convGet(makeCtx(one))).status).toBe(401);
+    expect((await convDel(makeCtx({ ...one, init: { method: "DELETE" } }))).status).toBe(401);
   });
 
   it("填了 demo_max_tokens 才壓上游回覆長度", async () => {

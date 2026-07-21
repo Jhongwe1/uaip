@@ -309,7 +309,11 @@
     var name = String(r.name || "").trim();
     if(name) td.appendChild(el("div", "ua-name", name));
     var mail = String(r.email || "").trim();
-    td.appendChild(el("div", "who-mail mono", mail || "（帳號已刪除 · 會員 #" + r.user_id + "）"));
+    // 沒有 email 有兩種：帳號真的被刪了（LEFT JOIN 沒接到，name 也是空的），
+    // 或那是體驗模式的合成帳號（有 name、email 本來就空）— 後者別誤標成「已刪除」
+    if(mail) td.appendChild(el("div", "who-mail mono", mail));
+    else if(name) td.appendChild(el("div", "who-mail mono", "（未登入的匿名訪客）"));
+    else td.appendChild(el("div", "who-mail mono", "（帳號已刪除 · 會員 #" + r.user_id + "）"));
     return td;
   }
 

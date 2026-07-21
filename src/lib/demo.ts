@@ -1,6 +1,6 @@
 // src/lib/demo.ts — Demo 體驗模式（v2.0.0 Phase K，ADR-0009）。
 // 讓「完全沒登入」的訪客在 /playground 直接試聊：鎖定管理員指定的渠道與模型白名單、
-// 輸入 4k 字上限、選填的回覆長度上限、對話**不落 D1**（只活在訪客瀏覽器）。
+// 輸入 4k 字上限、選填的回覆長度上限、對話存進 D1 但只有管理員看得到（見 demoUser）。
 //
 // 限流哲學與會員路徑「刻意相反」（ADR-0009 記載這個不對稱）：
 //   會員配額 fail-open（配額系統壞了照樣放行 — 服務優先）；
@@ -74,8 +74,14 @@ export async function demoCfg(env: Env): Promise<DemoCfg> {
 
 /**
  * demo 專用的 users 列（google_sub='demo:public'）— 懶建、全站一列。
- * 只是 req_log 的記帳身分（成本記帳自然涵蓋 demo 流量），永遠不可能登入：
- * OAuth 的 sub 是數字、dev 登入是 dev:<email>，都撞不到 'demo:public'；status 也保持 pending。
+ * 兩個身分：req_log 的記帳身分（成本記帳自然涵蓋 demo 流量），以及 2026-07-21 起
+ * **所有匿名試聊對話的擁有者**（全站訪客共用這一列）。
+ *
+ * 「擁有者」純粹是記帳歸屬，不等於有人能讀：這一列永遠不可能登入 —— OAuth 的 sub 是數字、
+ * dev 登入是 dev:<email>，都撞不到 'demo:public'，status 也保持 pending。而
+ * /api/playground/conversations（列表）與 .../{id}（讀取、改名、刪除）都先過 pgUser，
+ * 匿名一律 401、會員則被 user_id 綁在自己身上 —— 所以沒有任何訪客拿得到這些對話，
+ * 只有管理員的 /api/admin/conversations 看得到。
  */
 export async function demoUser(env: Env): Promise<UserRow> {
   const sel = () => env.DB.prepare("SELECT * FROM users WHERE google_sub='demo:public'").first<UserRow>();

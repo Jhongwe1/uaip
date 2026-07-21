@@ -256,11 +256,12 @@ paths:
       tags: [Playground]
       summary: 聊天（SSE 串流；demo 模式匿名可用、fail-closed 限流）
       description: |
-        SSE 事件流：`{conv,title?}`（demo 為 `{demo:true}`）→ 多筆 `{r:"思考增量"}`／`{d:"增量"}` → `{done:true}`；
+        SSE 事件流：`{conv,title?}`（demo 多帶一個 `demo:true`，意思是「前端別動對話列表」）→ 多筆 `{r:"思考增量"}`／`{d:"增量"}` → `{done:true}`；
         中途錯誤 `{error,hint}`。上游一開始就失敗直接回 JSON 錯誤。
         `r` 是推理模型的思考過程（reasoning_content / reasoning / thinking_delta / gemini thought part），
         不寫進資料庫、非推理模型不會出現。整趟沒有任何 `d` → `{error:"empty-output",hint}`，不會靜默結束。
-        demo 限制：渠道/模型鎖白名單、輸入 4000 字、對話不落地（demo_max_tokens 有填才壓回覆長度）；
+        demo 限制：渠道/模型鎖白名單、輸入 4000 字（demo_max_tokens 有填才壓回覆長度）；
+        對話存在 demo:public 名下，只有管理員看得到、訪客沒有讀取管道；
         超額 429（demo-rate-limited / demo-quota-exceeded）、限流器故障 503（demo-unavailable）。
       security: [{ sessionCookie: [] }, { adminToken: [] }, {}]
       requestBody:
