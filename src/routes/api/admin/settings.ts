@@ -143,15 +143,21 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
     return json({ error: "bad-input", hint: "至少要帶一個設定鍵（" + ALL_KEYS.join(" / ") + "）" }, 400);
   }
 
+  // 先全部驗證、最後一次寫入（2026-07-22）。
+  // 舊版是逐鍵「驗證 → 立刻 await 寫入」：14 個鍵裡只要有一個在後段被擋下，前段已經
+  // 落地的照樣留在 D1，而端點回 400、前端把它當「整包失敗」不重抓 —— UI 與資料庫從此
+  // 不一致，而且雙方都不知道。改成收集 statements、驗完才 env.DB.batch()（D1 的 batch
+  // 是單一交易）之後，400 的語意變成「什麼都沒發生」。副作用是十幾次 D1 往返收斂成 1 次。
+  const stmts: D1PreparedStatement[] = [];
   const put = function (k: string, v: string) {
-    return env.DB.prepare(
-      "INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v=excluded.v"
-    )
-      .bind(k, v)
-      .run();
+    stmts.push(
+      env.DB.prepare(
+        "INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v=excluded.v"
+      ).bind(k, v)
+    );
   };
   const del = function (k: string) {
-    return env.DB.prepare("DELETE FROM settings WHERE k=?1").bind(k).run();
+    stmts.push(env.DB.prepare("DELETE FROM settings WHERE k=?1").bind(k));
   };
 
   try {
@@ -159,38 +165,38 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
       const brand = String(body.brand == null ? "" : body.brand)
         .trim()
         .slice(0, 60);
-      if (!brand) await del("brand");
-      else await put("brand", brand);
+      if (!brand) del("brand");
+      else put("brand", brand);
     }
     if ("contact_url" in body) {
       const cu = String(body.contact_url == null ? "" : body.contact_url)
         .trim()
         .slice(0, 300);
-      if (!cu) await del("contact_url");
+      if (!cu) del("contact_url");
       else if (!/^https?:\/\//i.test(cu)) {
         return json(
           { error: "bad-input", hint: "contact_url 要是 http(s):// 開頭的網址，或空字串＝移除" },
           400
         );
-      } else await put("contact_url", cu);
+      } else put("contact_url", cu);
     }
     if ("pg_open" in body) {
-      if (body.pg_open) await put("pg_open", "1");
-      else await del("pg_open");
+      if (body.pg_open) put("pg_open", "1");
+      else del("pg_open");
     }
     if ("pg_default_system" in body) {
       const ps = String(body.pg_default_system == null ? "" : body.pg_default_system)
         .trim()
         .slice(0, 4000);
       if (!ps)
-        await del("pg_default_system"); // 空＝回到內建 PG_DEFAULT_SYSTEM
-      else await put("pg_default_system", ps);
+        del("pg_default_system"); // 空＝回到內建 PG_DEFAULT_SYSTEM
+      else put("pg_default_system", ps);
     }
     for (const k of QUOTA_KEYS) {
       if (!(k in body)) continue;
       const v = body[k];
       if (v === null || v === "") {
-        await del(k);
+        del(k);
         continue;
       }
       const n = parseInt(v, 10);
@@ -207,38 +213,38 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
           400
         );
       }
-      await put(k, String(n));
+      put(k, String(n));
     }
     if ("relay_meter" in body) {
       if (body.relay_meter)
-        await del("relay_meter"); // 預設就是開
-      else await put("relay_meter", "0");
+        del("relay_meter"); // 預設就是開
+      else put("relay_meter", "0");
     }
     // —— demo 體驗模式（Phase K）——
     if ("demo_mode" in body) {
-      if (body.demo_mode) await put("demo_mode", "1");
-      else await del("demo_mode");
+      if (body.demo_mode) put("demo_mode", "1");
+      else del("demo_mode");
     }
     if ("demo_channel" in body) {
       const dc = String(body.demo_channel == null ? "" : body.demo_channel)
         .trim()
         .toLowerCase()
         .slice(0, 100);
-      if (!dc) await del("demo_channel");
-      else await put("demo_channel", dc);
+      if (!dc) del("demo_channel");
+      else put("demo_channel", dc);
     }
     if ("demo_models" in body) {
       const dm = String(body.demo_models == null ? "" : body.demo_models)
         .trim()
         .slice(0, 1000);
-      if (!dm) await del("demo_models");
-      else await put("demo_models", dm);
+      if (!dm) del("demo_models");
+      else put("demo_models", dm);
     }
     for (const k of DEMO_NUM_KEYS) {
       if (!(k in body)) continue;
       const v = body[k];
       if (v === null || v === "") {
-        await del(k);
+        del(k);
         continue;
       }
       const n = parseInt(v, 10);
@@ -253,23 +259,26 @@ export async function onRequestPut(context: RouteCtx): Promise<Response> {
           400
         );
       }
-      await put(k, String(n));
+      put(k, String(n));
     }
     // —— Telegram 告警（存 D1；cron 讀取 D1 優先、secrets 後備）——
     if ("tg_bot_token" in body) {
       const v = String(body.tg_bot_token == null ? "" : body.tg_bot_token)
         .trim()
         .slice(0, 100);
-      if (!v) await del("tg_bot_token");
-      else await put("tg_bot_token", v);
+      if (!v) del("tg_bot_token");
+      else put("tg_bot_token", v);
     }
     if ("tg_chat_id" in body) {
       const v = String(body.tg_chat_id == null ? "" : body.tg_chat_id)
         .trim()
         .slice(0, 50);
-      if (!v) await del("tg_chat_id");
-      else await put("tg_chat_id", v);
+      if (!v) del("tg_chat_id");
+      else put("tg_chat_id", v);
     }
+
+    // 這一行之前的每個 return 400 都代表「一列都沒寫」——原子性就靠這個位置。
+    if (stmts.length) await env.DB.batch(stmts);
 
     // 稽核：記「帶了哪些鍵、改成什麼」（站名與開關不是秘密，可直接記值；
     // tg_bot_token 是秘密 — 只記「有更新」，明文絕不進 audit_log）

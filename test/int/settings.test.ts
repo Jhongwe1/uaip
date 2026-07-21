@@ -208,6 +208,45 @@ describe("settings 帶哪鍵改哪鍵", () => {
   });
 });
 
+// 多鍵 PUT 的原子性：14 個鍵原本是「逐一驗證→立刻寫入」，任何一鍵驗證失敗時
+// 前面已經寫進去的都留在 D1，而前端把 400 當整包失敗、不重抓 —— UI 與資料庫從此不一致，
+// 而且沒有人知道。改成「全部驗完 → 一次 batch」之後，400 等於什麼都沒發生。
+describe("settings PUT 是全有全無（驗證失敗不留半套）", () => {
+  it("前段鍵合法、後段鍵不合法 → 400 且前段鍵完全沒被寫入", async () => {
+    const r = await onRequestPut(
+      ctx({ brand: "不該被寫進去", contact_url: "https://example.com/x", quota_relay_day: 0 })
+    );
+    expect(r.status).toBe(400);
+    expect(await getKey("brand")).toBeNull();
+    expect(await getKey("contact_url")).toBeNull();
+  });
+
+  it("後段鍵不合法時，前段鍵的**舊值**也不會被覆蓋", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('brand','原本的站名')").run();
+    const r = await onRequestPut(ctx({ brand: "新站名", rl_per_min: "abc" }));
+    expect(r.status).toBe(400);
+    expect((await getKey("brand")).v).toBe("原本的站名");
+  });
+
+  it("刪鍵（空字串）也在同一批：後段失敗時不會把前段鍵刪掉", async () => {
+    await env.DB.prepare("INSERT INTO settings (k,v) VALUES ('brand','原本的站名')").run();
+    const r = await onRequestPut(ctx({ brand: "", demo_per_min: -5 }));
+    expect(r.status).toBe(400);
+    expect((await getKey("brand")).v).toBe("原本的站名"); // 沒被刪
+  });
+
+  it("全部合法 → 一次寫入全部生效（原子性沒有犧牲正常路徑）", async () => {
+    const r = await onRequestPut(
+      ctx({ brand: "站名", contact_url: "https://example.com/me", quota_relay_day: 42, pg_open: true })
+    );
+    expect(r.status).toBe(200);
+    expect((await getKey("brand")).v).toBe("站名");
+    expect((await getKey("contact_url")).v).toBe("https://example.com/me");
+    expect((await getKey("quota_relay_day")).v).toBe("42");
+    expect((await getKey("pg_open")).v).toBe("1");
+  });
+});
+
 // pgDefaultSystem(env)：Playground 送出前查的那一步（settings 有值就用，否則程式內建）。
 // 這是 /settings 那格設定「真的會生效」的關鍵接點 — 沒有它，UI 改了也不會影響聊天。
 describe("pgDefaultSystem — 站台預設系統提示詞的讀取", () => {
