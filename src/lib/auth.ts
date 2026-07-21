@@ -29,8 +29,21 @@ export function adminEmails(env: Env): string[] {
     .filter(Boolean);
 }
 
-export function isLocal(url: URL): boolean {
-  return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+/* ===== 開發模式旗標（2026-07-22，取代原本的 isLocal(url)）=====
+   這裡把「本機開發才有的便利後門」的判斷依據，從 **請求的 Host 標頭** 換成 **環境變數**。
+
+   原本是 `url.hostname === "localhost"`。在 Workers 裡 request.url 的 host 來自 Host 標頭
+   —— 客戶端可控 —— 所以那是「拿使用者送的字串來做授權判斷」。正式站目前打不到
+   （有設 LOGS_TOKEN，且 Cloudflare 按 Host/SNI 路由），但這個形狀有兩個問題：
+     1. 授權決策的輸入來自請求本身；
+     2. 設定缺失時往「開」的方向倒（fail-open on config error）——LOGS_TOKEN 忘了設，
+        防線就從「要金鑰」變成「Host 對就好」。
+
+   DEV_UNSAFE_ADMIN 只存在於 .dev.vars（wrangler dev 才讀，`wrangler deploy` 永遠不會上傳，
+   wrangler.toml 也刻意不宣告它）。正式環境讀到 undefined → false → fail-closed。
+   要開後門必須在開發者自己的機器上留下一個檔案，這是「明示的意圖」而不是「猜出來的環境」。 */
+export function isDevEnv(env: Env | null | undefined): boolean {
+  return !!env && env.DEV_UNSAFE_ADMIN === "1";
 }
 
 /* ===== 小工具 ===== */
@@ -67,16 +80,28 @@ export function keyHint(key: string | null | undefined): string {
   return k.length < 12 ? k : k.slice(0, 8) + "…" + k.slice(-4);
 }
 
+// cookie 取值。decodeURIComponent 對壞掉的百分號編碼會 throw（例 "%"、"%zz"），
+// 而這支的呼叫端（getSessionUser → 各 SSR 頁、adminOk）都在 try/catch 外面 ——
+// 一個 `Cookie: ipua_sess=%` 就能讓全站 SSR 一起 500。解碼失敗退回原字串：
+// 站內三個 cookie 值（session id、"1"、"1"）都是 base32 或字面 1，編碼與否同值，
+// 而 session id 另有 /^[a-z2-7]{20,64}$/ 把關，壞值本來就進不去查詢。
 export function getCookie(request: Request, name: string): string {
   const c = request.headers.get("cookie") || "";
   const m = c.match(new RegExp("(?:^|;\\s*)" + name + "=([^;]*)"));
-  return m ? decodeURIComponent(m[1]) : "";
+  if (!m) return "";
+  try {
+    return decodeURIComponent(m[1]);
+  } catch (e) {
+    return m[1];
+  }
 }
 
-// 登入後跳回的網址只收站內路徑（避免被當跳板轉去外站）
+// 登入後跳回的網址只收站內路徑（避免被當跳板轉去外站）。
+// 第二個字元同時擋 `/` 與 `\`：依 WHATWG URL，special scheme 的相對網址裡兩者等價，
+// 瀏覽器把 `Location: /\evil.com` 解析成 `https://evil.com` —— 只擋 `//` 是開放轉址。
 export function safeNext(v: unknown): string {
   const s = String(v || "");
-  return /^\/(?!\/)/.test(s) ? s.slice(0, 300) : "/";
+  return /^\/(?![/\\])/.test(s) ? s.slice(0, 300) : "/";
 }
 
 function cookieStr(
@@ -238,14 +263,14 @@ export function goodOrigin(request: Request, url: URL, env?: Env): boolean {
 }
 
 /* ===== 管理員驗證（取代舊 lib/site.js 的 authed，兩種身分都收） ===== */
-// 1) Authorization: Bearer <LOGS_TOKEN>（curl／agent；LOGS_TOKEN 沒設定時只有 localhost 放行）
+// 1) Authorization: Bearer <LOGS_TOKEN>（curl／agent；LOGS_TOKEN 沒設定時只有開發模式放行）
 // 2) 管理員 Google 帳號的登入 cookie（瀏覽器；經過 Origin 檢查）
 export async function adminOk(request: Request, env: Env, url: URL): Promise<boolean> {
   const auth = request.headers.get("authorization") || "";
   const token = auth.indexOf("Bearer ") === 0 ? auth.slice(7).trim() : "";
   if (env.LOGS_TOKEN) {
     if (await tokenEqual(token, env.LOGS_TOKEN)) return true;
-  } else if (isLocal(url)) return true;
+  } else if (isDevEnv(env)) return true; // 見 isDevEnv：不再看 Host 標頭
   if (!goodOrigin(request, url, env)) return false;
   const user = await getSessionUser(request, env);
   return isAdminUser(user, env);

@@ -5,6 +5,7 @@ import {
   sha256hex,
   keyHint,
   safeNext,
+  getCookie,
   goodOrigin,
   userServices,
   memberKeyFrom
@@ -53,6 +54,19 @@ describe("safeNext（登入後跳轉只收站內路徑）", () => {
   it("協定相對網址 //evil.com 擋下（重點案例）", () => {
     expect(safeNext("//evil.com")).toBe("/");
   });
+  // 依 WHATWG URL，special scheme 的相對網址裡 `\` 等同 `/`：瀏覽器把
+  // Location: /\evil.com 解析成 https://evil.com。舊的 /^\/(?!\/)/ 只擋了 //，
+  // 反斜線變體整條穿過去 → 開放轉址（可達路徑：/auth/login?next=… → callback 的 Location）。
+  it("反斜線變體 /\\evil.com 擋下（WHATWG URL 裡 \\ 等同 /）", () => {
+    expect(safeNext("/\\evil.com")).toBe("/");
+    expect(safeNext("/\\/evil.com")).toBe("/");
+    expect(safeNext("/\\\\evil.com")).toBe("/");
+    expect(safeNext("/\\@evil.com")).toBe("/");
+  });
+  it("單獨的 / 與站內路徑裡的反斜線不受影響", () => {
+    expect(safeNext("/")).toBe("/");
+    expect(safeNext("/p/a\\b")).toBe("/p/a\\b"); // 只有「第二個字元」是分隔符才危險
+  });
   it("絕對網址、空值、非 / 開頭都退回 /", () => {
     expect(safeNext("https://evil.com")).toBe("/");
     expect(safeNext("")).toBe("/");
@@ -61,6 +75,26 @@ describe("safeNext（登入後跳轉只收站內路徑）", () => {
   });
   it("超長路徑截斷到 300 字", () => {
     expect(safeNext("/" + "a".repeat(500)).length).toBe(300);
+  });
+});
+
+// getCookie 是 getSessionUser 的第一步，而 getSessionUser 的呼叫點（auth.ts 的
+// adminOk、各 SSR 頁）在 try/catch **外面** —— 這裡 throw 一次，整站 11 個 SSR 頁面一起 500。
+// 三個 cookie 值（session id、'1'、'1'）都是 base32 或字面 1，本來就不需要解碼。
+describe("getCookie（cookie 解析永不 throw）", () => {
+  const req = (cookie: string) => new Request("https://uaip.cc.cd/", { headers: { cookie } });
+  it("一般值原樣取回", () => {
+    expect(getCookie(req("ipua_sess=abc123"), "ipua_sess")).toBe("abc123");
+    expect(getCookie(req("a=1; ipua_sess=xyz; b=2"), "ipua_sess")).toBe("xyz");
+  });
+  it("壞掉的百分號編碼不 throw —— 送 Cookie: ipua_sess=% 曾能讓整站 SSR 500", () => {
+    expect(() => getCookie(req("ipua_sess=%"), "ipua_sess")).not.toThrow();
+    expect(() => getCookie(req("ipua_sess=%E0%A4%A"), "ipua_sess")).not.toThrow();
+    expect(() => getCookie(req("ipua_sess=%zz"), "ipua_sess")).not.toThrow();
+  });
+  it("沒有這個 cookie 回空字串", () => {
+    expect(getCookie(req("other=1"), "ipua_sess")).toBe("");
+    expect(getCookie(req(""), "ipua_sess")).toBe("");
   });
 });
 

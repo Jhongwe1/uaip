@@ -5,13 +5,17 @@ import { describe, it, expect } from "vitest";
 import { onRequest } from "../../src/routes/_middleware.js";
 import { ORIGIN } from "../helpers.js";
 
-// 假 DB：只認 INSERT INTO visits，記下呼叫次數；其餘語句照樣回傳 no-op。
+// 假 DB：只認 INSERT INTO visits，記下呼叫次數與**綁定的欄位值**（欄位順序見
+// _middleware.ts 的 INSERT：ts, host, path, method, ip, ua, …）；其餘語句照樣回傳 no-op。
 function recordingEnv() {
-  const state = { inserts: 0 };
+  const state: { inserts: number; binds: unknown[] } = { inserts: 0, binds: [] };
   const stmt = (sql: string) => ({
-    bind: () => ({
+    bind: (...args: unknown[]) => ({
       run: async () => {
-        if (/INSERT INTO visits/i.test(sql)) state.inserts++;
+        if (/INSERT INTO visits/i.test(sql)) {
+          state.inserts++;
+          state.binds = args;
+        }
         return { success: true };
       }
     }),
@@ -21,7 +25,7 @@ function recordingEnv() {
   return { env: { DB: { prepare: stmt } }, state };
 }
 
-// 驅動一次請求並等背景寫入跑完；回傳 inserts 次數。
+// 驅動一次請求並等背景寫入跑完；回傳 inserts 次數與寫進 visits 的欄位值。
 async function run(path: string, opts: { method?: string; headers?: Record<string, string> } = {}) {
   const { env, state } = recordingEnv();
   const waits: Promise<unknown>[] = [];
@@ -33,8 +37,11 @@ async function run(path: string, opts: { method?: string; headers?: Record<strin
   };
   const r = await onRequest(ctx);
   await Promise.allSettled(waits);
-  return { logged: state.inserts > 0, resp: r };
+  return { logged: state.inserts > 0, resp: r, binds: state.binds };
 }
+
+// visits 的 INSERT 欄位順序（_middleware.ts logVisit）
+const COL = { ts: 0, host: 1, path: 2, method: 3, ip: 4, ua: 5, lang: 12, referer: 13 };
 
 const HTML = { accept: "text/html" };
 
@@ -90,6 +97,35 @@ describe("shouldLog：不記錄的請求", () => {
   it("沒帶 Accept 但打固定頁面路徑（機器人）仍記", async () => {
     expect((await run("/")).logged).toBe(true);
     expect((await run("/ip")).logged).toBe(true);
+  });
+});
+
+// 隔壁的 ua/lang/referer 都截了長度，只有 path 沒有 —— 而 Cloudflare 接受約 16 KB 的 URL，
+// 等於任何人都能往 visits 塞 16 KB 一列。截到 500 跟 referer 同一個數量級。
+describe("visits 欄位長度上限", () => {
+  it("path 超長截斷到 500 字（含 query string）", async () => {
+    const long = "/news?q=" + "a".repeat(20000);
+    const { logged, binds } = await run(long, { headers: HTML });
+    expect(logged).toBe(true);
+    expect(String(binds[COL.path]).length).toBe(500);
+    expect(String(binds[COL.path]).startsWith("/news?q=aaa")).toBe(true);
+  });
+  it("一般長度的 path 原樣寫入（含 query string）", async () => {
+    const { binds } = await run("/news?q=1", { headers: HTML });
+    expect(binds[COL.path]).toBe("/news?q=1");
+  });
+  it("ua / lang / referer 維持既有上限（700 / 200 / 500）", async () => {
+    const { binds } = await run("/news", {
+      headers: {
+        accept: "text/html",
+        "user-agent": "u".repeat(2000),
+        "accept-language": "l".repeat(2000),
+        referer: "https://example.com/" + "r".repeat(2000)
+      }
+    });
+    expect(String(binds[COL.ua]).length).toBe(700);
+    expect(String(binds[COL.lang]).length).toBe(200);
+    expect(String(binds[COL.referer]).length).toBe(500);
   });
 });
 

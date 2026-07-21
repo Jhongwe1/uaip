@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
 import { onRequestGet as callback } from "../../src/routes/auth/callback.js";
+import { onRequestGet as login } from "../../src/routes/auth/login.js";
 import { getSessionUser } from "../../src/lib/auth.js";
 import { makeCtx, drainWaits, envWith, ORIGIN } from "../helpers.js";
 
@@ -168,5 +169,40 @@ describe("OAuth callback 全流程", () => {
     const r = await callback(ctx);
     expect(r.status).toBe(400);
     expect(await r.text()).toContain("尚未設定完成");
+  });
+});
+
+// 開放轉址的「可達路徑」端到端釘死（不只釘 safeNext 這支純函式）：
+//   /auth/login?next=… → ipua_oauth cookie → callback:59 safeNext → callback:130 的 Location
+// 兩個出口都驗：cookie 裡存下的 next，以及最後真正送出的 Location 標頭。
+describe("登入轉址：Location 永遠留在站內", () => {
+  const EVIL = ["//evil.com", "/\\evil.com", "/\\/evil.com", "/\\\\evil.com", "https://evil.com"];
+
+  it("入口 /auth/login?next=<外站> → 存進 ipua_oauth 的 next 已被正規化成 /", async () => {
+    for (const bad of EVIL) {
+      const r = await login(
+        makeCtx({
+          url: ORIGIN + "/auth/login?next=" + encodeURIComponent(bad),
+          env: envWith({ GOOGLE_CLIENT_ID: CID, GOOGLE_CLIENT_SECRET: "secret" })
+        })
+      );
+      const setCookie = r.headers.getSetCookie().join("\n");
+      const m = /ipua_oauth=([^;]*)/.exec(setCookie);
+      expect(decodeURIComponent(m![1]).split("|")[1]).toBe("/");
+    }
+  });
+
+  it("出口 callback 的 Location 不會是外站（就算 cookie 被塞了外站值）", async () => {
+    for (const bad of EVIL) {
+      const sub = "g-red-" + Math.random().toString(36).slice(2);
+      mockToken(idToken({ sub, aud: CID, email: sub + "@example.com", email_verified: true, name: "n" }));
+      const ctx = cbCtx("c", "s", "s|" + bad);
+      const r = await callback(ctx);
+      await drainWaits(ctx);
+      const loc = r.headers.get("location") || "";
+      expect(loc).toBe("/");
+      // 真正的判準不是「等於 /」，而是「瀏覽器解析後仍在本站」
+      expect(new URL(loc, ORIGIN).origin).toBe(ORIGIN);
+    }
   });
 });

@@ -44,7 +44,9 @@ async function logVisit(request: Request, env: Env, url: URL): Promise<void> {
     .bind(
       new Date().toISOString(),
       url.hostname,
-      url.pathname + (url.search || ""),
+      // 截 500 跟隔壁 referer 同級：Cloudflare 接受約 16 KB 的 URL，不截等於
+      // 任何人都能單靠網址長度往 visits 塞爆一列（ua/lang/referer 本來就都截了）
+      (url.pathname + (url.search || "")).slice(0, 500),
       request.method,
       h.get("cf-connecting-ip") || "",
       (h.get("user-agent") || "").slice(0, 700),
