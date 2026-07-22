@@ -102,7 +102,7 @@
   ];
 
   function renderRow(r){
-    var tr = el("tr", "main");
+    var tr = el("tr", "logrow");
     var tdT = el("td", "nowrap mono", fmtTime(r.ts)); tdT.title = r.ts;
     tr.appendChild(tdT);
     tr.appendChild(el("td", "mono", r.ip || "—"));
@@ -174,7 +174,7 @@
   }
 
   function renderErrRow(r){
-    var tr = el("tr", "main");
+    var tr = el("tr", "logrow");
     var tdT = el("td", "nowrap mono", fmtTime(r.ts)); tdT.title = r.ts;
     tr.appendChild(tdT);
     tr.appendChild(el("td", "mono nowrap", r.src || "—"));
@@ -335,7 +335,7 @@
   }
 
   function renderConvRow(r){
-    var tr = el("tr", "main");
+    var tr = el("tr", "logrow");
     var tdT = el("td", "nowrap mono", fmtTime(r.updated_at)); tdT.title = r.updated_at;
     tr.appendChild(tdT);
     tr.appendChild(convWhoCell(r));

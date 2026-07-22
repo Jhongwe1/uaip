@@ -17,8 +17,10 @@ const PAGE_CSS = `
   .chip b{display:block;font-size:22px;font-weight:700}
   .chip span{font-size:11px;color:var(--muted);letter-spacing:.05em}
   td{padding:9px 12px;vertical-align:top}
-  tr.main{cursor:pointer}
-  tr.main:hover td{background:var(--field)}
+  /* 列的 class 不能叫 main：外殼版面有全域 .main{display:flex;flex-direction:column}（site.ts），
+     撞名會把 <tr> 變成 flex 容器，<td> 被 blockify 成 display:block 整列直向疊起來。 */
+  tr.logrow{cursor:pointer}
+  tr.logrow:hover td{background:var(--field)}
   .ua-line{max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:12px}
   .ua-name{font-weight:600}
   tr.detail td{background:var(--field);border-bottom:1px solid var(--line);padding:12px 14px}
