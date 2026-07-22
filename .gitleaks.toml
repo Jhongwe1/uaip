@@ -1,0 +1,49 @@
+# .gitleaks.toml — 秘密掃描設定（CI 的 gitleaks job 讀這一份）
+#
+# 只有一個用途：放行 test/int/observability.test.ts 裡那五個**合成的**憑證 fixture。
+#
+# 為什麼會誤判：那一檔測的是 lib/observe.ts 的 redactSecrets()，也就是「把長得像憑證的
+# 字串遮掉」這件事本身。要證明遮罩有效，fixture 就**必須**長得像真的憑證 ——
+# 那正是秘密掃描器在找的形狀。這是設計上必然的衝突，不是疏忽。
+# （實際被擋的是 Google 那個：AIza + 剛好 35 字元、entropy 4.875，完全命中 gcp-api-key 規則。）
+#
+# 三個刻意的設計：
+#   1. **放行的是五個確切字串，不是一個目錄。** 最省事的解是把 test/ 整個排除掉，
+#      但那會讓「測試檔裡真的 commit 了一把真金鑰」也永遠不會紅。這裡任何**其他**秘密
+#      ——包括出現在同一個檔案裡的——照樣會被擋下（下面有三方對照實驗可以重跑）。
+#   2. **逐字列出，不用萬用樣式。** 換掉任何一個 fixture 都會讓 CI 紅，逼作者回到這裡
+#      確認「這個新字串真的是假的嗎」。會紅是功能，不是麻煩。
+#   3. 五個全列，即使目前只有 Google 那個被命中。gitleaks 的規則會持續增加，
+#      同一類誤判不該讓人再踩第二次。
+#
+# 為什麼不用 `[[allowlists]]` 加 `condition = "AND"` 把範圍再收到單一檔案：
+# **gitleaks 8.24.3 不支援複數形的 [[allowlists]]** —— 本機用 CI 同一版實測，
+# 寫了不會報錯、整段被靜默忽略、掃描照樣紅。單數 [allowlist] 裡的 paths 與 regexes
+# 是 OR 關係，所以加上 paths 反而會把整個檔案豁免，比現在這版更危險。
+# 既然放行的已經是五個固定的假字串，路徑範圍只是錦上添花，捨棄它不損失安全性質。
+#
+# 本機重現 CI（版本要對齊 —— 不同版的內建規則不一樣）：
+#   gitleaks detect --redact -v --exit-code=2 --no-banner \
+#     --log-opts="--no-merges --first-parent <base>^..<head>"
+#
+# ⚠ 改了這份 allowlist 之後，請重跑三方對照實驗確認它「還是夠窄」。
+#   只驗「fixture 有放行」是不夠的 —— 一個把所有東西都放行的 allowlist 也會通過那一項。
+#   在空目錄裡放一個檔案，內容是 AIza + **剛好 35 個** [A-Za-z0-9_-]（長度不對就不會命中規則，
+#   那樣測到的是「沒掃到」而不是「有擋住」），然後：
+#     ① 不放 config      → gitleaks dir . --exit-code=2   應得 2（基準：掃描器有效）
+#     ② 放這份 config    → 同上                            應得 2（allowlist 沒開太大 ← 關鍵）
+#     ③ 把內容換成下面列的 fixture 之一 → 同上             應得 0（誤判確實解除）
+#   ②拿到 0 就代表 allowlist 太寬，等於把掃描器關掉了。
+
+[extend]
+useDefault = true # 保留 gitleaks 全部內建規則，只加放行、不改規則
+
+[allowlist]
+description = "test/int/observability.test.ts 的合成憑證 fixture（redactSecrets 的測試資料）"
+regexes = [
+  '''sk-proj-AbCdEf0123456789ghIJklMNop''',
+  '''sk-ant-api03-AbCdEf0123456789ghIJklMNop''',
+  '''AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q''',
+  '''uak-abcdefghijklmnopqrst''',
+  '''1234567890:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw'''
+]
