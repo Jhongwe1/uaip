@@ -15,9 +15,12 @@ supply chain.
 > rate limits; chats are logged for the site admin only — visitors get no history).
 
 <p align="center">
-  <img src="./docs/assets/playground-demo.png" alt="Anonymous demo mode chat" width="49%">
+  <img src="./docs/assets/playground-demo.png" alt="Anonymous demo mode chat (v2.2 UI)" width="49%">
   <img src="./docs/assets/logs-usage-cost.png" alt="Usage dashboard with estimated cost" width="49%">
 </p>
+
+<p align="center"><sub>v2.2 UI: a ChatGPT-style shell across the whole site — persistent sidebar
+(menu + chat history), header model picker, dark-first, English-first with a 中文 toggle.</sub></p>
 
 ## The gateway
 
@@ -69,11 +72,11 @@ site, which is the point of running one Worker instead of four:
 
 | | Path | |
 |---|---|---|
-| **Playground** | `/playground` | Web chat over the same channels; conversations in D1; SSE with provider-identity sanitization. Anonymous **demo mode** is fail-closed — the deliberate inverse of the member path's fail-open quotas ([ADR-0009](./docs/adr/0009-demo-mode-fail-closed.md)). |
+| **Playground** | `/playground` | ChatGPT-style web chat over the same channels (v2.2 shell); conversations in D1; SSE with provider-identity sanitization. Anonymous **demo mode** is fail-closed — the deliberate inverse of the member path's fail-open quotas ([ADR-0009](./docs/adr/0009-demo-mode-fail-closed.md)). A **hidden-model lock** can pin every member to one admin-chosen model — enforced server-side, and the API masks which model it is. |
 | **Content portal** | `/news` `/articles` `/p/{slug}` | SSR CMS with D1-stored images, RSS, sitemap, OG/JSON-LD, custom pages. |
-| **VPN subscription** | `/vpn` | Multi-upstream merge behind one member URL; invisible to anyone without the grant. |
-| **Tools** | `/` `/ip` `/ua` | The original IP/UA lookup SPA. |
-| **Admin** | `/settings` `/members` `/admin` `/logs` `/api-docs` | Everything the API can set, settable from the web: quotas, demo mode, pricing, Telegram alerts, custom pages; member/service management; visitor + error + usage-with-cost dashboards. |
+| **VPN subscription** | `/vpn` | Multi-upstream merge behind one member URL; invisible to anyone without the grant unless the admin flips the public-visibility switch. |
+| **Tools** | `/ip` `/ua` | The original IP/UA lookup SPA (the site root now lands on the chat). |
+| **Admin** | `/settings` `/members` `/admin` `/logs` `/api-docs` | Everything the API can set, settable from the web: quotas, demo mode, hidden-model lock, VPN visibility, pricing, Telegram alerts, custom pages; member/service management; visitor + error + usage-with-cost dashboards. |
 
 Identity: Google OAuth → HttpOnly session (sids hashed in D1). Per-service grants
 (`relay` / `vpn` / `playground`); admin = env-pinned email list. Every admin mutation is
@@ -146,6 +149,12 @@ Also: [Production report with real numbers](./docs/REPORT.md) ·
   2026 audit found *three contradicting test counts* in one repo — and the first attempt at
   the check counted `it(` in the source, which silently undercounts loop-generated tests
   and passed while the README was wrong. It now reads `numTotalTests` from the run.
+- **The v2.2 UI is hand-written too** — no React, no Tailwind, no build step for the client.
+  The whole ChatGPT-style shell and chat surface (collapsible sidebar, chat history with
+  per-row menus, shared popover system, streaming markdown, dark/light × en/zh) is under
+  300 lines of CSS and under 1,000 lines of dependency-free JavaScript, served inline under
+  a per-request CSP nonce — so "zero runtime dependencies" survived a full visual redesign
+  instead of quietly acquiring a framework.
 - **CI** (GitHub Actions): ESLint + Prettier drift → typecheck → tests → apidoc/openapi/CSP
   drift checks → E2E → gitleaks. Deploys stay local by design (`npm run deploy`).
 - **Failure-policy engineering**: member quotas are fail-open in three layers
